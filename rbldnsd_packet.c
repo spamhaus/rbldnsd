@@ -272,8 +272,8 @@ int replypacket(struct dnspacket *pkt, unsigned qlen, const struct zone *zone) {
   else if (!h[p_ancnt]) {	/* positive reply, no answers */
     addrr_soa(pkt, zone, 1);	/* add SOA if any to AUTHORITY */
   }
-  else if (!(qi.qi_tflag & NSQUERY_NS) && zone->z_nns)
-    addrr_ns(pkt, zone, 1); /* add nameserver records to positive answer */
+  else if (zone->z_nns && (!(qi.qi_tflag & NSQUERY_NS) || qi.qi_dnlab))
+    addrr_ns(pkt, zone, 1); /* add nameserver records to positive reply */
 
   return pkt->p_cur - h;
 
