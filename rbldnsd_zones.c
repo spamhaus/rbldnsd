@@ -111,6 +111,7 @@ static struct zonedataset *newzonedataset(char *spec) {
     if (!*++dstp)
       error(0, "unknown zone type `%.60s'", spec);
   zds->zds_type = *dstp;
+  zds->zds_ds = zds->zds_type->dst_allocfn();
 
   for(zfp = &zds->zds_zf, f = strtok(f, delims); f; f = strtok(NULL, delims)) {
     zf = tmalloc(struct zonefile);
@@ -274,10 +275,7 @@ int zds_special(struct zonedataset *zds, char *line) {
   return 0;
 }
 static void freezonedataset(struct zonedataset *zds) {
-  if (zds->zds_ds) {
-    zds->zds_type->dst_freefn(zds->zds_ds);
-    zds->zds_ds = NULL;
-  }
+  zds->zds_type->dst_resetfn(zds->zds_ds);
   mp_free(&zds->zds_mp);
   zds->zds_zsoa.zsoa_valid = 0;
   memcpy(zds->zds_ttl, defttl, 4);
@@ -291,9 +289,7 @@ static int loadzonedataset(struct zonedataset *zds) {
   FILE *f;
 
   freezonedataset(zds);
-  if (!(zds->zds_ds = zds->zds_type->dst_allocfn()))
-    return 0;
-  
+ 
   for(zf = zds->zds_zf; zf; zf = zf->zf_next) {
     curloading.fname = zf->zf_name;
     f = fopen(zf->zf_name, "r");

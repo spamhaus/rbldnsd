@@ -36,12 +36,11 @@ struct dataset {
 #define EP 0			/* plain entry */
 #define EW 1			/* wildcard entry */
 
-static void ds_dnset_free(struct dataset *ds) {
-  if (ds) {
-    if (ds->e[EP]) free(ds->e[EP]);
-    if (ds->e[EW]) free(ds->e[EW]);
-    free(ds);
-  }
+static void ds_dnset_reset(struct dataset *ds) {
+  if (ds->e[EP]) free(ds->e[EP]);
+  if (ds->e[EW]) free(ds->e[EW]);
+  memset(ds, 0, sizeof(*ds));
+  ds->minlab[EP] = ds->minlab[EW] = DNS_MAXDN;
 }
 
 static int
@@ -124,10 +123,7 @@ ds_dnset_parseline(struct zonedataset *zds, char *s, int lineno) {
 }
 
 static struct dataset *ds_dnset_alloc() {
-  struct dataset *ds = tzalloc(struct dataset);
-  if (ds)
-    ds->minlab[EP] = ds->minlab[EW] = DNS_MAXDN;
-  return ds;
+  return tzalloc(struct dataset);
 }
 
 static int ds_dnset_load(struct zonedataset *zds, FILE *f) {

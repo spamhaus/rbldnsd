@@ -1,8 +1,10 @@
-rbldnsd (0.91) unstable; urgency=low
+rbldnsd (0.91pre) unstable; urgency=low
 
   * rotate nameserver records (simple cyclic rotation)
+  * do not reallocate memory for dataset headers on every reload
+  * fixed glitch in dnset - min DN labels was always 0 (tiny speedup only)
 
- -- Michael Tokarev <mjt@corpit.ru>  Sat, 10 May 2003 03:25:04 +0400
+ -- Michael Tokarev <mjt@corpit.ru>  Sat, 10 May 2003 03:55:46 +0400
 
 rbldnsd (0.90) unstable; urgency=low
 

@@ -245,7 +245,7 @@ static int init(int argc, char **argv, struct zone **zonep) {
     error(errno, "%s/%s: no available protocols", bindaddr, port);
   getnameinfo(ai->ai_addr, ai->ai_addrlen,
               host, sizeof(host),
-	      serv, sizeof(serv),
+              serv, sizeof(serv),
               NI_NUMERICHOST|NI_WITHSCOPEID|NI_NUMERICSERV);
 
   if (bind(fd, ai->ai_addr, ai->ai_addrlen) < 0)
@@ -403,7 +403,7 @@ static FILE *reopenlog(FILE *flog, const char *logfile) {
   if (fd >= 0 && (flog = fdopen(fd, "a")) != NULL)
     return flog;
   dslog(LOG_WARNING, 0, "error (re)opening logfile `%.50s': %s",
-	logfile, strerror(errno));
+        logfile, strerror(errno));
   if (fd >= 0) close(fd);
   return NULL;
 }

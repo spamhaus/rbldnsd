@@ -29,14 +29,12 @@ struct dataset {
 #define E16 2
 #define E08 3
 
-static void ds_ip4set_free(struct dataset *ds) {
-  if (ds) {
-    if (ds->e[E32]) free(ds->e[E32]);
-    if (ds->e[E24]) free(ds->e[E24]);
-    if (ds->e[E16]) free(ds->e[E16]);
-    if (ds->e[E08]) free(ds->e[E08]);
-    free(ds);
-  }
+static void ds_ip4set_reset(struct dataset *ds) {
+  if (ds->e[E32]) free(ds->e[E32]);
+  if (ds->e[E24]) free(ds->e[E24]);
+  if (ds->e[E16]) free(ds->e[E16]);
+  if (ds->e[E08]) free(ds->e[E08]);
+  memset(ds, 0, sizeof(*ds));
 }
 
 static int

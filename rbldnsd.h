@@ -71,7 +71,7 @@ char *parse_dn(char *s, unsigned char *dn, unsigned *dnlenp);
 typedef struct dataset *ds_allocfn_t(void);
 typedef int ds_loadfn_t(struct zonedataset *zds, FILE *f);
 typedef int ds_finishfn_t(struct dataset *ds);
-typedef void ds_freefn_t(struct dataset *ds);
+typedef void ds_resetfn_t(struct dataset *ds);
 typedef int
 ds_queryfn_t(const struct zonedataset *zds, const struct dnsquery *qry,
              struct dnspacket *pkt);
@@ -92,7 +92,7 @@ struct dataset_type {	/* dst */
   ds_allocfn_t *dst_allocfn;	/* allocation routine */
   ds_loadfn_t *dst_loadfn;	/* routine to load ds data */
   ds_finishfn_t *dst_finishfn;	/* finish loading */
-  ds_freefn_t *dst_freefn;	/* routine to free ds data */
+  ds_resetfn_t *dst_resetfn;	/* routine to release ds internal data */
   const char *dst_descr;    	/* short description of a ds type */
 };
 
@@ -106,11 +106,11 @@ struct dataset_type {	/* dst */
  static ds_queryfn_t ds_##t##_query; \
  static ds_loadfn_t ds_##t##_load; \
  static ds_finishfn_t ds_##t##_finish; \
- static ds_freefn_t ds_##t##_free; \
+ static ds_resetfn_t ds_##t##_reset; \
  const struct dataset_type dataset_##t##_type = { \
    #t, /* name */ flags, \
    ds_##t##_query, ds_##t##_alloc, ds_##t##_load, \
-   ds_##t##_finish, ds_##t##_free, \
+   ds_##t##_finish, ds_##t##_reset, \
    descr }
 
 declaredstype(ip4set);

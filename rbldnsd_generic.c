@@ -27,11 +27,10 @@ struct dataset {
   unsigned minlab;	/* min level of labels */
 };
 
-static void ds_generic_free(struct dataset *ds) {
-  if (ds) {
-    if (ds->e) free(ds->e);
-    free(ds);
-  }
+static void ds_generic_reset(struct dataset *ds) {
+  if (ds->e) free(ds->e);
+  memset(ds, 0, sizeof(*ds));
+  ds->minlab = DNS_MAXDN;
 }
 
 static int ds_generic_parseany(struct zonedataset *zds, char *s) {
