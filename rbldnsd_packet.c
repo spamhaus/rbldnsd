@@ -43,8 +43,9 @@ int replypacket(struct dnspacket *p, int len, const struct zone *zone) {
   if (p->p[4] || p->p[5] != 1) return 0; /* qdcount != 1 */
   /* check query's DN */
   x -= 4;
+  if (q + DNS_MAXDN < x) x = q + DNS_MAXDN; /* constrain query to MAXDN */
   while(*q)
-    if (q + *q >= x) return 0;
+    if (*q > DNS_MAXLABEL || q + *q >= x) return 0;
     else q += *q + 1;
   qlen = ++q - (p->p + 12);
   dns_dntol(p->p + 12, query);
