@@ -1,3 +1,11 @@
+rbldnsd (0.94pre) unstable; urgency=low
+
+  * implemented -d option (dump zone data in BIND format to stdout)
+
+  * data loading warnings goes to stderr instead of stdout
+
+ -- Michael Tokarev <mjt@corpit.ru>  Mon, 19 May 2003 03:09:14 +0400
+
 rbldnsd (0.93) unstable; urgency=low
 
   * reverse change made in 0.91: SOA TTL, when SOA is in AUTHORIRY
