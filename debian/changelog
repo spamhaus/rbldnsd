@@ -10,8 +10,10 @@ rbldnsd (0.993) unstable; urgency=low
 
   * manpage: described various :A:TXT cases; reformatted to use
     .SS instead of .IP in some cases.
+  * remove a note about ip4trie and -d option: ip4trie is dumpable
+    now.
 
- -- Michael Tokarev <mjt@corpit.ru>  Thu,  1 Jul 2004 20:10:56 +0400
+ -- Michael Tokarev <mjt@corpit.ru>  Thu,  1 Jul 2004 20:23:01 +0400
 
 rbldnsd (0.993p2) unstable; urgency=low
 
