@@ -76,6 +76,8 @@ const char def_rr[5] = "\177\0\0\2\0";		/* default A RR */
 struct dataset *ds_loading;
 
 #define MAXSOCK	20	/* maximum # of supported sockets */
+static int sock[MAXSOCK];
+static int numsock;
 
 /* a list of zonetypes. */
 const struct dstype *ds_types[] = {
@@ -153,8 +155,7 @@ static void NORETURN usage(int exitcode) {
 " -u user[:group] - run as this user:group (rbldns)\n"
 " -r rootdir - chroot to this directory\n"
 " -w workdir - working directory with zone files\n"
-" -b address - bind to (listen on) this address\n"
-" -P port - listen on this port\n"
+" -b address[:port] - bind to (listen on) this address (required)\n"
 #ifndef NOIPv6
 " -4 - use IPv4 socket type\n"
 " -6 - use IPv6 socket type\n"
@@ -188,143 +189,177 @@ static volatile int signalled;
 #define SIGNALLED_ZEROSTATS	0x08
 #define SIGNALLED_TERM		0x10
 
-static int
-init_sockets(const char *bindaddr[MAXSOCK], int nba,
-             const char *defport, int UNUSED family,
-             int fd[MAXSOCK]) {
+#ifdef NOIPv6
+static void newsocket(struct sockaddr_in *sin) {
+  int fd;
+  const char *host = ip4atos(ntohl(sin->sin_addr.s_addr));
+  if (numsock >= MAXSOCK)
+    error(0, "too many listening sockets (%d max)", MAXSOCK);
+  fd = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
+  if (fd < 0)
+    error(errno, "unable to create socket");
+  if (bind(fd, (struct sockaddr *)sin, sizeof(*sin)) < 0)
+    error(errno, "unable to bind to [%s]:%d", host, ntohs(sin->sin_port));
 
-  int i;
+  dslog(LOG_INFO, 0, "listening on [%s]:%d", host, ntohs(sin->sin_port));
+  sock[numsock++] = fd;
+}
+#else
+static int newsocket(struct addrinfo *ai) {
+  int fd;
+  char host[NI_MAXHOST], serv[NI_MAXSERV];
+
+  if (numsock >= MAXSOCK)
+    error(0, "too many listening sockets (%d max)", MAXSOCK);
+  fd = socket(ai->ai_family, ai->ai_socktype, ai->ai_protocol);
+  if (fd < 0) {
+    if (errno == EAFNOSUPPORT) return 0;
+    error(errno, "unable to create socket");
+  }
+  getnameinfo(ai->ai_addr, ai->ai_addrlen,
+              host, sizeof(host), serv, sizeof(serv),
+              NI_NUMERICHOST|NI_WITHSCOPEID|NI_NUMERICSERV);
+  if (bind(fd, ai->ai_addr, ai->ai_addrlen) < 0)
+        error(errno, "unable to bind to [%s]:%s", host, serv);
+
+  dslog(LOG_INFO, 0, "listening on [%s]:%s", host, serv);
+  sock[numsock++] = fd;
+  return 1;
+}
+#endif
+
+static void
+initsockets(const char *bindaddr[MAXSOCK], int nba, int UNUSED family) {
+
+  int i, x;
+  char *addrbuf, *host, *serv;
 
 #ifdef NOIPv6
 
   struct sockaddr_in sin;
   ip4addr_t sinaddr;
-  int portnum;
+  int port;
+  struct servent *se;
+  struct hostent *he;
+  int isip;
 
   memset(&sin, 0, sizeof(sin));
   sin.sin_family = AF_INET;
 
-  if ((portnum = satoi(defport)) < 0 || portnum > 0xffff) {
-    struct servent *se = getservbyname(defport, "udp");
-    if (!se)
-      error(0, "unknown service %.50s/udp", defport);
-    portnum = se->s_port;
-  }
+  if (!(se = getservbyname("domain", "udp")))
+    port = htons(DNS_PORT);
   else
-    portnum = htons(portnum);
+    port = se->s_port;
 
-  if (!nba) bindaddr[nba++] = NULL;
-  for (i = 0; i < nba; ++i) {
-    if (!bindaddr[i]) {
-      sin.sin_addr.s_addr = sinaddr = 0;
-      sin.sin_port = portnum;
-    }
-    else {
-      char *host = estrdup(bindaddr[i]);
-      char *port = strchr(host, '/');
-      if (!port)
-        sin.sin_port = portnum;
-      else {
-        int p;
-        *port++ = '\0';
-        if ((p = satoi(port)) < 0 || p > 0xffff) {
-          struct servent *se = getservbyname(port, "udp");
-          if (!se)
-            error(0, "unknown service %.50s/udp", port);
-          sin.sin_port = se->s_port;
-        }
-        else
-          sin.sin_port = htons(p);
-      }
-      if (ip4addr(host, &sinaddr, NULL))
-        sin.sin_addr.s_addr = htonl(sinaddr);
-      else {
-        struct hostent *he = gethostbyname(host);
-        if (!he
-            || he->h_addrtype != AF_INET
-            || he->h_length != 4
-            || !he->h_addr_list[0])
-          error(0, "%.50s: unknown host", host);
-        memcpy(&sin.sin_addr, he->h_addr_list[0], 4);
-        sinaddr = ntohl(sin.sin_addr.s_addr);
-      }
-    }
-    fd[i] = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
-    if (fd[i] < 0)
-      error(errno, "unable to create listening socket");
-    if (bind(fd[i], (struct sockaddr *)&sin, sizeof(sin)) < 0)
-      error(errno, "unable to bind to [%s]/%d",
-            ip4atos(sinaddr), ntohs(sin.sin_port));
-    dslog(LOG_INFO, 0, "listening on [%s]/%d",
-          ip4atos(sinaddr), ntohs(sin.sin_port));
-  }
-  endservent();
-  endhostent();
-  return nba;
+#else
 
-#else /* IPv6 */
-
-  int nfd = 0;
   struct addrinfo hints, *aires, *ai;
-  char ipname[NI_MAXHOST], portname[NI_MAXSERV];
+
   memset(&hints, 0, sizeof(hints));
   hints.ai_family = family;
   hints.ai_socktype = SOCK_DGRAM;
   hints.ai_flags = AI_PASSIVE;
 
-  if (!nba) bindaddr[nba++] = NULL;
+#endif
+
   for (i = 0; i < nba; ++i) {
-    int x, c;
-    char *host;
-    const char *port;
-    if (!bindaddr[i]) { host = NULL; port = defport; }
+    addrbuf = estrdup(bindaddr[i]);
+
+    if (*addrbuf == '[') {
+      host = addrbuf + 1;
+      if (!(serv = strchr(host, ']')) || (serv[1] && serv[1] != ':'))
+        error(0, "invalid address syntax in `%.60s'", bindaddr[i]);
+      *serv++ = '\0';
+      if (*serv) ++serv;
+#ifdef NOIPv6
+      isip = 1;
+#else
+      hints.ai_flags |= AI_NUMERICHOST;
+#endif
+    }
     else {
-      host = estrdup(bindaddr[i]);
-      port = strchr(host, '/');
-      if (!port) port = defport;
-      else *((char*)port++) = '\0';
+      host = addrbuf;
+      if ((serv = strchr(host, ':')) != NULL)
+        *serv++ = '\0';
+#ifdef NOIPv6
+      isip = 0;
+#else
+      hints.ai_flags &= ~AI_NUMERICHOST;
+#endif
     }
-    c = getaddrinfo(host, port, &hints, &aires);
-    if (c != 0)
-      error(0, "%s/%s: %s", host ? host : "*", port, gai_strerror(c));
-    for(ai = aires, errno = 0, x = 0; ai; ai = ai->ai_next) {
-      if (ai->ai_family != AF_INET && ai->ai_family != AF_INET6)
-        continue;
-      if (nfd >= MAXSOCK)
-        error(0, "too many sockets specified (%d max)", MAXSOCK);
-      fd[nfd] = socket(ai->ai_family, ai->ai_socktype, ai->ai_protocol);
-      if (fd[nfd] < 0) continue;
-      getnameinfo(ai->ai_addr, ai->ai_addrlen,
-                  ipname, sizeof(ipname), portname, sizeof(portname),
-                  NI_NUMERICHOST|NI_WITHSCOPEID|NI_NUMERICSERV);
-      if (bind(fd[nfd], ai->ai_addr, ai->ai_addrlen) < 0)
-        error(errno, "unable to bind to [%s]/%s", ipname, portname);
-      dslog(LOG_INFO, 0, "listening on: %s/%s", ipname, portname);
-      ++nfd;
-      ++x;
+
+#ifdef NOIPv6
+
+    if (!serv || !*serv)
+      sin.sin_port = port;
+    else if ((x = satoi(serv)) > 0 && x <= 0xffff)
+      sin.sin_port = htons(x);
+    else if (!(se = getservbyname(serv, "udp")))
+      error(0, "unknown service in `%.60s'", bindaddr[i]);
+    else
+      sin.sin_port = se->s_port;
+
+    if (ip4addr(host, &sinaddr, NULL)) {
+      sin.sin_addr.s_addr = htonl(sinaddr);
+      newsocket(&sin);
     }
+    else if (isip || !*host)
+      error(0, "invalid IP address in `%.60s'", bindaddr[i]);
+    else if (!(he = gethostbyname(host))
+             || he->h_addrtype != AF_INET
+             || he->h_length != 4
+             || !he->h_addr_list[0])
+      error(0, "unknown host in `%.60s'", bindaddr[i]);
+    else {
+      for(x = 0; he->h_addr_list[x]; ++x) {
+        memcpy(&sin.sin_addr, he->h_addr_list[x], 4);
+        newsocket(&sin);
+      }
+    }
+
+#else
+
+    if (!serv || !*serv)
+      serv = "domain";
+
+    x = getaddrinfo(host, serv, &hints, &aires);
+    if (x != 0)
+      error(0, "%.60s: %s", bindaddr[i], gai_strerror(x));
+    for(ai = aires, x = 0; ai; ai = ai->ai_next)
+      if (newsocket(ai))
+        ++x;
     if (!x)
-      error(errno, "%s/%s: no available protocols", host ? host : "*", port);
+      error(0, "%.60s: no available protocols", bindaddr[i]);
     freeaddrinfo(aires);
-    free(host);
-  }
-  return nfd;
 
 #endif
 
+    free(addrbuf);
+  }
+  endservent();
+  endhostent();
+
+  for (i = 0; i < numsock; ++i) {
+    x = 65536;
+    do
+      if (setsockopt(sock[i], SOL_SOCKET, SO_RCVBUF, &x, sizeof x) == 0)
+        break;
+    while ((x -= (x >> 5)) >= 1024);
+  }
 }
 
-static int init(int argc, char **argv, struct zone **zonep, int fd[MAXSOCK]) {
+static struct zone *init(int argc, char **argv) {
   int c;
   char *p;
-  const char *user = NULL, *port = "domain";
+  const char *user = NULL;
   const char *rootdir = NULL, *workdir = NULL, *pidfile = NULL;
   const char *bindaddr[MAXSOCK];
-  int nfd = 0, nba = 0;
+  int nba = 0;
   uid_t uid = 0;
   gid_t gid = 0;
   int nodaemon = 0, quickstart = 0, dump = 0, nover = 0;
   int family = AF_UNSPEC;
+  struct zone *zonelist = NULL;
 
   if ((progname = strrchr(argv[0], '/')) != NULL)
     argv[0] = ++progname;
@@ -333,7 +368,7 @@ static int init(int argc, char **argv, struct zone **zonep, int fd[MAXSOCK]) {
 
   if (argc <= 1) usage(1);
 
-  while((c = getopt(argc, argv, "u:r:b:P:w:t:c:p:nel:qsh46dv")) != EOF)
+  while((c = getopt(argc, argv, "u:r:b:w:t:c:p:nel:qsh46dv")) != EOF)
     switch(c) {
     case 'u': user = optarg; break;
     case 'r': rootdir = optarg; break;
@@ -342,7 +377,6 @@ static int init(int argc, char **argv, struct zone **zonep, int fd[MAXSOCK]) {
         error(0, "too many addresses to listen on (%d max)", MAXSOCK);
       bindaddr[nba++] = optarg;
       break;
-    case 'P': port = optarg; break;
 #ifndef NOIPv6
     case '4': family = AF_INET; break;
     case '6': family = AF_INET6; break;
@@ -380,21 +414,24 @@ static int init(int argc, char **argv, struct zone **zonep, int fd[MAXSOCK]) {
     time_t now;
     logto = LOGTO_STDERR;
     for(c = 0; c < argc; ++c)
-      *zonep = addzone(*zonep, argv[c]);
+      zonelist = addzone(zonelist, argv[c]);
     if (rootdir && (chdir(rootdir) < 0 || chroot(rootdir) < 0))
       error(errno, "unable to chroot to %.50s", rootdir);
     if (workdir && chdir(workdir) < 0)
       error(errno, "unable to chdir to %.50s", workdir);
-    if (!do_reload(*zonep))
+    if (!do_reload(zonelist))
       error(0, "zone loading errors, aborting");
     now = time(NULL);
     printf("; zone dump made %s", ctime(&now));
     printf("; rbldnsd version %s\n", version);
-    for (z = *zonep; z; z = z->z_next)
+    for (z = zonelist; z; z = z->z_next)
       dumpzone(z, stdout);
     fflush(stdout);
     exit(ferror(stdout) ? 1 : 0);
   }
+
+  if (!nba)
+    error(0, "no address to listen on (-b option) specified");
 
   tzset();
   if (nodaemon)
@@ -417,14 +454,7 @@ static int init(int argc, char **argv, struct zone **zonep, int fd[MAXSOCK]) {
     if (!quickstart) logto |= LOGTO_STDOUT;
   }
 
-  nfd = init_sockets(bindaddr, nba, port, family, fd);
-  for (c = 0; c < nfd; ++c) {
-    int x = 65536;
-    do
-      if (setsockopt(fd[c], SOL_SOCKET, SO_RCVBUF, &x, sizeof x) == 0)
-        break;
-    while ((x -= (x >> 5)) >= 1024);
-  }
+  initsockets(bindaddr, nba, family);
 
   if (!user && !(uid = getuid()))
     user = "rbldns";
@@ -478,16 +508,16 @@ static int init(int argc, char **argv, struct zone **zonep, int fd[MAXSOCK]) {
       error(errno, "unable to setuid(%d:%d)", uid, gid);
 
   for(c = 0; c < argc; ++c)
-    *zonep = addzone(*zonep, argv[c]);
-  init_zones_caches(*zonep);
+    zonelist = addzone(zonelist, argv[c]);
+  init_zones_caches(zonelist);
 
   if (quickstart)
     signalled = SIGNALLED_RELOAD;	/* zones will be loaded after fork */
-  else if (!do_reload(*zonep))
+  else if (!do_reload(zonelist))
     error(0, "zone loading errors, aborting");
 
   dslog(LOG_INFO, 0, "rbldnsd version %s started (%d socket(s))",
-        version, nfd);
+        version, numsock);
   initialized = 1;
 
   if (!nodaemon) {
@@ -498,7 +528,7 @@ static int init(int argc, char **argv, struct zone **zonep, int fd[MAXSOCK]) {
     logto = LOGTO_SYSLOG;
   }
 
-  return nfd;
+  return zonelist;
 }
 
 static void sighandler(int sig) {
@@ -702,8 +732,7 @@ static void request(int fd) {
 }
 
 int main(int argc, char **argv) {
-  int fd[MAXSOCK], nfd;
-  nfd = init(argc, argv, &zonelist, fd);
+  zonelist = init(argc, argv);
   setup_signals();
   if (logfile) {
     if (*logfile == '+') flushlog = 1, ++logfile;
@@ -716,12 +745,12 @@ int main(int argc, char **argv) {
   stats_time = time(NULL);
 #endif
 
-  if (nfd == 1) {
+  if (numsock == 1) {
     /* optimized case for only one socket */
-    nfd = fd[0];
+    int fd = sock[0];
     for(;;) {
       if (signalled) do_signalled();
-      request(nfd);
+      request(fd);
     }
   }
   else {
@@ -729,9 +758,9 @@ int main(int argc, char **argv) {
 #ifdef NOPOLL
     fd_set rfds;
     int maxfd = 0;
-    int *fdi, *fde = fd + nfd;
+    int *fdi, *fde = sock + numsock;
     FD_ZERO(&rfds);
-    for (fdi = fd; fdi < fde; ++fdi) {
+    for (fdi = sock; fdi < fde; ++fdi) {
       FD_SET(*fdi, &rfds);
       if (*fdi > maxfd) maxfd = *fdi;
     }
@@ -741,22 +770,22 @@ int main(int argc, char **argv) {
       if (signalled) do_signalled();
       if (select(maxfd, &rfd, NULL, NULL, NULL) <= 0)
         continue;
-      for(fdi = fd; fdi < fde; ++fdi) {
+      for(fdi = sock; fdi < fde; ++fdi) {
         if (FD_ISSET(*fdi, &rfd))
           request(*fdi);
       }
     }
 #else /* !NOPOLL */
     struct pollfd pfda[MAXSOCK];
-    struct pollfd *pfdi, *pfde = pfda + nfd;
+    struct pollfd *pfdi, *pfde = pfda + numsock;
     int r;
-    for(r = 0; r < nfd; ++r) {
-      pfda[r].fd = fd[r];
+    for(r = 0; r < numsock; ++r) {
+      pfda[r].fd = sock[r];
       pfda[r].events = POLLIN;
     }
     for(;;) {
       if (signalled) do_signalled();
-      r = poll(pfda, nfd, -1);
+      r = poll(pfda, numsock, -1);
       if (r <= 0) continue;
       for(pfdi = pfda; pfdi < pfde; ++pfdi) {
         if (!(pfdi->revents & POLLIN)) continue;
