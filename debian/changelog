@@ -23,8 +23,13 @@ rbldnsd (0.98pre) unstable; urgency=low
   * wildcards in dnset: *.example.com and example.com works as before,
     but .example.com is now interpreted as BOTH *.example.com and example.com.
   * clarifications in manpage: dataset vs zone
+  * fix logging to various destinations (LOGTO_* constants, vdslog())
+  * allow to specify multiple listening addresses.
+  * recognize -b host/port syntax (only host previously)
+  * do fork() early in the initialization process so that logging will
+    have proper pid tag. This also slightly simplified init routine.
 
- -- Michael Tokarev <mjt@corpit.ru>  Sun, 10 Aug 2003 15:33:56 +0400
+ -- Michael Tokarev <mjt@corpit.ru>  Sun, 10 Aug 2003 19:40:24 +0400
 
 rbldnsd (0.97b) unstable; urgency=low
 
