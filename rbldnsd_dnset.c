@@ -159,7 +159,7 @@ static int ds_dnset_finish(struct dataset *ds) {
  * some subdomain of query domain.
  */
 
-static int
+static const struct entry *
 ds_dnset_find(const struct entry *e, int n,
               const unsigned char *rdn, unsigned dnlen,
               int *sub) {
@@ -174,7 +174,7 @@ ds_dnset_find(const struct entry *e, int n,
     if (r < 0) a = m + 1;	/* look in last half */
     else if (r > 0) b = m - 1;	/* look in first half */
     /* prefixes match (r == 0) */
-    else if (t->lrdn[0] == dnlen) return 1; /* found exact match */
+    else if (t->lrdn[0] == dnlen) return t; /* found exact match */
     else if (t->lrdn[0] < dnlen) a = m + 1; /* look in last half */
     else b = m - 1;		/* look in first half */
   }
@@ -190,7 +190,7 @@ ds_dnset_find(const struct entry *e, int n,
       )
     *sub = 1;
 
-  return 0;			/* not found */
+  return NULL;			/* not found */
 }
 
 static int
@@ -200,12 +200,13 @@ ds_dnset_query(const struct dataset *ds,
   const unsigned char *rdn = query->q_rdn;
   unsigned qlen = query->q_dnlen - 1;
   unsigned qlab = query->q_dnlab;
+  const struct entry *e;
   int sub = 0;
 
   if (!qlab) return 0;		/* empty query will never match */
 
   if (qlab > ds->maxlab[EP] 	/* if we have less labels, search unnec. */
-      || !ds_dnset_find(ds->e[EP], ds->n[EP], rdn, qlen, &sub)) {
+      || !(e = ds_dnset_find(ds->e[EP], ds->n[EP], rdn, qlen, &sub))) {
 
     /* try wildcard */
 
@@ -239,7 +240,7 @@ ds_dnset_query(const struct dataset *ds,
       }
       /* lookup an entry, do not watch if some subdomain
        * listed (we removed some labels already) */
-      if (ds_dnset_find(ds->e[EW], ds->n[EW], rdn, qlen, NULL))
+      if ((e = ds_dnset_find(ds->e[EW], ds->n[EW], rdn, qlen, NULL)))
         break;			/* found, listed */
       /* remove next label at the end of rdn */
       qlen -= *dn + 1;
@@ -249,8 +250,10 @@ ds_dnset_query(const struct dataset *ds,
   }
   if (qtyp & NSQUERY_A) addrec_a(packet, ds->r_a);
   if (ds->r_txt && (qtyp & NSQUERY_TXT)) {
+    unsigned char dn[DNS_MAXDN];
     char name[DNS_MAXDOMAIN+1];
-    dns_dntop(query->q_dn, name, sizeof(name));
+    dns_dnreverse(e->lrdn + 1, dn, e->lrdn[0] + 1);
+    dns_dntop(dn, name, sizeof(name));
     addrec_txt(packet, ds->r_txt, name);
   }
   return 1;
