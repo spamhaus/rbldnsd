@@ -1,5 +1,8 @@
 rbldnsd (0.992) unstable; urgency=low
 
+  * removed usage of NI_WITHSCOPEID (was used for unknwon reason
+    anyway and it have problems with new Solaris)
+
   * fix ds_generic_dump() that was broken for quite some time
 
   * fix example dataset in manpage (missing preference for MX)

@@ -12,10 +12,6 @@
 #include <syslog.h>
 #include "rbldnsd.h"
 
-#ifndef NI_WITHSCOPEID
-# define NI_WITHSCOPEID 0
-#endif
-
 static int addrr_soa(struct dnspacket *pkt, const struct zone *zone, int auth);
 static int addrr_ns(struct dnspacket *pkt, const struct zone *zone, int auth);
 static int version_req(struct dnspacket *pkt, const struct dnsquery *qry);
@@ -834,7 +830,7 @@ void logreply(const struct dnspacket *pkt,
 #ifndef NOIPv6
   if (getnameinfo(peeraddr, peeraddrlen,
                   cp, NI_MAXHOST, NULL, 0,
-                  NI_NUMERICHOST|NI_WITHSCOPEID) == 0)
+                  NI_NUMERICHOST) == 0)
     cp += strlen(cp);
   else
     *cp++ = '?';

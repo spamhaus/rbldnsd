@@ -38,9 +38,6 @@
 # include <inttypes.h>
 #endif
 
-#ifndef NI_WITHSCOPEID
-# define NI_WITHSCOPEID 0
-#endif
 #ifndef NI_MAXHOST
 # define NI_MAXHOST 1025
 #endif
@@ -228,7 +225,7 @@ static int newsocket(struct addrinfo *ai) {
   }
   getnameinfo(ai->ai_addr, ai->ai_addrlen,
               host, sizeof(host), serv, sizeof(serv),
-              NI_NUMERICHOST|NI_WITHSCOPEID|NI_NUMERICSERV);
+              NI_NUMERICHOST|NI_NUMERICSERV);
   if (bind(fd, ai->ai_addr, ai->ai_addrlen) < 0)
         error(errno, "unable to bind to %s/%s", host, serv);
 
