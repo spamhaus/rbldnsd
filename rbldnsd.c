@@ -71,6 +71,7 @@ const char def_rr[5] = "\1\0\0\177\0";
 const struct dataset_type *dataset_types[] = {
   &dataset_ip4set_type,
   &dataset_dnset_type,
+  &dataset_generic_type,
   NULL
 };
 
