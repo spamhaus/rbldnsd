@@ -87,6 +87,8 @@ int replypacket(struct dnspacket *p, unsigned qlen, const struct zone *zone) {
   }
  
   /* from now on, we see (almost?) valid dns query, should reply */
+  /* vars still in use:
+   *  p (packet); q (it's p->p); qlen, qlab; qtyp, qcls */
 
 #define refuse(code) (q[2] = 0x84, q[3] = (code), (p->sans - q))
 #define setnonauth(q) (q[2] &= ~0x04)
@@ -117,7 +119,7 @@ int replypacket(struct dnspacket *p, unsigned qlen, const struct zone *zone) {
       return refuse(DNS_R_REFUSED);
   }
 
-  q[2] = 0x80; /* 0x81?! */
+  q[2] = 0x80;
   if (qcls == DNS_C_IN) q[2] |= 0x04; /* AA */
   q[3] = DNS_R_NOERROR;
 
@@ -139,8 +141,12 @@ int replypacket(struct dnspacket *p, unsigned qlen, const struct zone *zone) {
     return refuse(DNS_R_SERVFAIL);
 
   *x = '\0';	/* terminate dn to end at zone base dn */
+
   qlab -= zone->z_dnlab;
   found = qlab == 0;	/* no NXDOMAIN if it's a query for the zone base DN */
+  /* vars still in use:
+   *  p (packet struct); q (p->p); qlab is #of labels w/o zone dn;
+   *  qtyp (converted to a bitmask); found (flag - if we found smth) */
 
   /* initialize various query variations */
   if (zone->z_dstflags & DSTF_IP4REV) /* ip4 address */
@@ -149,14 +155,16 @@ int replypacket(struct dnspacket *p, unsigned qlen, const struct zone *zone) {
     dns_dnreverse(p->qdn, p->qdnr, qlen - zone->z_dnlen + 1);
 
   { /* initialize DN compression */
+    /* start at zone DN, not at query DN, as it may contain
+     * unnecessary long DN.  Zone DN should fit in compr array */
     struct dnsdnptr *ptr = p->compr.ptr;
-    unsigned len = zone->z_dnlen;
-    unsigned qpos = (p->sans - 4 - len) - p->p;
+    unsigned qpos = (p->sans - 4 - (qlen = zone->z_dnlen)) - p->p;
     x = zone->z_dn;
-    while(*x) {
-      ptr->dnlen = len; len -= *x + 1;
-      ptr->qpos = qpos; qpos += *x + 1;
-      ptr->dnp = x; x += *x + 1;
+    while((qcls = *x)) {
+      ++qcls;
+      ptr->dnlen = qlen; qlen -= qcls;
+      ptr->qpos = qpos; qpos += qcls;
+      ptr->dnp = x; x += qcls;
       ++ptr;
     }
     p->compr.cptr = ptr;
@@ -191,20 +199,6 @@ int replypacket(struct dnspacket *p, unsigned qlen, const struct zone *zone) {
   else if (!q[7]) /* positive reply, 0 answers => add SOA if any to AUTHORITY */
     add_soa(p, zone, 1);
   return p->c - q;
-}
-
-/* check whenever a given RR is already in the packet
- * (to suppress duplicate answers)
- * May be unnecessary? */
-static int aexists(const struct dnspacket *p, unsigned typ,
-                   const void *val, unsigned vlen) {
-  const unsigned char *c, *e;
-  for(c = p->sans, e = p->c; c < e; c = c + 12 + c[11]) {
-    if (c[2] == (typ>>8) && c[3] == (typ&255) &&
-        c[11] == vlen && memcmp(c + 12, val, vlen) == 0)
-      return 1;
-  }
-  return 0;
 }
 
 #define fit(p, c, bytes) ((c) + (bytes) <= (p)->p + DNS_MAXPACKET)
@@ -326,6 +320,19 @@ int addrec_mx(struct dnspacket *p,
   return 0;
 }
 
+/* check whenever a given RR is already in the packet
+ * (to suppress duplicate answers)
+ * May be unnecessary? */
+static int aexists(const struct dnspacket *p, unsigned typ,
+                   const void *val, unsigned vlen) {
+  const unsigned char *c, *e;
+  for(c = p->sans, e = p->c; c < e; c = c + 12 + c[11]) {
+    if (c[2] == (typ>>8) && c[3] == (typ&255) &&
+        c[11] == vlen && memcmp(c + 12, val, vlen) == 0)
+      return 1;
+  }
+  return 0;
+}
 
 /* add a new record into answer, check for dups.
  * We just ignore any data that exceeds packet size */
