@@ -238,6 +238,7 @@ struct zone {	/* zone, list of zones */
   struct zonens *z_zns;			/* pre-packed NS records */
 #ifndef NOSTATS
   struct dnsstats z_stats;		/* statistic counters */
+  struct dnsstats z_pstats;		/* for stats monitoring: prev values */
 #endif
   struct zone *z_next;			/* next in list */
 };

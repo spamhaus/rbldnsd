@@ -643,6 +643,7 @@ static void setup_signals(void) {
 #ifndef NOSTATS
 
 struct dnsstats gstats;
+static struct dnsstats gptot;
 static time_t stats_time;
 
 static void dumpstats(void) {
@@ -652,9 +653,9 @@ static void dumpstats(void) {
   struct zone *z;
 
   f = fopen(statsfile, "a");
-  if (!f) return;
 
-  fprintf(f, "%ld", (long)time(NULL));
+  if (f)
+    fprintf(f, "%ld", (long)time(NULL));
 
 #define C ":%" PRI_DNSCNT
   tot = gstats;
@@ -663,19 +664,31 @@ static void dumpstats(void) {
     add(b_in); add(b_out);
     add(q_ok); add(q_nxd); add(q_err);
 #undef add
-    dns_dntop(z->z_dn, name, sizeof(name));
-    fprintf(f, " %s" C C C C C,
-      name,
-      z->z_stats.q_ok + z->z_stats.q_nxd + z->z_stats.q_err,
-      z->z_stats.q_ok, z->z_stats.q_nxd,
-      z->z_stats.b_in, z->z_stats.b_out);
+    if (f) {
+      dns_dntop(z->z_dn, name, sizeof(name));
+      fprintf(f, " %s" C C C C C,
+        name,
+        z->z_stats.q_ok + z->z_stats.q_nxd + z->z_stats.q_err
+         - (z->z_pstats.q_ok + z->z_pstats.q_nxd + z->z_pstats.q_err),
+        z->z_stats.q_ok - z->z_pstats.q_ok,
+	z->z_stats.q_nxd - z->z_pstats.q_nxd,
+        z->z_stats.b_in - z->z_pstats.b_in,
+	z->z_stats.b_out - z->z_pstats.b_out);
+    }
+    z->z_pstats = z->z_stats;
   }
-  fprintf(f, " *" C C C C C "\n",
-    tot.q_ok + tot.q_nxd + tot.q_err,
-    tot.q_ok, tot.q_nxd,
-    tot.b_in, tot.b_out);
+  if (f) {
+    fprintf(f, " *" C C C C C "\n",
+      tot.q_ok + tot.q_nxd + tot.q_err
+       - (gptot.q_ok + gptot.q_nxd + gptot.q_err),
+      tot.q_ok - gptot.q_ok,
+      tot.q_nxd - gptot.q_nxd,
+      tot.b_in - gptot.b_in,
+      tot.b_out - gptot.b_out);
+    fclose(f);
+  }
+  gptot = tot;
 #undef C
-  fclose(f);
 }
 
 static void dumpstats_z(void) {
@@ -717,9 +730,12 @@ static void logstats(int reset) {
     tot.q_ok, tot.q_nxd, tot.q_err);
 #undef C
   if (reset) {
-    for(z = zonelist; z; z = z->z_next)
+    for(z = zonelist; z; z = z->z_next) {
       memset(&z->z_stats, 0, sizeof(z->z_stats));
+      memset(&z->z_pstats, 0, sizeof(z->z_pstats));
+    }
     memset(&gstats, 0, sizeof(gstats));
+    memset(&gptot, 0, sizeof(gptot));
     stats_time = t;
   }
 }

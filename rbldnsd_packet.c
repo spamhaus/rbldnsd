@@ -234,10 +234,8 @@ int replypacket(struct dnspacket *pkt, unsigned qlen, struct zone *zone) {
   int found;
   extern int lazy; /*XXX hack*/
 
-  do_stats(gstats.b_in += qlen);
-
   if (!(pkt->p_cur = pkt->p_sans = parsequery(h, qlen, &qry))) {
-    do_stats(gstats.q_err += 1);
+    do_stats(gstats.q_err += 1; gstats.b_in += qlen);
     return 0;
   }
 
@@ -268,7 +266,7 @@ int replypacket(struct dnspacket *pkt, unsigned qlen, struct zone *zone) {
     h[p_f1] |= pf1_aa;
   else if (qry.q_class != DNS_C_ANY) {
     if (version_req(pkt, &qry)) {
-      do_stats(gstats.q_ok += 1; gstats.b_out += rlen());
+      do_stats(gstats.q_ok += 1; gstats.b_in += qlen; gstats.b_out += rlen());
       return rlen();
     }
     else
@@ -297,6 +295,7 @@ int replypacket(struct dnspacket *pkt, unsigned qlen, struct zone *zone) {
   /* found matching zone */
 #undef refuse
 #define refuse(code)  _refuse(code, err_z)
+  do_stats(zone->z_stats.b_in += qlen);
 
   if (!zone->z_stamp)	/* do not answer if not loaded */
     refuse(DNS_R_SERVFAIL);
@@ -345,7 +344,7 @@ int replypacket(struct dnspacket *pkt, unsigned qlen, struct zone *zone) {
   return rlen();
 
 err_nz:
-  do_stats(gstats.q_err += 1; gstats.b_out += rlen());
+  do_stats(gstats.q_err += 1; gstats.b_in += qlen; gstats.b_out += rlen());
   return rlen();
 
 err_z:
