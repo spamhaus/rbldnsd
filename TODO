@@ -10,16 +10,6 @@ TODO list for rbldnsd, in no particular order.
  * review logging.  It should be possible to specify which packets
    (qtype, rcode, bad etc) to log in addition to filtering by client's IP.
 
- * in dn[v]set and generic, do not return NXDOMAIN for e.g. com.bl.example.com
-   if spammer.com.bl.example.com exists.
-   
- * rewrite all 3 name-based datasets to use reversed domain names and only
-   one lookup.
-
- * pre-calculate query's IP address (for ip4[v]set) and reverse DN (for
-   name-based datasets) before calling query procedures, based on dataset
-   flags.
-
  * maybe multi-children environment.  Seems to be unnecessary.
 
  * review all names to be consistent (partially done)
@@ -47,11 +37,3 @@ TODO list for rbldnsd, in no particular order.
 
  * add `fnmatch' (or dnpat) type, to handle shell-style wildcards
    (no regexps please)
-
- * how about AAAA queries?  IPv6-enabled sendmail on Solaris9 requests
-   AAAA records (2.0.0.127.blocklist.example.com AAAA).  Currently,
-   bind chokes on rbldnsd refusal here (returning SERVFAIL to sendmail),
-   so the whole thing does not work.  Should rbldnsd make "fake"
-   AAAA records from existing A records here?  Note that asking AAAA
-   in this case is just a waste of resources.
-

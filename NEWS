@@ -3,7 +3,39 @@ $Id$
 This file describes user-visible changes in rbldnsd.
 Never news are at top.
 
-0.89
+0.89p2 (6 May 2003)
+
+ Incompatible changes:
+
+ - rbldnsd now substitutes listed DN in TXT template, instead of query DN,
+   e.g. if some.spammer.example.com is queried, and *.spammer.example.com
+   listed, `spammer.example.com' will be used for $ substitution.  For
+   domain-based lists (dn[v]set) only, IP-based always substitutes an IP.
+
+ - for name-based lists, empty domain names disallowed.
+
+ Changes:
+
+ - completed NXDOMAIN vs subdomains handling for domain-based lists
+   (generic, dn[v]set).  Rbldnsd now very close to BIND behaviour with
+   all it's dataset types.
+
+ - correctly handle zero bytes in DN names ewerywhere.  Before, rbldnsd
+   was incorrect in this area.
+
+ - allow logging to be done to FIFO (ignore SIGPIPE and open with NODELAY)
+
+ - control whenever logging is buffered or not (place `+' in front of
+   logfile (-l option) to make it non-buffered)
+
+ - log (-l) creation errors are now logged to syslog as warnings
+
+ - -q option - quick/quiet start, load zones after backgrounding
+   (so load errors are not fatal)
+
+ - as usual, some more code cleanups etc all over the place.
+
+0.89p1 (4 May 2003)
 
  many changes.  "Expirience" release...
 
