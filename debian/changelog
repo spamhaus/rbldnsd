@@ -1,5 +1,7 @@
 rbldnsd (0.993p1) unstable; urgency=low
 
+  * implement and enforce $MAXRANGE4 special
+
   * refine logging a bit, make it less verbose
 
   * (internal) reorganize loading process a bit to
@@ -50,7 +52,7 @@ rbldnsd (0.993p1) unstable; urgency=low
 
   * some hooks, to build custom versions (rbldnsd_hooks.[ch])
 
- -- Michael Tokarev <mjt@corpit.ru>  Thu, 10 Jun 2004 01:51:12 +0400
+ -- Michael Tokarev <mjt@corpit.ru>  Thu, 10 Jun 2004 02:46:57 +0400
 
 rbldnsd (0.992) unstable; urgency=low
 

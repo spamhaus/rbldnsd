@@ -278,6 +278,34 @@ int ds_special(struct dataset *ds, char *line, struct dsctx *dsc) {
   }
   break;
 
+  case 'm': case 'M':
+  if ((line[1] == 'A' || line[1] == 'a') &&
+      (line[2] == 'X' || line[2] == 'x') &&
+      (line[3] == 'R' || line[3] == 'r') &&
+      (line[4] == 'A' || line[4] == 'a') &&
+      (line[5] == 'N' || line[5] == 'n') &&
+      (line[6] == 'G' || line[6] == 'g') &&
+      (line[7] == 'E' || line[7] == 'e') &&
+      line[8] == '4' && ISSPACE(line[9])) {
+    unsigned r;
+    int cidr;
+    line += 10; SKIPSPACE(line);
+    if (*line == '/') cidr = 1, ++line;
+    else cidr = 0;
+    if (!(line = parse_uint32(line, &r)) || *line || !r)
+      return 0;
+    if (cidr) {
+      if (r > 32) return 0;
+      r = ~ip4mask(r) + 1;
+    }
+    if (dsc->dsc_ip4maxrange && dsc->dsc_ip4maxrange < r)
+      dswarn(dsc, "ignoring attempt to increase $MAXRANGE4 from %u to %u",
+             dsc->dsc_ip4maxrange, r);
+    else
+      dsc->dsc_ip4maxrange = r;
+    return 1;
+  }
+
   case '0': case '1': case '2': case '3': case '4':
   case '5': case '6': case '7': case '8': case '9':
   if (ISSPACE(line[1])) {

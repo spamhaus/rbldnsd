@@ -112,6 +112,11 @@ ds_ip4set_line(struct dataset *ds, char *s, struct dsctx *dsc) {
     dswarn(dsc, "invalid range (non-zero host part)");
     return 1;
   }
+  if (dsc->dsc_ip4maxrange && dsc->dsc_ip4maxrange <= (b - a)) {
+    dswarn(dsc, "too large range (%u) ignored (%u max)",
+           b - a + 1, dsc->dsc_ip4maxrange);
+    return 1;
+  }
   if (not)
     rr = NULL;
   else {

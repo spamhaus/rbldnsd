@@ -201,6 +201,11 @@ ds_ip4trie_line(struct dataset *ds, char *s, struct dsctx *dsc) {
     dswarn(dsc, "invalid range (non-zero host part)");
     return 1;
   }
+  if (dsc->dsc_ip4maxrange && dsc->dsc_ip4maxrange <= ~ip4mask(bits)) {
+    dswarn(dsc, "too large range (%u) ignored (%u max)",
+           ~ip4mask(bits) + 1, dsc->dsc_ip4maxrange);
+    return 1;
+  }
   if (not)
     rr = excluded_rr;
   else {

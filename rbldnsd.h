@@ -281,11 +281,12 @@ int reloadzones(struct zone *zonelist);
 void dumpzone(const struct zone *z, FILE *f);
 
 struct dsctx {
-  struct dataset *dsc_ds;		/* currently loading dataset */
-  struct dataset *dsc_subset;		/* currently loading subset */
-  const char *dsc_fname;		/* currently loading file name */
-  int dsc_lineno;			/* current line number */
-  int dsc_warns;			/* number of warnings so far */
+  struct dataset *dsc_ds;	/* currently loading dataset */
+  struct dataset *dsc_subset;	/* currently loading subset (combined) */
+  const char *dsc_fname;	/* currently loading file name */
+  int dsc_lineno;		/* current line number */
+  int dsc_warns;		/* number of warnings so far */
+  unsigned dsc_ip4maxrange;	/* max IP4 range allowed */
 };
 
 void PRINTFLIKE(3,4) dslog(int level, struct dsctx *dsc, const char *fmt, ...);
