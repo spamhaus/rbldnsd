@@ -30,7 +30,7 @@ char *parse_uint32(char *s, unsigned char nb[4]) {
   if (!(s = parse_uint32_s(s, &n))) return NULL;
   if (*s) {
     if (!ISSPACE(*s)) return NULL;
-    ++s; SKIPSPACE(*s);
+    ++s; SKIPSPACE(s);
   }
   nb[0] = n>>24; nb[1] = n>>16; nb[2] = n>>8; nb[3] = n;
   return s;
