@@ -496,7 +496,7 @@ static struct zone *init(int argc, char **argv) {
 
   if (user)
     if (setgroups(1, &gid) < 0 || setgid(gid) < 0 || setuid(uid) < 0)
-      error(errno, "unable to setuid(%d:%d)", uid, gid);
+      error(errno, "unable to setuid(%d:%d)", (int)uid, (int)gid);
 
   for(c = 0; c < argc; ++c)
     zonelist = addzone(zonelist, argv[c]);
