@@ -79,6 +79,7 @@ static void usage() {
 "Available zone types:\n"
 , progname, progname);
    printzonetypes(stdout);
+   exit(0);
 }
 
 static int init(int argc, char **argv, struct zone **zonep) {
