@@ -1,0 +1,57 @@
+#!/usr/bin/make -f
+# Sample debian/rules that uses debhelper.
+# GNU copyright 1997 to 1999 by Joey Hess.
+
+# Uncomment this to turn on verbose mode.
+#export DH_VERBOSE=1
+
+# This is the debhelper compatibility version to use.
+export DH_COMPAT=3
+
+ifneq (,$(findstring debug,$(DEB_BUILD_OPTIONS)))
+	CFLAGS += -g
+endif
+
+build: build-stamp
+build-stamp:
+	dh_testdir
+	$(MAKE) CFLAGS="$(CFLAGS) -Wall -W"
+	touch $@
+
+clean:
+	dh_testdir
+	rm -f build-stamp install-stamp
+	-$(MAKE) clean
+	dh_clean
+
+install: install-stamp
+install-stamp: build
+	dh_testdir
+	dh_testroot
+	dh_clean
+
+	mkdir -p -m0755 debian/rbldnsd/usr/sbin
+	cp rbldnsd debian/rbldnsd/usr/sbin
+	dh_installman rbldnsd.8
+	dh_installinit
+	dh_installdocs NEWS TODO
+	dh_installchangelogs CHANGES
+	dh_installexamples WirehubDynablock2rbldnsd.pl
+	dh_strip
+	dh_compress
+	dh_fixperms
+
+binary-indep:
+
+binary-arch: build install
+	dh_testdir
+	dh_testroot
+	dh_installdeb
+	dh_shlibdeps
+	dh_gencontrol
+	dh_md5sums
+	dh_builddeb
+
+binary: binary-arch
+
+.PHONY: build clean binary-indep binary-arch binary install configure

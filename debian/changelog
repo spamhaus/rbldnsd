@@ -1,0 +1,9 @@
+rbldnsd (0.81-1) unstable; urgency=low
+
+  * Initial Release.
+
+ -- Michael Tokarev <mjt@corpit.ru>  Sat,  5 Apr 2003 00:30:39 +0400
+
+Local variables:
+mode: debian-changelog
+End:

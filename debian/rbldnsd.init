@@ -1,0 +1,72 @@
+#! /bin/sh
+#
+# skeleton	example file to build /etc/init.d/ scripts.
+#		This file should be used to construct scripts for /etc/init.d.
+#
+#		Written by Miquel van Smoorenburg <miquels@cistron.nl>.
+#		Modified for Debian GNU/Linux
+#		by Ian Murdock <imurdock@gnu.ai.mit.edu>.
+#
+# Version:	@(#)skeleton  1.8  03-Mar-1998  miquels@cistron.nl
+#
+# This file was automatically customized by dh-make on Sat,  5 Apr 2003 00:30:39 +0400
+
+PATH=/sbin:/bin:/usr/sbin:/usr/bin
+NAME=rbldnsd
+DESC=$NAME
+DAEMON=/usr/sbin/$NAME
+CONFFILE=/etc/default/$NAME
+
+test -f $DAEMON -a -f $CONFFILE || exit 0
+
+set -e
+RBLDNSD=
+. $CONFFILE
+test -n "$RBLDNSD" || exit 0
+
+function forall() {
+  action="$1"; shift
+  echo "$RBLDNSD" |
+    while read name args; do
+      case "$name" in
+        ""|\#*) continue;;
+	-) name=rbldnsd; pidfile=/var/run/$name.pid;;
+	*) pidfile=/var/run/rbldnsd-$name.pid;;
+      esac
+      echo "$action $DESC $name:"
+      $*
+    done
+}
+
+function startstop() {
+  start-stop-daemon --quiet --pidfile $pidfile --exec $DAEMON $@ -- \
+    -p $pidfile $args
+}
+
+function restart() {
+  startstop --stop
+  sleep 1
+  startstop --start
+}
+
+case "$1" in
+  start)
+	forall Starting startstop --start
+	;;
+  stop)
+  	forall Stopping startstop --oknodo --stop
+	;;
+  reload|force-reload)
+	forall Reloading startstop --stop --signal HUP
+	;;
+  restart|force-reload)
+	forall Restarting restart
+	;;
+  *)
+	N=/etc/init.d/$NAME
+	echo "Usage: $N {start|stop|restart|reload|force-reload}" >&2
+	exit 1
+	;;
+esac
+
+exit 0
