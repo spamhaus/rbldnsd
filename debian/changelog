@@ -5,6 +5,8 @@ rbldnsd (0.992pre5) unstable; urgency=low
     entry :addr:  - specific A, no TXT
     entry :addr   - specific A, default TXT
 
+  * remove redundrand CNAMEs from master-file dump in ip4set
+
  -- Michael Tokarev <mjt@corpit.ru>  Mon,  1 Mar 2004 23:23:44 +0300
 
 rbldnsd (0.992pre4) unstable; urgency=low

@@ -26,6 +26,11 @@ struct dsdata {
 #define E24 1
 #define E16 2
 #define E08 3
+/* ..and masks */
+#define M32 0xffffffff
+#define M24 0xffffff00
+#define M16 0xffff0000
+#define M08 0xff000000
 
 definedstype(ip4set, DSTF_IP4REV, "set of (ip4 range, value) pairs");
 
@@ -210,10 +215,10 @@ ds_ip4set_query(const struct dataset *ds, const struct dnsqinfo *qi,
   (t = dsd->e[i] + dsd->n[i], \
    e = ds_ip4set_find(dsd->e[i], dsd->n[i], (f = q & mask))) != NULL)
 
-  if (!try(E32, 0xffffffff) &&
-      !try(E24, 0xffffff00) &&
-      !try(E16, 0xffff0000) &&
-      !try(E08, 0xff000000))
+  if (!try(E32, M32) &&
+      !try(E24, M24) &&
+      !try(E16, M16) &&
+      !try(E08, M08))
     return 0;
 
   if (!e->rr) return 0;		/* exclusion */
@@ -229,31 +234,69 @@ static void
 ds_ip4set_dump(const struct dataset *ds,
                const unsigned char UNUSED *unused_odn,
                FILE *f) {
-  unsigned r;
-  ip4addr_t a;
-  const struct entry *e, *t;
+  ip4addr_t a, u;
+  const struct entry *e, *t, *x;
   const struct dsdata *dsd = ds->ds_dsd;
   char name[4*3+3+1];
-  for (r = 0; r < 4; ++r) {
-    for(e = dsd->e[r], t = e + dsd->n[r]; e < t; ++e) {
-      a = e->addr;
-      switch(r) {
-      case E32:
-	sprintf(name, "%u.%u.%u.%u",
-		a & 255, (a >> 8) & 255, (a >> 16) & 255, (a >> 24));
-	break;
-      case E24:
-	sprintf(name, "*.%u.%u.%u",
-		(a >> 8) & 255, (a >> 16) & 255, (a >> 24));
-	break;
-      case E16:
-	sprintf(name, "*.%u.%u", (a >> 16) & 255, (a >> 24));
-	break;
-      case E08:
-	sprintf(name, "*.%u", (a >> 24));
-	break;
+
+#define findXm(E,u,m) \
+    (dsd->n[E] ? ds_ip4set_find(dsd->e[E], dsd->n[E], u&m) : NULL)
+#define find24(u) findXm(E24,u,M24)
+#define find16(u) findXm(E16,u,M16)
+#define find08(u) findXm(E08,u,M08)
+
+  u = 0; x = NULL;
+  for(e = dsd->e[E32], t = e + dsd->n[E32]; e < t; ++e) {
+    a = e->addr;
+    if (!e->rr) { /* exclusion */
+      if (!u || (a & M24) != u) {
+        u = a & M24;
+        if (((x = find24(u)) || (x = find16(u)) || (x = find08(u))) && !x->rr)
+          x = NULL;
       }
-      dump_a_txt(name, e->rr, ip4atos(a), ds, f);
+      if (!x) continue;
     }
+    sprintf(name, "%u.%u.%u.%u",
+            a & 255, (a >> 8) & 255, (a >> 16) & 255, (a >> 24));
+    dump_a_txt(name, e->rr, ip4atos(a), ds, f);
   }
+
+  u = 0; x = NULL;
+  for(e = dsd->e[E24], t = e + dsd->n[E24]; e < t; ++e) {
+    a = e->addr;
+    if (!e->rr) { /* exclusion */
+      if (!u || (a & M16) != u) {
+        u = a & M16;
+        if (((x = find16(u)) || (x = find08(u))) && !x->rr)
+          x = NULL;
+      }
+      if (!x) continue;
+    }
+    sprintf(name, "*.%u.%u.%u",
+            (a >> 8) & 255, (a >> 16) & 255, (a >> 24));
+    dump_a_txt(name, e->rr, ip4atos(a), ds, f);
+  }
+
+  u = 0; x = NULL;
+  for(e = dsd->e[E16], t = e + dsd->n[E16]; e < t; ++e) {
+    a = e->addr;
+    if (!e->rr) { /* exclusion */
+      if (!u || (a & M08) != u) {
+        u = a & M08;
+        if (((x = find08(u))) && !x->rr)
+          x = NULL;
+      }
+      if (!x) continue; /* no up-level covering entry, ignore excl */
+    }
+    sprintf(name, "*.%u.%u", (a >> 16) & 255, (a >> 24));
+    dump_a_txt(name, e->rr, ip4atos(a), ds, f);
+  }
+
+  for(e = dsd->e[E08], t = e + dsd->n[E08]; e < t; ++e) {
+    a = e->addr;
+    if (!e->rr) continue; /* continue */
+    sprintf(name, "*.%u", (a >> 24));
+    dump_a_txt(name, e->rr, ip4atos(a), ds, f);
+  }
+
 }
