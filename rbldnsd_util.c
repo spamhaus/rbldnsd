@@ -116,7 +116,7 @@ int readdslines(FILE *f, struct dataset *ds) {
     if (*eol == '\n')
       --eol;
     else if (feof(f)) {
-      dswarn(lineno, "incomplete last line (ignored)");
+      dslog(LOG_WARNING, lineno, "incomplete last line (ignored)");
       break;
     }
     else {
