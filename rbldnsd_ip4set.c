@@ -257,6 +257,7 @@ ds_ip4set_query(const struct zonedataset *zds, const struct dnsquery *qry,
     return 0;
 
   if (!e->rr) return 0;		/* exclusion */
+  /*XXX do not return NXDOMAIN -- like when less than 4 octets specified */
 
   ipsubst = (qry->q_tflag & NSQUERY_TXT) ? ip4atos(q) : NULL;
   do addrr_a_txt(pkt, qry->q_tflag, e->rr, ipsubst, zds);

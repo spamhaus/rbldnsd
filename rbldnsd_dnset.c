@@ -294,7 +294,8 @@ ds_dnset_query(const struct zonedataset *zds, const struct dnsquery *qry,
   else
     t = ds->e[EP] + ds->n[EP];
 
-  if (!e->rr) return 0;
+  if (!e->rr) return 0;	/* exclusion */
+  /*XXX do not return NXDOMAIN if some subdomain exists! */
 
   rdn = e->lrdn;
   if (qry->q_tflag & NSQUERY_TXT) {
