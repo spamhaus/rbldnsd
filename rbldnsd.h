@@ -63,6 +63,9 @@ struct dnsquery {	/* q */
   int q_ip4valid;			/* true if q_ip4 is valid */
 };
 
+#define PACK32(b,n) ((b)[0]=(n)>>24,(b)[1]=(n)>>16,(b)[2]=(n)>>8,(b)[3]=(n))
+#define PACK16(b,n) ((b)[0]=(n)>>8,(b)[1]=(n))
+
 #define ISSPACE(s) ((s) == ' ' || (s) == '\t')
 #define SKIPSPACE(s) while(ISSPACE(*s)) ++s
 

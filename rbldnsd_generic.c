@@ -86,7 +86,7 @@ static int ds_generic_parseany(struct zonedataset *zds, char *s) {
     ip4addr_t a;
     dtyp = NSQUERY_A | DNS_T_A;
     if (!ip4addr(s, &a, &s)) return -1;
-    dp[0] = a>>24; dp[1] = a>>16; dp[2] = a>>8; dp[3] = a;
+    PACK32(dp, a);
     dsiz = 4;
   }
 

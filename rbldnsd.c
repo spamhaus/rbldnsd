@@ -64,7 +64,7 @@ static int accept_in_cidr;	/* accept 127.0.0.1/8-style CIDRs */
 static int initialized;		/* 1 when initialized */
 static char *logfile;		/* log file name */
 static int logmemtms;		/* print memory usage and (re)load time info */
-unsigned char defttl[4] = "\0\0\07\010";	/* default record TTL */
+unsigned char defttl[4] = "\0\0\010\064";	/* default record TTL 35m */
 const char def_rr[5] = "\177\0\0\2\0";		/* default A RR */
 
 /* a list of zonetypes. */
@@ -145,7 +145,7 @@ static void NORETURN usage(int exitcode) {
 " -4 - use IPv4 socket type\n"
 " -6 - use IPv6 socket type\n"
 #endif
-" -t ttl - TTL value set in answers (30m)\n"
+" -t ttl - TTL value set in answers (35m)\n"
 " -e - enable CIDR ranges where prefix is not on the range boundary\n"
 "  (by default ranges such 127.0.0.1/8 will be rejected)\n"
 " -c check - check for file updates every `check' secs (60)\n"

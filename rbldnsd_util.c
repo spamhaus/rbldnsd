@@ -32,7 +32,7 @@ char *parse_uint32(char *s, unsigned char nb[4]) {
     if (!ISSPACE(*s)) return NULL;
     ++s; SKIPSPACE(s);
   }
-  nb[0] = n>>24; nb[1] = n>>16; nb[2] = n>>8; nb[3] = n;
+  PACK32(nb, n);
   return s;
 }
 
@@ -55,7 +55,7 @@ char *parse_time(char *s, unsigned char nb[4]) {
     if (*s && !ISSPACE(*s)) return NULL;
     ++s; SKIPSPACE(s);
   }
-  nb[0] = n>>24; nb[1] = n>>16; nb[2] = n>>8; nb[3] = n;
+  PACK32(nb, n);
   return s;
 }
 
@@ -172,7 +172,7 @@ int parse_a_txt(char *str, const char **rrp, const char def_a[4]) {
     else if (*str)
       return 0;
     rr = (unsigned char*)str - 4;
-    rr[0] = a >> 24; rr[1] = a >> 16; rr[2] = a >> 8; rr[3] = a;
+    PACK32(rr, a);
   }
   else {
     rr = (unsigned char*)str - 4;

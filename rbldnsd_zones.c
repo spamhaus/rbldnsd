@@ -361,10 +361,8 @@ static int updatezone(struct zone *zone) {
     unsigned char *ser;
     zone->z_zsoa = *zsoa;
     ser = zone->z_zsoa.zsoa_n;	/* serial # */
-    if (memcmp(ser, "\0\0\0\0", 4) == 0) { /* it is 0, set it to stamp */
-      ser[0] = stamp >> 24; ser[1] = stamp >> 16;
-      ser[2] = stamp >> 8; ser[3] = stamp;
-    }
+    if (memcmp(ser, "\0\0\0\0", 4) == 0) /* it is 0, set it to stamp */
+      PACK32(ser, stamp);
   }
   else
     zone->z_zsoa.zsoa_valid = 0;

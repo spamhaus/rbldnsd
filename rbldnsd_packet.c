@@ -272,8 +272,8 @@ add_dn(struct dnspacket *pkt, register unsigned char *c,
         continue;
       if (!fit(pkt, c, 2)) return NULL;
       dnlen = 0xc000 + ptr->qpos;
-      *c++ = dnlen >> 8; *c++ = dnlen;
-      return c;
+      PACK16(c, dnlen);
+      return c + 2;
     }
     if (!fit(pkt, c, *dn + 1))
       return NULL;
@@ -316,7 +316,7 @@ static int addrr_soa(struct dnspacket *pkt, const struct zone *zone, int auth) {
       memcpy(c, &zsoa->zsoa_n, 20);
       c += 20;
       dsz = (c - rstart) - 2;
-      rstart[0] = dsz >> 8; rstart[1] = dsz;
+      PACK16(rstart, dsz);
       pkt->p_buf[auth ? p_nscnt : p_ancnt]++;
       pkt->p_cur = c;
       return 1;
@@ -374,7 +374,7 @@ void addrr_mx(struct dnspacket *pkt,
     *c++ = pri[0]; *c++ = pri[1];
     if ((c = add_dn(pkt, c, mxdn, mxdnlen))) {
       mxdnlen = c - pkt->p_cur - 12;
-      pkt->p_cur[10] = mxdnlen>>8; pkt->p_cur[11] = mxdnlen;
+      PACK16(pkt->p_cur + 10, mxdnlen);
       pkt->p_cur = c;
       pkt->p_buf[p_ancnt] += 1;
       return;
@@ -408,8 +408,8 @@ void addrr_any(struct dnspacket *pkt, unsigned dtp,
     setnonauth(pkt->p_buf); /* non-auth answer as we can't fit the record */
     return;
   }
-  addrr_start(c, dtp, ttl); /* 10 bytes */
-  *c++ = dsz>>8; *c++ = dsz; /* dsize */
+  addrr_start(c, dtp, ttl);	/* 10 bytes */
+  PACK16(c, dsz); c += 2;	/* dsize */
   memcpy(c, data, dsz);
   pkt->p_cur = c + dsz;
   pkt->p_buf[p_ancnt] += 1; /* increment numanswers */
