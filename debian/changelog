@@ -16,7 +16,7 @@ rbldnsd (0.992pre1) unstable; urgency=low
 
   * fix example dataset in manpage (missing preference for MX)
 
- -- Michael Tokarev <mjt@corpit.ru>  Mon,  1 Dec 2003 11:10:22 +0300
+ -- Michael Tokarev <mjt@corpit.ru>  Wed,  4 Feb 2004 15:55:08 +0300
 
 rbldnsd (0.991) unstable; urgency=low
 
