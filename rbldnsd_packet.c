@@ -253,9 +253,9 @@ int replypacket(struct dnspacket *pkt, unsigned qlen, const struct zone *zone) {
 
     found = 1;
 
-    if (found && (qi.qi_tflag & NSQUERY_NS) && !addrr_ns(pkt, zone, 0))
-      found = 0;
     if (found && (qi.qi_tflag & NSQUERY_SOA) && !addrr_soa(pkt, zone, 0))
+      found = 0;
+    if (found && (qi.qi_tflag & NSQUERY_NS) && !addrr_ns(pkt, zone, 0))
       found = 0;
     if (!found) {
       pkt->p_cur = pkt->p_sans;
