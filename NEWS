@@ -51,7 +51,7 @@ Never news are at top.
     entry :addr:  - specific A, no TXT
     entry :addr   - specific A, default TXT
 
- - cleanup: remove redundrand CNAMEs from master-file dump
+ - cleanup: remove redundrant CNAMEs from master-file dump
    in ip4set
 
 0.991 (30 Nov 2003)

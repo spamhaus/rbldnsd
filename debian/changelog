@@ -28,7 +28,7 @@ rbldnsd (0.992) unstable; urgency=low
     entry :addr:  - specific A, no TXT
     entry :addr   - specific A, default TXT
 
-  * remove redundrand CNAMEs from master-file dump in ip4set
+  * remove redundrant CNAMEs from master-file dump in ip4set
 
   * fix syslog statistics logging mess introduced in pre4
 
