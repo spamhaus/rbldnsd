@@ -52,15 +52,15 @@ VERSION_DATE = 2003-04-03
 all: rbldnsd
 
 rbldnsd: $(RBLDNSD_OBJS) librbldnsd.a
-	$(LD) $(LDFLAGS) -o $@ $(RBLDNSD_OBJS) librbldnsd.a $(SOCKET_LIBS)
+	$(LD) $(LDFLAGS) -o $@ $^ $(SOCKET_LIBS)
 
 librbldnsd.a: $(LIB_OBJS)
 	-rm -f $@
 	$(AR) $(ARFLAGS) $@ $(LIB_OBJS)
 	$(RANLIB) $@
 
-ip4rangetest: ip4rangetest.o librbldnsd.a
-	$(LD) $(LDFLAGS) -o $@ ip4rangetest.o librbldnsd.a
+ip4rangetest: ip4rangetest.o ip4parse.o
+	$(LD) $(LDFLAGS) -o $@ $^
 
 .SUFFIXES: .c .o
 
