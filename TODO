@@ -2,6 +2,12 @@ $Id$
 
 TODO list for rbldnsd, in no particular order.
 
+ * consider adding NS records into AUTH section of every
+   positive answer, provided there's a room for that in
+   UDP packet.  Maybe add command-line option for this.
+   There should be a quick way to determine size of all
+   NS records, in context of DN compression.
+
  * recheck whenever SOA/NS behaviour is correct
    (seems to be ok)
 
