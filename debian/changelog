@@ -1,8 +1,8 @@
-rbldnsd (0.92) unstable; urgency=low
+rbldnsd (0.92) unstable; urgency=medium
 
-  * bugfix: fixed SOA screwup introduced in 0.91 
+  * bugfix: fixed SOA screwup introduced in 0.91
 
- -- Michael Tokarev <mjt@corpit.ru>  Sat, 17 May 2003 05:00:57 +0400
+ -- Michael Tokarev <mjt@corpit.ru>  Sat, 17 May 2003 05:24:39 +0400
 
 rbldnsd (0.91) unstable; urgency=low
 
