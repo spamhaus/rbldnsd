@@ -16,6 +16,11 @@ Never news are at top.
    (i.e. ip4set keeps approx. number of records in a set to avoid
    many malloc() calls)
 
+ - new compile-time define: -DSTATS_LL, to keep statistic counters
+   (if not disabled with -DNOSTATS) in variables of type `unsigned
+   long long', not `unsigned long' - on 32-bit machines, this may
+   be 64-bit integers.
+
 0.96 (29 May 2003)
 
  - fixed alignment bug in mempool.c that caused allocation slip

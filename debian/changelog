@@ -13,8 +13,9 @@ rbldnsd (0.97pre) unstable; urgency=low
   * -DRECOGNIZE_IP4IN6 - treat reverse IPv6-mapped IPv4 queries as
     plain IPv4 qieries
   * Wirehub Dynablock => Easynet Dynablock
+  * -DSTATS_LL to use long longs for statistic counters
 
- -- Michael Tokarev <mjt@corpit.ru>  Sat, 28 Jun 2003 02:22:48 +0400
+ -- Michael Tokarev <mjt@corpit.ru>  Sun, 29 Jun 2003 19:43:01 +0400
 
 rbldnsd (0.96) unstable; urgency=high
 

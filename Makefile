@@ -15,6 +15,8 @@ AWK = awk
 
 # Disable statistic counters
 #DEFS = -DNOSTATS
+# Use unsigned long long (whatever this means) for stats counters
+#DEFS = -DSTATS_LL
 # Disable memory info logging (mallinfo)
 #DEFS = -DNOMEMINFO
 # Disable printing zone (re)load time using utimes()

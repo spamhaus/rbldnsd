@@ -243,16 +243,21 @@ void addrr_any(struct dnspacket *pkt, unsigned dtp,
 void dump_a_txt(const char *name, const unsigned char *rr,
                 const char *subst, const struct dataset *ds, FILE *f);
 
+#ifdef STATS_LL
+typedef unsigned long long dnscnt_t;
+#else
+typedef unsigned long dnscnt_t;
+#endif
 struct dnsstats {
   time_t stime;			/* start time */
   /* n - number of requests;
    * i - number of bytes read
    * o - number of bytes written
    * a - number of answers */
-  unsigned nbad, ibad;			/* unrecognized, short etc requests */
-  unsigned nnxd, inxd, onxd;		/* NXDOMAINs */
-  unsigned nrep, irep, orep, arep;	/* OK replies */
-  unsigned nerr, ierr, oerr;		/* other errors (REFUSED, FORMERR...) */
+  dnscnt_t nbad, ibad;			/* unrecognized, short etc requests */
+  dnscnt_t nnxd, inxd, onxd;		/* NXDOMAINs */
+  dnscnt_t nrep, irep, orep, arep;	/* OK replies */
+  dnscnt_t nerr, ierr, oerr;		/* other errors (REFUSED, FORMERR...) */
 };
 
 struct zone *addzone(struct zone *zonelist, const char *spec);

@@ -462,13 +462,18 @@ static void setup_signals() {
 #ifndef NOSTATS
 static void logstats(struct dnsstats *s, int reset) {
   time_t t = time(NULL);
+#ifdef STATS_LL
+# define C "llu"
+#else
+# define C "lu"
+#endif
   dslog(LOG_INFO, 0,
     "stats for %ldsec (num/in/out/ans): "
-    "tot=%u/%u/%u/%u "
-    "ok=%u/%u/%u/%u "
-    "nxd=%u/%u/%u "
-    "err=%u/%u/%u "
-    "bad=%u/%u",
+    "tot=%" C "/%" C "/%" C "/%" C " "
+    "ok=%" C "/%" C "/%" C "/%" C " "
+    "nxd=%" C "/%" C "/%" C " "
+    "err=%" C "/%" C "/%" C " "
+    "bad=%" C "/%" C "",
     t - s->stime,
     s->nrep+s->nnxd+s->nerr+s->nbad,
     s->irep+s->inxd+s->ierr,
@@ -478,6 +483,7 @@ static void logstats(struct dnsstats *s, int reset) {
     s->nnxd, s->inxd, s->onxd,
     s->nerr, s->ierr, s->oerr,
     s->nbad, s->ibad);
+#undef C
   if (reset) {
     memset(s, 0, sizeof(*s));
     s->stime = t;
