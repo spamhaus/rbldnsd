@@ -307,7 +307,7 @@ static int addrr_soa(struct dnspacket *pkt, const struct zone *zone, int auth) {
   /* since SOA always comes last, no need to save dncompr state */
   if ((c = add_dn(pkt, c, zone->z_dn, zone->z_dnlen)) && fit(pkt, c, 8 + 2)) {
     /* 8 bytes */
-    addrr_rrstart(c, DNS_T_SOA, zsoa->zsoa_ttl);
+    addrr_rrstart(c, DNS_T_SOA, auth ? zsoa->zsoa_n + 16 : zsoa->zsoa_ttl);
     rstart = c;
     c += 2;
     if ((c = add_dn(pkt, c, zsoa->zsoa_odn+1, zsoa->zsoa_odn[0])) &&

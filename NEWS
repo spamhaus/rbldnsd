@@ -3,6 +3,11 @@ $Id$
 This file describes user-visible changes in rbldnsd.
 Never news are at top.
 
+0.93 (18 May 2003)
+
+ - reverse change made in 0.91: SOA TTL, when SOA is in AUTHORITY
+   section, should be from SOA's MINTTL (negative cache TTL).
+
 0.92 (15 May 2003)
 
  - bugfix: fixed SOA screwup introduced in 0.91

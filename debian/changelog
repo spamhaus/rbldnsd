@@ -1,3 +1,10 @@
+rbldnsd (0.93) unstable; urgency=low
+
+  * reverse change made in 0.91: SOA TTL, when SOA is in AUTHORIRY
+    section, should be set to MINTTL field of SOA itself.
+
+ -- Michael Tokarev <mjt@corpit.ru>  Sun, 18 May 2003 19:05:38 +0400
+
 rbldnsd (0.92) unstable; urgency=medium
 
   * bugfix: fixed SOA screwup introduced in 0.91
