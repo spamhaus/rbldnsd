@@ -137,14 +137,19 @@ Use IPv6 listening socket/transport, do not attempt to use IPv4
 (this option will be reported as error if IPv6 support was not
 compiled in).
 
-.IP "\fB\-t\fR \fIttl\fR"
-Set answer time\-to\-live value to be \fIttl\fR seconds.  All answers will
-contain \fIttl\fR as a value of time\-to\-live field.  \fIttl\fR may
-be followed by a single character specifying the time unit: s for seconds,
-m for minutes, h for hours, d for days and w for weeks.  If no unit
-modifier given, seconds (s) assumed.  Default \fIttl\fR is 35m.
-If TTL is specified inside the data (see below), it takes precedence
-over this option.
+.IP "\fB\-t\fR \fIdefttl\fR:\fIminttl\fR:\fImaxttl\fR"
+Set default reply time\-to\-live (TTL) value to be \fIdefttl\fR,
+and set constraints for TTL to \fIminttl\fR and \fImaxttl\fR.  Default
+applies when there's no TTL defined in a given scope (in data file),
+and constraints are applied when such value provided in data.
+Any of the values may be omitted, including trailing colon (:) characters,
+e.g. "\fB\-t\fR\ 30" set default TTL to be 30 secound, and "\fB\-t\fR\ ::120"
+or "\fB\-t\fR\ ::2m" sets maximum allowed TTL to 2 minutes.
+All 3 values are in time units, with optional suffix:
+\fBs\fR (secounds, default), \fBm\fR (minutes), \fBh\fR (hours),
+\fBd\fR (days) or \fBw\fR (weeks).  Zero \fIminttl\fR or \fRmaxttl\fR
+means no corresponding constraint will be enforced.
+Default \fIdefttl\fR is 35m.
 
 .IP "\fB\-c\fR \fIcheck\fR"
 Set interval between checking for zone file changes to be \fIcheck\fR,

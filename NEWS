@@ -39,6 +39,12 @@ Never news are at top.
  - feature: new dataset, ip4tset, very simplified ip4set.
    Only accepts bare IP addresses, no netranges, no
    exceptions, but requires 2x less memory and is faster.
+ 
+ - feature: extended -t option, allow minttl and maxttl
+   to be specified (to set constraints for TTLs found
+   in data files).  New syntax is -t defttl:minttl:maxttl,
+   with everything optional (so -t defttl works too, as
+   well as -t ::1d).
 
 0.991 (30 Nov 2003)
 

@@ -83,6 +83,7 @@ static int initialized;		/* 1 when initialized */
 static char *logfile;		/* log file name */
 static char *statsfile;		/* statistics file */
 unsigned def_ttl = 35*60;	/* default record TTL 35m */
+unsigned min_ttl, max_ttl;	/* TTL constraints */
 const char def_rr[5] = "\177\0\0\2\0";		/* default A RR */
 struct dataset *ds_loading;	/* a dataset currently being loaded if any */
 
@@ -394,8 +395,30 @@ static void init(int argc, char **argv) {
     case 'w': workdir = optarg; break;
     case 'p': pidfile = optarg; break;
     case 't':
-      if (!(p = parse_time(optarg, &def_ttl)) || *p || !def_ttl)
-        error(0, "invalid ttl (-t) value `%.50s'", optarg);
+      p = optarg;
+      if (*p == ':') ++p;
+      else {
+        if (!(p = parse_time(p, &def_ttl)) || !def_ttl ||
+            (*p && *p++ != ':'))
+          error(0, "invalid ttl (-t) value `%.50s'", optarg);
+      }
+      if (*p == ':') ++p;
+      else if (*p) {
+        if (!(p = parse_time(p, &min_ttl)) || (*p && *p++ != ':'))
+          error(0, "invalid minttl (-t) value `%.50s'", optarg);
+      }
+      if (*p == ':') ++p;
+      else if (*p) {
+        if (!(p = parse_time(p, &max_ttl)) || (*p && *p++ != ':'))
+          error(0, "invalid maxttl (-t) value `%.50s'", optarg);
+      }
+      if (*p)
+        error(0, "invalid value for -t (ttl) option: `%.50s'", optarg);
+      if ((min_ttl && max_ttl && min_ttl > max_ttl) ||
+          (min_ttl && def_ttl < min_ttl) ||
+          (max_ttl && def_ttl > max_ttl))
+        error(0, "inconsistent def:min:max ttl: %u:%u:%u",
+              def_ttl, min_ttl, max_ttl);
       break;
     case 'c':
       if (!(p = parse_time(optarg, &recheck)) || *p)
@@ -404,7 +427,15 @@ static void init(int argc, char **argv) {
     case 'n': nodaemon = 1; break;
     case 'e': accept_in_cidr = 1; break;
     case 'l': logfile = optarg; break;
-    case 's': statsfile = optarg; break;
+    case 's':
+#ifdef NOSTATS
+      fprintf(stderr,
+        "%s: warning: no statistics counters support is compiled in\n",
+        progname);
+#else
+      statsfile = optarg;
+#endif
+      break;
     case 'q': quickstart = 1; break;
     case 'd': dump = 1; break;
     case 'v': show_version = nover++ ? NULL : "rbldnsd"; break;

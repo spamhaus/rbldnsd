@@ -58,8 +58,8 @@ char *parse_time(char *s, unsigned *tp) {
       ++s;
       break;
   }
-  if (*s) {
-    if (*s && !ISSPACE(*s)) return NULL;
+  if (*s && *s != ':') {
+    if (!ISSPACE(*s)) return NULL;
     ++s; SKIPSPACE(s);
   }
   return s;
@@ -76,6 +76,10 @@ char *parse_ttl(char *s, unsigned *ttlp, unsigned defttl) {
   s = parse_time(s, ttlp);
   if (*ttlp == 0)
     *ttlp = defttl;
+  else if (min_ttl && *ttlp < min_ttl)
+    *ttlp = min_ttl;
+  else if (max_ttl && *ttlp < max_ttl)
+    *ttlp = max_ttl;
   return s;
 }
 

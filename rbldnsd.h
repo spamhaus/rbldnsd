@@ -294,7 +294,7 @@ int ds_special(struct dataset *ds, char *line, int lineno);
 /* from rbldnsd_combined.c, special routine used inside ds_special() */
 int ds_combined_newset(struct dataset *ds, char *line, int lineno);
 
-extern unsigned def_ttl;
+extern unsigned def_ttl, min_ttl, max_ttl;
 extern const char def_rr[5];
 
 extern const char *show_version; /* version.bind CH TXT */
