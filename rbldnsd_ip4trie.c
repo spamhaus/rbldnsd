@@ -260,12 +260,89 @@ ds_ip4trie_query(const struct dataset *ds, const struct dnsqinfo *qi,
   return 1;
 }
 
+static int
+ds_ip4trie_dump_octets(FILE *f, unsigned idx, ip4addr_t a, unsigned cnt,
+                       const struct node *n, const struct dataset *ds) {
+  char name[16];
+  static const char * const fmt[4] = {
+     "%u.%u.%u.%u", "*.%u.%u.%u", "*.%u.%u", "*.%u"
+  };
+  const unsigned bits = 8 * idx;
+  for(;;) {
+    sprintf(name, fmt[idx], a&255, (a>>8)&255, (a>>16)&255, (a>>24));
+    dump_a_txt(name, n->rr, ip4atos(a<<bits), ds, f);
+    if (!--cnt)
+      break;
+    ++a;
+  }
+  return 0;
+}
+
+static int
+ds_ip4trie_dump_range(FILE *f, ip4addr_t a, ip4addr_t b,
+                      const struct node *n, const struct dataset *ds) {
+
+  if (n->rr == excluded_rr) return 0;
+
+#define fn(idx,start,count) ds_ip4trie_dump_octets(f, idx, start, count, n, ds)
+#define ip4range_expand_octet(bits)               \
+  if ((a | 255u) >= b) {                          \
+    if (b - a == 255u)                            \
+      return fn((bits>>3)+1, a>>8, 1);            \
+    else                                          \
+      return fn(bits>>3, a, b - a + 1);           \
+  }                                               \
+  if (a & 255u) {                                 \
+    if (!fn(bits>>3, a, 256u - (a & 255u)))       \
+      return 0;                                   \
+    a = (a >> 8) + 1;                             \
+  }                                               \
+  else                                            \
+    a >>= 8;                                      \
+  if ((b & 255u) != 255u) {                       \
+    if (!fn((bits>>3), (b & ~255u), (b&255u)+1))  \
+      return 0;                                   \
+    b = (b >> 8) - 1;                             \
+  }                                               \
+  else                                            \
+    b >>= 8
+
+  ip4range_expand_octet(0);
+  ip4range_expand_octet(8);
+  ip4range_expand_octet(16);
+  return fn(3, a, b - a + 1);
+}
+
+static ip4addr_t
+ds_ip4trie_dump_node(FILE *f, const struct node *n,
+                     const struct node *super, ip4addr_t a,
+                     const struct dataset *ds) {
+  if (n->rr && (!super || super->rr != n->rr)) {
+     if (super && a < n->prefix)
+       ds_ip4trie_dump_range(f, a, n->prefix - 1, super, ds);
+     a = n->prefix;
+     super = n;
+  }
+  if (n->left)
+    if ((a = ds_ip4trie_dump_node(f, n->left, super, a, ds)) == 0)
+      return 0;
+  if (n->right)
+    if ((a = ds_ip4trie_dump_node(f, n->right, super, a, ds)) == 0)
+      return 0;
+  if (super == n) {
+    ip4addr_t b = n->prefix | ~ip4mask(n->bits);
+    if (a <= b)
+      ds_ip4trie_dump_range(f, a, b, n, ds);
+    return b == 0xffffffffu ? 0 : b + 1;
+  }
+  else
+    return a;
+}
+
 static void
 ds_ip4trie_dump(const struct dataset *ds,
                 const unsigned char UNUSED *unused_odn,
                 FILE *f) {
-  fprintf(stderr, "%s: can't dump ip4trie\n", progname);
-  fprintf(f,
-          "; WARNING: undumpable ip4trie dataset, %u entries\n",
-          ds->ds_dsd->nents);
+  if (ds->ds_dsd->tree)
+    ds_ip4trie_dump_node(f, ds->ds_dsd->tree, NULL, 0, ds);
 }

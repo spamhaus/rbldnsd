@@ -13,6 +13,8 @@ Never news are at top.
    we now trying to return them in "random" order.  The
    "randomization" is very dumb for now.
 
+ - implemented master format dump for ip4trie dataset
+
 0.99 (16 Sep 2003)
 
  - autoconf-style configuration.  Run ./configure before make.

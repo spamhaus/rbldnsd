@@ -8,6 +8,8 @@ rbldnsd (0.990pre0) unstable; urgency=low
     dataset. The randomization is dumb, but it is better
     than nothing anyway.  Suggested by Furio Ercolessi.
 
+  * implemented master format dump for ip4trie dataset
+
  -- Michael Tokarev <mjt@corpit.ru>  Wed, 19 Nov 2003 21:41:10 +0300
 
 rbldnsd (0.99) unstable; urgency=medium
