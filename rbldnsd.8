@@ -28,7 +28,7 @@ and has limited ability to answer to some other types of queries.
 .PP
 .B rbldnsd
 will answer queries to DNS zones specified on the command
-line as an ordered list of zone specifications,
+line as a set of zone specifications.
 Each zone specification consists of zone basename, dataset type
 and a comma\-separated list of files that forms a given dataset:
 .IR   zone : type : file , file ,...
@@ -42,19 +42,6 @@ so it is possible to form a zone from a combination
 of several different dataset.  The same dataset may be
 reused for several zones too (and in this case, it will
 be read into memory only once).
-
-.PP
-Note that order of zones in command line is important.
-Zones will be looked for every query in order specified,
-and
-.I first
-matching zone will be searched.  So, if you want
-.B rbldnsd
-to answer queries to several subzones and a "base" zone
-that is a combination of all it's subzones, specify base
-zone
-.I after
-all it's subzones in a command line (see examples below).
 
 .PP
 There are several dataset formats available, each is sutable
@@ -184,16 +171,15 @@ times (obtined via utimes(2) routine) on zone (re)loads.
 .IP \fB\-d\fR
 Dump all zones to stdout in BIND format and exit.  This may be sutable
 to convert easily editable rbldnsd-style data into BIND zone.  \fBrbldnsd\fR
-dumps all zones in order specified as one stream, so one may want to
-specify only one zone with \fB\-d\fR.  Zone file will have appropriate
-$ORIGIN tags.  Note that data generated may be really huge (as BIND
-format isn't appropriate for this sort of things), and some entries
-may not be really the same in BIND as in \fBrbldnsd\fR (e.g., IP
-netblocks of large size will be represented as wildcard entries \-
-10.0.0.0/8 will become *.10; excluded entries will be represented
-by a CNAME to `excluded' name, so such name should not be present
-in a data set).  In this mode, \fBrbldnsd\fR ignores \fB\-r\fR
-(root directory) option.
+dumps all zones as one stream, so one may want to specify only one zone
+with \fB\-d\fR.  Zone file will have appropriate $ORIGIN tags.  Note
+that data generated may be really huge (as BIND format isn't appropriate
+for this sort of things), and some entries may not be really the same
+in BIND as in \fBrbldnsd\fR (e.g., IP netblocks of large size will be
+represented as wildcard entries \- 10.0.0.0/8 will become *.10; excluded
+entries will be represented by a CNAME to `excluded' name, so such name
+should not be present in a data set).  In this mode, \fBrbldnsd\fR ignores
+\fB\-r\fR (root directory) option.
 
 .SH "DATASET TYPES AND FORMATS"
 
@@ -560,13 +546,6 @@ expected behaviour of a nameserver that serves a DNSBL zone.
 .B rbldnsd
 matches BIND runtime behaviour where appropriate, but not
 always.
-
-.PP
-List of zones in command line is ordered.  If a superzone
-specified before it's subzone in a command line, all
-queries for subzone will be directed to superzone, without
-subzone being even consulted, which is unlikely to be expected
-behaviour.  This may change in the future.
 
 .PP
 .B rbldnsd

@@ -8,6 +8,11 @@ Never news are at top.
  - new dataset: combined: a container for other datasets.
    See manpage for details.
 
+ - reorder zones given in command line (and in combined dataset)
+   to move superzone after all it's subzones.  The order is still
+   important - place most commonly referenced zones first - but
+   it's not a problem anymore to specify superzone first.
+
 0.94 (26 May 2003)
 
  - implemented -d option (dump zone data in BIND format to stdout)
