@@ -156,8 +156,8 @@ static int do_reload(void) {
     struct mallinfo mi = mallinfo();
 # define kb(x) ((mi.x + 512)>>10)
     ip += ssprintf(ibuf + ip, sizeof(ibuf) - ip,
-          ", mem arena=%d ord=%d free=%d keepcost=%d mmap=%d Kb",
-          kb(arena), kb(uordblks), kb(fordblks), kb(keepcost), kb(hblkhd));
+          ", mem arena=%d free=%d mmap=%d Kb",
+          kb(arena), kb(fordblks), kb(hblkhd));
 # undef kb
   }
 #endif /* NOMEMINFO */
