@@ -9,7 +9,7 @@ Never news are at top.
    allocated for subzones of combined dataset (NS/SOA are never
    used here).
 
- - feature: respond to version.bind CH IN requests (and version.rbldnsd).
+ - feature: respond to version.bind CH IN requests (and version.server).
    Use -v to hide version info from reply, or two -v's to disable this
    feature completely.
 
@@ -31,7 +31,7 @@ Never news are at top.
    wrong counters (for previously queried zone) will be incremented.
    Impact of this bug is low, since it is difficult to trigger the
    bug and made rbldnsd crash.
-   Thanks Marco D'Itri @both.it for pointing this out to me.
+   Thanks Marco D'Itri (md at linux.it) for pointing this out to me.
 
 0.97a (1 Aug 2003)
 

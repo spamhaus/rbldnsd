@@ -11,8 +11,8 @@ rbldnsd (0.98pre) unstable; urgency=low
   * properly (but still ugly) fix stats counting
   * some "ugliness": use more const's and explicitly declare routines
     wich does not accept any arguments as such to be foo(void)
-    (Marco D'Itri @both.it)
-  * handle version.bind CH TXT (and version.rbldns for that matter)
+    (Marco D'Itri md at linux.it)
+  * handle version.bind CH TXT (and version.server for that matter)
   * return REFUSED instead of FORMERR in case unrecognized query
     class (IN,ANY,etc) requested
   * defttl => def_ttl to be consistent with def_rr
@@ -21,12 +21,12 @@ rbldnsd (0.98pre) unstable; urgency=low
     to include a line number
   * TXT RR is 255 bytes max, not 254 (generic dataset)
 
- -- Michael Tokarev <mjt@corpit.ru>  Thu,  7 Aug 2003 22:13:22 +0400
+ -- Michael Tokarev <mjt@corpit.ru>  Thu,  7 Aug 2003 22:46:54 +0400
 
 rbldnsd (0.97b) unstable; urgency=low
 
   * fixed security bug in per-zone statistic counting.
-    Thanks Marco D'Itri @both.it for pointing this out to me.
+    Thanks Marco D'Itri (md at linux.it) for pointing this out to me.
 
  -- Michael Tokarev <mjt@corpit.ru>  Wed,  6 Aug 2003 03:20:36 +0400
 
