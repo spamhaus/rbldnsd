@@ -3,6 +3,11 @@ $Id$
 This file describes user-visible changes in rbldnsd.
 Never news are at top.
 
+0.994 (?? ??? ????)
+
+ - bugfix: fixed master-format dump (-d) for ip4trie - some
+   ranges weren't expanding properly, resulting in missing entries
+
 0.993.1 (29 Jul 2004)
 
  - only minor, mostly (Debian) package-specific, stuff

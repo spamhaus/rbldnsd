@@ -286,7 +286,7 @@ ds_ip4trie_dump_octets(FILE *f, unsigned idx, ip4addr_t a, unsigned cnt,
       break;
     ++a;
   }
-  return 0;
+  return 1;
 }
 
 static int
