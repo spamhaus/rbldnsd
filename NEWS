@@ -5,6 +5,11 @@ Never news are at top.
 
 0.993 (01 Jul 2004)
 
+ - bugfix: fix 0.0.0.0 A value being used instead
+   of the specified real IP address in a case like
+   ":127.0.0.2" (use specific A and default TXT)
+   (noted by njabl)
+
  - feature: allow (optional) names for subdatasets
    in combined dataset, for better logging.  Specify
    :name after dataset type in $DATASET line, like
