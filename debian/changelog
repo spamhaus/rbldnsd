@@ -1,3 +1,11 @@
+rbldnsd (0.89p4) unstable; urgency=low
+
+  * NXDOMAIN elimination is gone.  Bind9 does that too, so I assume
+    it is correct behaviour.  Many code removed.
+  * Another prerelease.
+
+ -- Michael Tokarev <mjt@corpit.ru>  Thu,  8 May 2003 21:24:02 +0400
+
 rbldnsd (0.89p3) unstable; urgency=low
 
   * ip4vset and ip4set merged, ditto for dnvset and dnset.
