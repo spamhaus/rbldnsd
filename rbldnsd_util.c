@@ -261,6 +261,68 @@ void dump_ip4range(ip4addr_t a, ip4addr_t b, const char *rr,
 
 }
 
+/* implement TXT substitutions.
+ * `sb' is a buffer where the result will be stored -
+ * at least 255 + 3 characters long */
+int txtsubst(char sb[TXTBUFSIZ], const char *txt,
+	     const char *s0, const struct dataset *ds) {
+  char *const *sn = ds->ds_subst;
+  unsigned sl;
+  char *const e = sb + 254;
+  char *lp = sb;
+  const char *s, *si;
+  if (!s0) s0 = "$";
+  while(lp < e) {
+    if ((s = strchr(txt, '$')) == NULL)
+      s = (char*)txt + strlen(txt);
+    sl = s - txt;
+    if (lp + sl > e)
+      sl = e - lp;
+    memcpy(lp, txt, sl);
+    lp += sl;
+    if (!*s++) break;
+    if (*s == '$') { si = s++; sl = 1; }
+    else if (*s >= '0' && *s <= '9') { /* $1 var */
+      si = sn[*s - '0'];
+      if (!si) { si = s - 1; sl = 2; }
+      else sl = strlen(si);
+      ++s;
+    }
+    else
+      sl = strlen(si = s0);
+    if (lp + sl > e) /* silently truncate TXT RR >255 bytes */
+      sl = e - lp;
+    memcpy(lp, si, sl);
+    lp += sl;
+    txt = s;
+  }
+  sl = lp - sb;
+  if (sl > 254) sl = 254;
+  return sl;
+}
+
+void
+dump_a_txt(const char *name, const unsigned char *rr,
+           const char *subst, const struct dataset *ds, FILE *f) {
+  if (!rr)
+    fprintf(f, "%s\tCNAME\texcluded\n", name);
+  else {
+    fprintf(f, "%s\tA\t%u.%u.%u.%u\n",
+            name, rr[0], rr[1], rr[2], rr[3]);
+    if (rr[4]) {
+      char txt[TXTBUFSIZ];
+      char *p, *n;
+      txt[txtsubst(txt, rr + 4, subst, ds)] = '\0';
+      fprintf(f, "\tTXT\t\"");
+      for(p = txt; (n = strchr(p, '"')) != NULL; p = n + 1) {
+        fwrite(p, 1, n - p, f);
+        putc('\\', f); putc('"', f);
+      }
+      fprintf(f, "%s\"\n", p);
+    }
+  }
+}
+
 char *emalloc(unsigned size) {
   void *ptr = malloc(size);
   if (!ptr)

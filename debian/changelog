@@ -7,8 +7,12 @@ rbldnsd (0.994pre) unstable; urgency=low
     dump_ip4range()) to rbldnsd_utils.c to made it generally
     useful (to be used in rbldnsd_ip4set.c too), and made it
     void (cf the wrong return above)
+  * made txtsubst() public, and move it and dump_a_txt() into
+    rbldnsd_utils.c where the stuff belongs to, out from
+    rbldnsd_packets.c which is too large and has nothing to
+    do with that stuff.
 
- -- Michael Tokarev <mjt@corpit.ru>  Sun, 24 Oct 2004 21:18:02 +0400
+ -- Michael Tokarev <mjt@corpit.ru>  Sun, 24 Oct 2004 21:30:30 +0400
 
 rbldnsd (0.993.1) unstable; urgency=low
 

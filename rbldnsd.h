@@ -271,6 +271,9 @@ void dump_a_txt(const char *name, const unsigned char *rr,
                 const char *subst, const struct dataset *ds, FILE *f);
 void dump_ip4range(ip4addr_t a, ip4addr_t b, const char *rr,
 		   const struct dataset *ds, FILE *f);
+#define TXTBUFSIZ 260
+int txtsubst(char txtbuf[TXTBUFSIZ], const char *template,
+	     const char *sub0, const struct dataset *ds);
 
 struct zone *addzone(struct zone *zonelist, const char *spec);
 void connectdataset(struct zone *zone,
