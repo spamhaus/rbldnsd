@@ -27,6 +27,34 @@ and has limited ability to answer to some other types of queries.
 
 .PP
 .B rbldnsd
+tries to handle data from two different perspectives: given
+a set (or several) of "listed entries" (e.g. IP address ranges
+or domain names), it builds and serves a DNS zone.  Note the
+two are not the same: list of spammer's IPs is NOT a DNS zone,
+but may be represented and used as such, provided that some
+additional information necessary to build complete DNS zone
+(e.g. NS and SOA records, maybe A records necessary for http
+to work) is available.  In this context, \fBrbldnsd\fR is very
+different from other general\-purpose nameservers such as BIND
+or NSD: \fBrbldnsd\fR operates with \fIdatasets\fR (sets of
+entries \- IP addresses or domain names, logically grouped
+together), while other general\-purpose nameservers operates
+with zones.  The way how \fBrbldnsd\fR operates may be somewhat
+confusing to BIND experts.
+
+.PP
+For \fBrbldnsd\fR, a building block is a dataset: e.g., set of
+insecure/abuseable hosts (IP addresses), set of network ranges
+that belongs to various spam operations (IP ranges), domain
+names that belong to spammers (RHSBL) and so on.  Usually,
+different kind of information is placed into separate file,
+for easy maintenance.  From a number of such datasets, \fBrbldnsd\fR
+constructs a number of DNS zones as specified on command line.
+A single dataset may be used for several zones, and a single
+zone may be constructed from several datasets.
+
+.PP
+.B rbldnsd
 will answer queries to DNS zones specified on the command
 line as a set of zone specifications.
 Each zone specification consists of zone basename, dataset type
