@@ -136,9 +136,9 @@ dns_dnlabels.o: dns_dnlabels.c dns.h
 dns_dnequ.o: dns_dnequ.c dns.h
 dns_dnreverse.o: dns_dnreverse.c dns.h
 dns_findname.o: dns_findname.c dns.h
-ip4parse.o: ip4parse.c ip4addr.h
-ip4atos.o: ip4atos.c ip4addr.h
-ip4mask.o: ip4mask.c ip4addr.h
+ip4parse.o: ip4parse.c ip4addr.h config.h
+ip4atos.o: ip4atos.c ip4addr.h config.h
+ip4mask.o: ip4mask.c ip4addr.h config.h
 mempool.o: mempool.c mempool.h
 rbldnsd.o: rbldnsd.c rbldnsd.h config.h ip4addr.h dns.h mempool.h
 rbldnsd_zones.o: rbldnsd_zones.c rbldnsd.h config.h ip4addr.h dns.h \
