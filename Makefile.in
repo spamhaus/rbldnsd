@@ -30,6 +30,13 @@ AWK = @AWK@
 DEFS = @DEFS@
 LIBS = @LIBS@
 
+NAME = rbldnsd
+DPREFIX = $(NAME)-$(VERSION)
+
+# taken from debian/changelog, by ./configure
+VERSION = @VERSION@
+VERSION_DATE = @VERSION_DATE@
+
 LIBDNS_SRCS = dns_ptodn.c dns_dntop.c dns_dntol.c dns_dnlen.c dns_dnlabels.c \
  dns_dnequ.c dns_dnreverse.c dns_findname.c
 LIBDNS_GSRC = dns_nametab.c
@@ -51,24 +58,24 @@ RBLDNSD_SRCS = rbldnsd.c rbldnsd_zones.c rbldnsd_packet.c \
   rbldnsd_generic.c rbldnsd_combined.c \
   rbldnsd_util.c
 RBLDNSD_HDRS = rbldnsd.h
-RBLDNSD_OBJS = $(RBLDNSD_SRCS:.c=.o) librbldnsd.a
+RBLDNSD_OBJS = $(RBLDNSD_SRCS:.c=.o) lib$(NAME).a
 
-MISC = rbldnsd.8 qsort.c Makefile NEWS CHANGES
+MISC = configure $(NAME).8 qsort.c Makefile.in dns_maketab.awk $(NAME).spec \
+  NEWS TODO CHANGES-0.81
+DEBFILES  = debian/changelog debian/copyright debian/rules debian/control \
+  debian/postinst debian/postrm debian/$(NAME).default debian/$(NAME).init
 
 SRCS = $(LIB_SRCS) $(RBLDNSD_SRCS)
 GSRC = $(LIB_GSRC)
 HDRS = $(LIB_HDRS) $(RBLDNSD_HDRS)
+DISTFILES = $(SRCS) $(HDRS) $(MISC)
 
-# taken from debian/changelog, by ./configure
-VERSION = @VERSION@
-VERSION_DATE = @VERSION_DATE@
+all: $(NAME)
 
-all: rbldnsd
-
-rbldnsd: $(RBLDNSD_OBJS)
+$(NAME): $(RBLDNSD_OBJS)
 	$(LD) $(LDFLAGS) -o $@ $(RBLDNSD_OBJS) $(LIBS)
 
-librbldnsd.a: $(LIB_OBJS)
+lib$(NAME).a: $(LIB_OBJS)
 	-rm -f $@
 	$(AR) $(ARFLAGS) $@ $(LIB_OBJS)
 	$(RANLIB) $@
@@ -86,25 +93,34 @@ dns_nametab.c: dns.h dns_maketab.awk
 
 rbldnsd.o: rbldnsd.c debian/changelog
 	@echo
-	@echo \ rbldnsd VERSION="\"$(VERSION) ($(VERSION_DATE))\""
+	@echo \ $(NAME) VERSION="\"$(VERSION) ($(VERSION_DATE))\""
 	@echo
 	$(COMPILE) -DVERSION="\"$(VERSION) ($(VERSION_DATE))\""
 
 clean:
-	-rm -f $(RBLDNSD_OBJS) $(LIB_OBJS) librbldnsd.a $(GSRC) config.log
+	-rm -f $(RBLDNSD_OBJS) $(LIB_OBJS) lib$(NAME).a $(GSRC) config.log
 distclean: clean
-	-rm -f rbldnsd config.h Makefile
+	-rm -f $(NAME) config.h Makefile
 
 spec:
-	@sed "s/^Version:.*/Version: $(VERSION)/" rbldnsd.spec \
-	  > rbldnsd.spec.tmp
+	@sed "s/^Version:.*/Version: $(VERSION)/" $(NAME).spec \
+	  > $(NAME).spec.tmp
 	@set -e; \
-	if cmp rbldnsd.spec rbldnsd.spec.tmp ; then \
-	  rm -f rbldnsd.spec.tmp; \
+	if cmp $(NAME).spec $(NAME).spec.tmp ; then \
+	  rm -f $(NAME).spec.tmp; \
 	else \
-	  echo "Updating rbldnsd.spec ($(VERSION))" ; \
-	  mv -f rbldnsd.spec.tmp rbldnsd.spec ; \
+	  echo "Updating $(NAME).spec ($(VERSION))" ; \
+	  mv -f $(NAME).spec.tmp $(NAME).spec ; \
 	fi
+
+dist: $(DPREFIX).tar.gz
+$(DPREFIX).tar.gz: $(DISTFILES) $(DEBFILES)
+	rm -rf $(DPREFIX)
+	mkdir $(DPREFIX) $(DPREFIX)/debian
+	ln $(DISTFILES) $(DPREFIX)
+	ln $(DEBFILES) $(DPREFIX)/debian
+	tar cfz $@ $(DPREFIX)
+	rm -rf $(DPREFIX)
 
 depend dep deps: $(SRCS) $(GSRC)
 	@echo Generating deps for:
