@@ -79,7 +79,6 @@ static unsigned recheck = 60;	/* interval between checks for reload */
 static int accept_in_cidr;	/* accept 127.0.0.1/8-style CIDRs */
 static int initialized;		/* 1 when initialized */
 static char *logfile;		/* log file name */
-static int logmemtms;		/* print memory usage and (re)load time info */
 unsigned def_ttl = 35*60;	/* default record TTL 35m */
 const char def_rr[5] = "\177\0\0\2\0";		/* default A RR */
 struct dataset *ds_loading;	/* a dataset currently being loaded if any */
@@ -113,23 +112,11 @@ static int satoi(const char *s) {
   return *s ? -1 : n;
 }
 
-#ifndef NOMEMINFO
-static void logmemusage(void) {
-  if (logmemtms) {
-    struct mallinfo mi = mallinfo();
-    dslog(LOG_INFO, 0,
-       "memory usage: "
-       "arena=%d/%d ord=%d free=%d keepcost=%d mmaps=%d/%d",
-       mi.arena, mi.ordblks, mi.uordblks, mi.fordblks, mi.keepcost,
-       mi.hblkhd, mi.hblks);
-  }
-}
-#else
-# define logmemusage()
-#endif
-
 static int do_reload(void) {
   int r;
+#ifndef NOMEMINFO
+  struct mallinfo mi;
+#endif /* NOMEMINFO */
 #ifndef NOTIMES
   struct tms tms;
   clock_t utm, etm;
@@ -140,23 +127,36 @@ static int do_reload(void) {
 #endif
   etm = times(&tms);
   utm = tms.tms_utime;
-#endif
+#endif /* NOTIMES */
 
   r = reloadzones(zonelist);
   if (!r)
     return 1;
 
-#ifndef NOTIMES
-  if (logmemtms) {
-    etm = times(&tms) - etm;
-    utm = tms.tms_utime - utm;
-#define sec(tm) (unsigned long)(tm/HZ), (unsigned long)((tm*100/HZ)%100)
-    dslog(LOG_INFO, 0, "zones (re)loaded: %lu.%lue/%lu.%luu sec",
-         sec(etm), sec(utm));
-#undef sec
-  }
+#ifndef NOMEMINFO
+  mi = mallinfo();
 #endif
-  logmemusage();
+#ifndef NOTIMES
+  etm = times(&tms) - etm;
+  utm = tms.tms_utime - utm;
+#define sec(tm) (unsigned long)(tm/HZ), (unsigned long)((tm*100/HZ)%100)
+#endif
+  dslog(LOG_INFO, 0, "zones (re)loaded"
+#ifndef NOTIMES
+     ", time: %lu.%lue/%lu.%luu sec"
+#endif
+#ifndef NOMEMINFO
+     ", mem: arena=%d/%d ord=%d free=%d keepcost=%d mmaps=%d/%d"
+#endif
+#ifndef NOTIMES
+     , sec(etm), sec(utm)
+#undef sec
+#endif
+#ifndef NOMEMINFO
+     , mi.arena, mi.ordblks, mi.uordblks, mi.fordblks, mi.keepcost,
+     mi.hblkhd, mi.hblks
+#endif
+    );
   return r < 0 ? 0 : 1;
 }
 
@@ -185,7 +185,7 @@ static void NORETURN usage(int exitcode) {
 " -q - quickstart, load zones after backgrounding\n"
 " -l logfile - log queries and answers to this file\n"
 "  (relative to chroot directory)\n"
-" -s - print memory usage and (re)load time info on zone reloads\n"
+/*" -s - print memory usage and (re)load time info on zone reloads\n"*/
 " -a (experimental) - _omit_ AUTH section when constructing reply,\n"
 "  do not return list of auth nameservers in default replies, only\n"
 "  return NS info when explicitly asked\n"
@@ -396,7 +396,6 @@ static void init(int argc, char **argv) {
     case 'n': nodaemon = 1; break;
     case 'e': accept_in_cidr = 1; break;
     case 'l': logfile = optarg; break;
-    case 's': logmemtms = 1; break;
     case 'q': quickstart = 1; break;
     case 'd': dump = 1; break;
     case 'v': show_version = nover++ ? NULL : "rbldnsd"; break;
@@ -680,12 +679,10 @@ static void do_signalled(void) {
   if (signalled & SIGNALLED_TERM) {
     dslog(LOG_INFO, 0, "terminating");
     logstats(0);
-    logmemusage();
     exit(0);
   }
   if (signalled & SIGNALLED_STATS) {
     logstats(signalled & SIGNALLED_ZEROSTATS);
-    logmemusage();
   }
   if (signalled & SIGNALLED_RELOG)
     reopenlog();

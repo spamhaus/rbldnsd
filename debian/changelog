@@ -2,6 +2,9 @@ rbldnsd (0.992pre2) unstable; urgency=low
 
   * cleaned up statistics printing
 
+  * removed -s option (log memory usage and (re)load times) -
+    turned (reworked) equivalent always on
+
  -- Michael Tokarev <mjt@corpit.ru>  Sat, 28 Feb 2004 02:47:31 +0300
 
 rbldnsd (0.992pre1) unstable; urgency=low
