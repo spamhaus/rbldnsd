@@ -1,3 +1,10 @@
+rbldnsd (0.89p2) unstable; urgency=low
+
+  * again, many changes.  DN-based lists are now ok too from
+    BIND point of view.  Logging improvements.  See NEWS file.
+
+ -- Michael Tokarev <mjt@corpit.ru>  Tue,  6 May 2003 03:33:37 +0400
+
 rbldnsd (0.89p1) unstable; urgency=low
 
   * big number of changes, to match BIND's runtime behaviour.

@@ -9,18 +9,20 @@ TODO list for rbldnsd, in no particular order.
 
  * review logging.  It should be possible to specify which packets
    (qtype, rcode, bad etc) to log in addition to filtering by client's IP.
-
- * maybe multi-children environment.  Seems to be unnecessary.
+   Probably not needed as logfile may be FIFO now.
 
  * review all names to be consistent (partially done)
 
+ * maybe multi-children environment.  Seems to be unnecessary.
+
  * implement TCP mode (in separate process, to reduce number of syscalls)
+   probably never.
 
- * implement AXFR query - stupid idea but AXFR is widely used
+ * implement AXFR query - stupid idea but AXFR is widely used.
+   probably never.
 
- * maybe: AXFR client to convert DNS zones into rbldnsd fomat
-
- * control socket for reloads.  This may be done in a separate
+ * control socket for reloads (so that reload may be triggered by
+   writing something to a socket).  This may be done in a separate
    process which will listen for requests on control socket and
    send signal to it's child.  This will also give us an ability
    to monitor and restart failed child (ala supervise)
@@ -36,4 +38,14 @@ TODO list for rbldnsd, in no particular order.
    255.0.255.0 (what a mess)
 
  * add `fnmatch' (or dnpat) type, to handle shell-style wildcards
-   (no regexps please)
+   (no regexps please).
+
+ * It would be nice if queries to name-based datasets will be
+   resolved in one lookup instead of several (by query dn labels)
+   as now.  How?
+   
+ * two last TODO entries may be done by implementing sort of lex-like
+   thing (DFA/NFA), in runtime.  Probably too much for such simple (?)
+   program, unless someone will write good multi-regex-matching library
+   (many applications will benefit from it).  I have no expirience
+   with all those DFA/NFA things - at all.
