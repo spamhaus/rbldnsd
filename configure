@@ -66,6 +66,31 @@ echo "configure: $name $VERSION ($VERSION_DATE)"
 
 subst="$subst VERSION VERSION_DATE"
 
+# this block should go away: temp hack only
+echo $en "checking for /bin/sh functions support... $ec"
+rm -f conftest*; cat >conftest.sh <<EOF
+ac_doit() {
+  echo doit: \$*
+}
+ac_doit testing123
+EOF
+if /bin/sh conftest.sh 2>conftest.err >conftest.out && grep "doit: testing123" conftest.out >/dev/null  ; then
+  echo yes
+else
+  echo no
+  echo "configure: error output was:"
+  uname -a >&5 2>&1
+  sed -e 's/^/   /' conftest.err
+  echo "configure: standard output was:"
+  sed -e 's/^/   /' conftest.out
+  echo "configure: this is no problem, just testing whenever"
+  echo "configure: shell functions may be used in configure script"
+  echo "configure: please report this condition to mjt"
+  echo
+  sleep 5
+fi
+# end of temp hack
+
 ### check for C compiler.  Set $CC
 ###
 echo $en "checking for C compiler... $ec"
@@ -289,6 +314,31 @@ EOF
     echo no
     echo "#define NOSELECT_H 1" >>confdefs.h
   fi
+fi
+
+echo $en "checking for vsnprintf()... $ec"
+rm -f conftest*; cat >conftest.c <<EOF
+#include <stdio.h>
+#include <string.h>
+#include <stdarg.h>
+int test(char *fmt, ...) {
+  va_list ap;
+  char buf[40];
+  va_start(ap, fmt);
+  vsnprintf(buf, sizeof(buf), fmt, ap);
+  return 0;
+}
+int main() {
+  test("test%d", 40);
+  return 0;
+}
+EOF
+if $CC -o conftest conftest.c 2>&5; then
+  echo yes
+else
+  echo no
+  echo "configure: error: $name requires working vsnprintf() routine." >&2
+  exit 1
 fi
 
 echo $en "creating Makefile... $ec"

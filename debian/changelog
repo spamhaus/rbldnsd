@@ -14,6 +14,7 @@ rbldnsd (0.98a.pre) unstable; urgency=low
   * another config test: <sys/select.h> (NOSELECT_H)
   * some mods to ip4trie
   * cast [ug]id_t to int for printf
+  * config test for vsnprintf(), fatal if not found for now (OSF lacks it)
 
  -- Michael Tokarev <mjt@corpit.ru>  Fri, 22 Aug 2003 13:55:58 +0400
 
