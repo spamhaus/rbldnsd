@@ -1,7 +1,7 @@
 #! /usr/bin/perl -w
 # $Id$
 # 
-# A sample script to convert dynablock.wirehub.net bind zone
+# A sample script to convert dynablock.easynet.nl bind zone
 # (dynablock.txt) into rbldnsd ip4vset form.  Only data gets
 # converted, not zone information.  Note this is ip4vset, not
 # ip4set, since dynablock.txt contains exclusion entries wich
@@ -13,7 +13,7 @@ my ($n, $ip, $a, $b);
 
 sub err { print STDERR "$. $_"; }
 
-print ":3:Dynamic IP range listed by Wirehub! Internet DynaBlock - http://dynablock.wirehub.net/errors.html\n\n";
+print ":3:Dynamic IP range listed by easynet.nl DynaBlock - http://dynablock.easynet.nl/errors.html\n\n"
 
 # There are several types of entries (on the right, there is an
 # original variant, left column is corresponding ip4vset entry).

@@ -12,8 +12,9 @@ rbldnsd (0.97pre) unstable; urgency=low
   * in some rare cases, dnset missed one RR for a DN with multiple RRs
   * -DRECOGNIZE_IP4IN6 - treat reverse IPv6-mapped IPv4 queries as
     plain IPv4 qieries
+  * Wirehub Dynablock => Easynet Dynablock
 
- -- Michael Tokarev <mjt@corpit.ru>  Sat, 28 Jun 2003 02:13:59 +0400
+ -- Michael Tokarev <mjt@corpit.ru>  Sat, 28 Jun 2003 02:22:48 +0400
 
 rbldnsd (0.96) unstable; urgency=high
 

@@ -35,7 +35,7 @@ cp -p debian/rbldnsd.default $RPM_BUILD_ROOT/etc/sysconfig/rbldnsd
 cp -p debian/rbldnsd.init $RPM_BUILD_ROOT/etc/init.d/rbldnsd
 chmod +x $RPM_BUILD_ROOT/etc/init.d/rbldnsd
 
-chmod -x WirehubDynablock2rbldnsd.pl # no Depends: on perl et al
+chmod -x EasynetDynablock2rbldnsd.pl # no Depends: on perl et al
 
 %clean
 rm -rf $RPM_BUILD_ROOT
@@ -55,7 +55,7 @@ fi
 
 %files
 %defattr (-,root,root)
-%doc NEWS TODO debian/changelog CHANGES-0.81 WirehubDynablock2rbldnsd.pl
+%doc NEWS TODO debian/changelog CHANGES-0.81 EasynetDynablock2rbldnsd.pl
 %_sbindir/rbldnsd
 %_mandir/man8/rbldnsd.8*
 %config(noreplace) /etc/sysconfig/rbldnsd

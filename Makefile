@@ -53,7 +53,7 @@ RBLDNSD_SRCS = rbldnsd.c rbldnsd_zones.c rbldnsd_packet.c \
 RBLDNSD_HDRS = rbldnsd.h
 RBLDNSD_OBJS = $(RBLDNSD_SRCS:.c=.o) librbldnsd.a
 
-MISC = rbldnsd.8 qsort.c Makefile NEWS CHANGES WirehubDynablock2rbldnsd.pl
+MISC = rbldnsd.8 qsort.c Makefile NEWS CHANGES EasynetDynablock2rbldnsd.pl
 
 SRCS = $(LIB_SRCS) $(RBLDNSD_SRCS) ip4rangetest.c
 GSRC = $(LIB_GSRC)
