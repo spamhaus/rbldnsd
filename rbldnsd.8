@@ -406,14 +406,21 @@ period.
 .SH NOTES
 
 .PP
+All keys specified in dataset files are always relative to
+the zone base DN.  In contrast, all the values (NS and SOA
+records, MX records in generic dataset) are absolute.  This
+is different from BIND behaviour, where trailing dot indicates
+whenever this is an absolute or relative DN.  Trailing dots
+in domain names are ignored by \fBrbldnsd\fR.
+
+.PP
 Several zones may be served by
 .BR rbldnsd ,
 every zone may consist of several datasets.  There are numerous
 ways to combine several data files into several zones.  For
 example, suppose you have a list of dialup ranges in file
 named `dialups', and a list of spammer's ip addresses in file
-named `spammers', and want to serve 3 zones with
-.BR rbldnsd :
+named `spammers', and want to serve 3 zones with \fBrbldnsd\fR:
 dialups.bl.ex.com, spam.bl.ex.com and bl.ex.com which is a
 combination of the two.  There are two ways to do this:
 .PP
