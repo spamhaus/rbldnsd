@@ -7,6 +7,18 @@ Never news are at top.
 
  - bugfix: fixed master-format dump (-d) for ip4trie - some
    ranges weren't expanding properly, resulting in missing entries
+ - bugfix: fixed master-format dump (-d) for ip4set: when
+   we have two entries in input:
+     127.0.0.0/8 a
+     127.0.0.2   b
+   for master-format dump there should be 4 lines, not 2 as
+   before:
+     2.0.0.127  b  (was ok before)
+     *.0.0.127  a  (was missing)
+       *.0.127  a  (was missing)
+         *.127  a  (was ok before)
+   Without the two intermediate lines, named returns NXDOMAIN
+   for eg 3.0.0.127 or x.1.0.127.  Quite an.. interesting case...
 
 0.993.1 (29 Jul 2004)
 

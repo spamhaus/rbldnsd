@@ -13,8 +13,11 @@ rbldnsd (0.994pre) unstable; urgency=low
     do with that stuff.
   * new helper dump_ip4(), analogous to dump_ip4range()
   * use dump_ip4() in ip4tset
+  * rewrite ds_ip4set_dump(), to handle that problrmatic case
+    with entries 127/8 and 127.0.0.2: should also emit
+    *.0.127 and *.0.0.127
 
- -- Michael Tokarev <mjt@corpit.ru>  Tue,  2 Nov 2004 02:52:34 +0300
+ -- Michael Tokarev <mjt@corpit.ru>  Mon, 13 Dec 2004 03:50:29 +0300
 
 rbldnsd (0.993.1) unstable; urgency=low
 

@@ -26,11 +26,15 @@ struct dsdata {
 #define E24 1
 #define E16 2
 #define E08 3
-/* ..and masks */
-#define M32 0xffffffff
-#define M24 0xffffff00
-#define M16 0xffff0000
-#define M08 0xff000000
+/* ..and masks, "network" and "host" parts */
+#define M32 0xffffffffu
+#define H32 0x00000000u
+#define M24 0xffffff00u
+#define H24 0x000000ffu
+#define M16 0xffff0000u
+#define H16 0x0000ffffu
+#define M08 0xff000000u
+#define H08 0x00ffffffu
 
 definedstype(ip4set, DSTF_IP4REV, "set of (ip4 range, value) pairs");
 
@@ -242,73 +246,197 @@ ds_ip4set_query(const struct dataset *ds, const struct dnsqinfo *qi,
   return 1;
 }
 
+/* dump the data as master-format file.
+ * Having two entries:
+ *    127.0.0.0/8  "A"
+ *    127.0.0.2    "B"
+ * we have to generate the following stuff to make bind return what we need:
+ *         *.127 "A"
+ *       *.0.127 "A"
+ *     *.0.0.127 "A"
+ *     2.0.0.127 "B"
+ * If we have two (or more) /8 entries, each should be repeated for /16 and /24.
+ * The same is when we have /16 and /32 (no /24), or /8 and /24 (no /16).
+ *
+ * The algorithm is as follows.  We enumerating entries in /8 array
+ * (ds_ip4set_dump08()), emitting all "previous" entries in /16 (indicating
+ * there's no parent entry), when all entries in lower levels that are
+ * covered by our /16 (indicating there IS a parent this time), our own /16
+ * group -- all entries with the same address.  ds_ip4set_dump16() accepts
+ * 'last' parameter telling it at which address to stop).  ds_ip4set_dump16()
+ * does the same with /16s and /24s as ds_ip4set_dump08() does with /8s and
+ * /16s.  Similarily, ds_ip4set_dump24() deals with /24s and /32s, but at this
+ * point, it should pay attention to the case when there's a /8 but no /16
+ * covering the range in question.  Ditto for ds_ip4set_dump32(), which also
+ * should handle the case when there's no upper /24 but either /16 or /8 exists.
+ */
+
+struct dumpdata {		/* state. */
+  const struct entry *e[4];	/* current entry we're looking at in each arr */
+  const struct entry *t[4];	/* end pointers for arrays */
+  const struct dataset *ds;	/* the dataset in question */
+  FILE *f;			/* file to dump data to */
+};
+
+/* dump a group of entries with the same IP address.
+ * idx shows how many octets we want to print --
+ * used only with E08, E16 or E24, not with E32.
+ * e is where to start, and t is the end of the array.
+ * Returns pointer to the next element after the group.
+ */
+static const struct entry *
+ds_ip4set_dump_group(const struct dumpdata *dd,
+                     ip4addr_t saddr, ip4addr_t hmask,
+                     const struct entry *e, const struct entry *t) {
+  ip4addr_t addr = e->addr;
+  do
+    dump_ip4range(saddr, saddr | hmask, e->rr, dd->ds, dd->f);
+  while(++e < t && e->addr == addr);
+  return e;
+}
+
+/* dump all /32s up to addr <= last.
+ * u08, u16 and u24 is what's on upper levels. */
+static void
+ds_ip4set_dump32(struct dumpdata *dd, ip4addr_t last,
+                 const struct entry *u08, const struct entry *u16,
+                 const struct entry *u24) {
+  const struct entry *e = dd->e[E32], *t = dd->t[E32];
+  ip4addr_t m16 = 1, m24 = 1;
+  /* up_rr is true if there's anything non-excluded that is on upper level. */
+  int up_rr = (u24 ? u24->rr : u16 ? u16->rr : u08 ? u08->rr : NULL) != NULL;
+  while(e < t && e->addr <= last) {
+    if (!e->rr && !up_rr) {
+      /* skip entry if nothing listed on upper level */
+      ++e;
+      continue;
+    }
+    if (!u24 && m24 != (e->addr & M24) && (u08 || u16)) {
+      /* if there's no "parent" /24 entry, AND
+       * we just advanced to next /24, AND
+       * there's something on even-upper levels,
+       * we have to repeat something from upper-upper level
+       * in mid-level. */
+      m24 = e->addr & M24; /* remember parent /24 mask we're in */
+      if (!u16 && m16 != (m24 & M16) && u08) {
+        /* if there's no parent /16, but there is parent /8:
+         * repeat that /8 in current /16, but only once per /16. */
+        m16 = m24 & M16;
+        ds_ip4set_dump_group(dd, m16, H16, u08, dd->t[E08]);
+      }
+      /* several cases:
+         u16!=0 and isn't exclusion: dump it in upper /24.
+         u16!=0 and it IS exclusion: do nothing.
+         u08!=0 - dump it.
+      */
+      if (!u16)			/* u08 is here as per condition above */
+        ds_ip4set_dump_group(dd, m24, H24, u08, dd->t[E08]);
+      else if (u16->rr)
+        ds_ip4set_dump_group(dd, m24, H24, u16, dd->t[E16]);
+      /* else nothing: the upper-upper /16 is an exclusion anyway */
+    }
+    dump_ip4(e->addr, e->rr, dd->ds, dd->f);
+    ++e;
+  }
+  dd->e[E32] = e;
+}
+
+/* dump all /24s and lower-levels up to addr <= last.
+ * u08 and u16 is what's on upper levels. */
+static void
+ds_ip4set_dump24(struct dumpdata *dd, ip4addr_t last,
+                 const struct entry *u08, const struct entry *u16) {
+  const struct entry *e = dd->e[E24], *t = dd->t[E24];
+  ip4addr_t m16 = 1, a;
+  /* up_rr is true if there's a non-excluded upper-level entry present */
+  int up_rr = (u16 ? u16->rr : u08 ? u08->rr : NULL) != NULL;
+  while(e < t && (a = e->addr) <= last) {
+    if (!e->rr && !up_rr) {
+      /* ignore exclusions if there's nothing listed in upper levels */
+      ++e;
+      continue;
+    }
+    if (a)
+      /* dump all preceeding lower-level entries */
+      ds_ip4set_dump32(dd, a - 1, u08, u16, 0);
+    /* and this is where the fun is. */
+    if (!u16 && m16 != (a & M16) && u08) {
+      /* if there's no "parent" /16 entry, AND
+       * we just advanced to next /16, AND
+       * there's a /8 entry,
+       * repeat that /8 in this new /16.
+       * This produces *.x.y entry from y/8 and y.x.z/24. */
+      m16 = a & M16;
+      ds_ip4set_dump_group(dd, m16, H16, u08, dd->t[E08]);
+    }
+    /* dump all lower-level entries covering by our group */
+    ds_ip4set_dump32(dd, a | H24, u08, u16, e);
+    /* dump our group */
+    e = ds_ip4set_dump_group(dd, a, H24, e, t);
+  }
+  /* and finally, dump the rest in lower-level groups up to last */
+  ds_ip4set_dump32(dd, last, u08, u16, 0);
+  dd->e[E24] = e;		/* save loop counter */
+}
+
+/* dump all /16s and lower-levels up to addr <= last.
+ * u08 is what's on upper levels. */
+static void
+ds_ip4set_dump16(struct dumpdata *dd, ip4addr_t last,
+                 const struct entry *u08) {
+  const struct entry *e = dd->e[E16], *t = dd->t[E16];
+  while(e < t && e->addr <= last) {
+    if (!e->rr && !u08) {
+      /* skip exclusion only if there's no upper-level entry */
+      ++e;
+      continue;
+    }
+    if (e->addr)
+      /* dump all preceeding lower-level entries if any */
+      ds_ip4set_dump24(dd, e->addr - 1, u08, 0);
+    /* dump all lower-level entries covering by this group */
+    ds_ip4set_dump24(dd, e->addr | H16, u08, e);
+    /* dump the group itself */
+    e = ds_ip4set_dump_group(dd, e->addr, H16, e, t);
+  }
+  /* and finally, dump the rest in lower levels, up to last */
+  ds_ip4set_dump24(dd, last, u08, 0);
+  dd->e[E16] = e;		/* update loop variable */
+}
+
+/* ok, the simplest case, dump all /8s in turn, unconditionally */
+static void
+ds_ip4set_dump08(struct dumpdata *dd) {
+  const struct entry *e = dd->e[E08], *t = dd->t[E08];
+  while(e < t) {
+    if (!e->rr) {
+      /* just skip all excludes here */
+      ++e;
+      continue;
+    }
+    if (e->addr)
+      /* dump any preceeding lower-level entries if any */
+      ds_ip4set_dump16(dd, e->addr - 1, 0);
+    /* dump all entries covered by our group */
+    ds_ip4set_dump16(dd, e->addr | H08, e);
+    /* dump our own group too */
+    e = ds_ip4set_dump_group(dd, e->addr, H08, e, t);
+  }
+  /* and finally, dump the rest */
+  ds_ip4set_dump16(dd, M32, 0);
+  dd->e[E08] = e;		/* just in case ;) */
+}
+
 static void
 ds_ip4set_dump(const struct dataset *ds,
                const unsigned char UNUSED *unused_odn,
                FILE *f) {
-  ip4addr_t a, u;
-  const struct entry *e, *t, *x;
+  struct dumpdata dd;
   const struct dsdata *dsd = ds->ds_dsd;
-  char name[4*3+3+1];
-
-#define findXm(E,u,m) \
-    (dsd->n[E] ? ds_ip4set_find(dsd->e[E], dsd->n[E], u&m) : NULL)
-#define find24(u) findXm(E24,u,M24)
-#define find16(u) findXm(E16,u,M16)
-#define find08(u) findXm(E08,u,M08)
-
-  u = 0; x = NULL;
-  for(e = dsd->e[E32], t = e + dsd->n[E32]; e < t; ++e) {
-    a = e->addr;
-    if (!e->rr) { /* exclusion */
-      if (!u || (a & M24) != u) {
-        u = a & M24;
-        if (((x = find24(u)) || (x = find16(u)) || (x = find08(u))) && !x->rr)
-          x = NULL;
-      }
-      if (!x) continue;
-    }
-    sprintf(name, "%u.%u.%u.%u",
-            a & 255, (a >> 8) & 255, (a >> 16) & 255, (a >> 24));
-    dump_a_txt(name, e->rr, ip4atos(a), ds, f);
-  }
-
-  u = 0; x = NULL;
-  for(e = dsd->e[E24], t = e + dsd->n[E24]; e < t; ++e) {
-    a = e->addr;
-    if (!e->rr) { /* exclusion */
-      if (!u || (a & M16) != u) {
-        u = a & M16;
-        if (((x = find16(u)) || (x = find08(u))) && !x->rr)
-          x = NULL;
-      }
-      if (!x) continue;
-    }
-    sprintf(name, "*.%u.%u.%u",
-            (a >> 8) & 255, (a >> 16) & 255, (a >> 24));
-    dump_a_txt(name, e->rr, ip4atos(a), ds, f);
-  }
-
-  u = 0; x = NULL;
-  for(e = dsd->e[E16], t = e + dsd->n[E16]; e < t; ++e) {
-    a = e->addr;
-    if (!e->rr) { /* exclusion */
-      if (!u || (a & M08) != u) {
-        u = a & M08;
-        if (((x = find08(u))) && !x->rr)
-          x = NULL;
-      }
-      if (!x) continue; /* no up-level covering entry, ignore excl */
-    }
-    sprintf(name, "*.%u.%u", (a >> 16) & 255, (a >> 24));
-    dump_a_txt(name, e->rr, ip4atos(a), ds, f);
-  }
-
-  for(e = dsd->e[E08], t = e + dsd->n[E08]; e < t; ++e) {
-    a = e->addr;
-    if (!e->rr) continue; /* continue */
-    sprintf(name, "*.%u", (a >> 24));
-    dump_a_txt(name, e->rr, ip4atos(a), ds, f);
-  }
-
+  unsigned i;
+  for(i = 0; i < 4; ++i)
+    dd.t[i] = (dd.e[i] = dsd->e[i]) + dsd->n[i];
+  dd.ds = ds;
+  dd.f = f;
+  ds_ip4set_dump08(&dd);
 }
