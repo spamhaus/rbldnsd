@@ -3,7 +3,7 @@ $Id$
 This file describes user-visible changes in rbldnsd.
 Never news are at top.
 
-0.98
+0.98pre (7 Aug 2003)
 
  - bugfix: memleak in combined dataset: NS and SOA caches was
    allocated for subzones of combined dataset (NS/SOA are never

@@ -1,4 +1,4 @@
-rbldnsd (0.97c) unstable; urgency=low
+rbldnsd (0.98pre) unstable; urgency=low
 
   * use memmove() instead of memcpy() for overlapping regions,
     even if dstaddr is less than srcaddr (current memcpy() can
