@@ -787,7 +787,14 @@ static void do_signalled(void) {
       do_reload();
       if (bgq_pid > 0) {
         int s;
-        kill(bgq_pid, SIGTERM);
+        if (kill(bgq_pid, SIGTERM) != 0) { /*XXXXX*/
+          dslog(LOG_ERR, 0, "reap qchild (pid %d): kill: %s",
+                bgq_pid, strerror(errno));
+          sleep(1);
+          if (kill(bgq_pid, SIGTERM) != 0)
+            dslog(LOG_ERR, 0, "reap qchild2 (pid %d): kill: %s",
+                  bgq_pid, strerror(errno));
+	}
 #ifndef NOSTATS
         { struct zone *z;
           for(z = zonelist; z; z = z->z_next)
