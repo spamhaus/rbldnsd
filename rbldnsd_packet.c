@@ -125,6 +125,7 @@ int replypacket(struct dnspacket *pkt, unsigned qlen, const struct zone *zone) {
   unsigned char *const h = pkt->p_buf;	/* packet's header */
   unsigned qlab;
   unsigned char *lptr[DNS_MAXLABELS];
+  const struct zonedatalist *zdl;
   int found;
 
   if (!(pkt->p_cur = pkt->p_sans = parsequery(h, qlen, &qry, lptr)))
@@ -202,8 +203,19 @@ int replypacket(struct dnspacket *pkt, unsigned qlen, const struct zone *zone) {
       ++ptr;
     }
     pkt->p_dncompr.cptr = ptr;
-    pkt->p_dncompr.cdnp = pkt->p_dncompr.dnbuf;
   }
+
+  /* initialize various query variations */
+  if (zone->z_dstflags & DSTF_IP4REV) /* ip4 address */
+    qry.q_ip4oct = qry.q_dnlab <= 4 ? dntoip4addr(qry.q_dn, &qry.q_ip4) : 0;
+  if (zone->z_dstflags & DSTF_DNREV)	/* reverse DN */
+    dns_dnreverse(qry.q_dn, qry.q_rdn, qry.q_dnlen);
+
+  /* search the datasets */
+  found = 0;
+  for(zdl = zone->z_zdl; zdl; zdl = zdl->zdl_next)
+    if (zdl->zdl_queryfn(zdl->zdl_zds, &qry, pkt))
+      found = 1;	/* positive answer */
 
   if (qry.q_dnlab == 0) {	/* query to base zone: SOA and NS only */
 
@@ -218,23 +230,6 @@ int replypacket(struct dnspacket *pkt, unsigned qlen, const struct zone *zone) {
       h[p_ancnt] = h[p_nscnt] = 0;
       return refuse(DNS_R_REFUSED);
     }
-
-  }
-  else {
-
-    register const struct zonedatalist *zdl;
-
-    /* initialize various query variations */
-    if (zone->z_dstflags & DSTF_IP4REV) /* ip4 address */
-      qry.q_ip4oct = qry.q_dnlab <= 4 ? dntoip4addr(qry.q_dn, &qry.q_ip4) : 0;
-    if (zone->z_dstflags & DSTF_DNREV)	/* reverse DN */
-      dns_dnreverse(qry.q_dn, qry.q_rdn, qry.q_dnlen);
-
-    /* search the datasets */
-    found = 0;
-    for(zdl = zone->z_zdl; zdl; zdl = zdl->zdl_next)
-      if (zdl->zdl_queryfn(zdl->zdl_ds, &qry, pkt))
-        found = 1;	/* positive answer */
 
   }
 
@@ -310,8 +305,7 @@ static int addrr_soa(struct dnspacket *pkt, const struct zone *zone, int auth) {
   /* since SOA always comes last, no need to save dncompr state */
   if ((c = add_dn(pkt, c, zone->z_dn, zone->z_dnlen)) && fit(pkt, c, 8 + 2)) {
     /* 8 bytes */
-    addrr_rrstart(c, DNS_T_SOA,
-            (auth ? zsoa->zsoa_n + 16 : (unsigned char*)&defttl_nbo));
+    addrr_rrstart(c, DNS_T_SOA, auth ? zsoa->zsoa_n + 16 : zsoa->zsoa_ttl);
     rstart = c;
     c += 2;
     if ((c = add_dn(pkt, c, zsoa->zsoa_odn+1, zsoa->zsoa_odn[0])) &&
@@ -338,10 +332,10 @@ static int addrr_ns(struct dnspacket *pkt, const struct zone *zone, int auth) {
   if (nsp == nse) return 0;
   do {
     if (fit(pkt, c, 10 + 2)) {
-      addrr_start(c, DNS_T_NS, &defttl_nbo); /* 10 bytes */
-      c[0] = 0;
       nsdn = *nsp;
-      if ((c = add_dn(pkt, c + 2, nsdn + 1, nsdn[0]))) {
+      addrr_start(c, DNS_T_NS, nsdn); /* 10 bytes */
+      c[0] = 0;
+      if ((c = add_dn(pkt, c + 2, nsdn + 5, nsdn[4]))) {
         pkt->p_cur[11] = c - pkt->p_cur - 12;
         pkt->p_cur = c;
         pkt->p_buf[auth ? p_nscnt : p_ancnt] += 1;
@@ -352,6 +346,26 @@ static int addrr_ns(struct dnspacket *pkt, const struct zone *zone, int auth) {
     return 0;
   } while(++nsp < nse);
   return 1;
+}
+
+void addrr_mx(struct dnspacket *pkt,
+              const unsigned char pri[2],
+              const unsigned char *mxdn, unsigned mxdnlen,
+              const unsigned char ttl[4]) {
+  register unsigned char *c = pkt->p_cur;
+  if (fit(pkt, c, 10 + 2 + 2)) {
+    addrr_start(c, DNS_T_MX, ttl);
+    c += 2;
+    *c++ = pri[0]; *c++ = pri[1];
+    if ((c = add_dn(pkt, c, mxdn, mxdnlen))) {
+      mxdnlen = c - pkt->p_cur - 12;
+      pkt->p_cur[10] = mxdnlen>>8; pkt->p_cur[11] = mxdnlen;
+      pkt->p_cur = c;
+      pkt->p_buf[p_ancnt] += 1;
+      return;
+    }
+  }
+  setnonauth(pkt->p_buf);
 }
 
 /* check whenever a given RR is already in the packet
@@ -371,14 +385,15 @@ static int aexists(const struct dnspacket *pkt, unsigned typ,
 /* add a new record into answer, check for dups.
  * We just ignore any data that exceeds packet size */
 void addrr_any(struct dnspacket *pkt, unsigned dtp,
-               const void *data, unsigned dsz) {
+               const void *data, unsigned dsz,
+               const unsigned char ttl[4]) {
   register unsigned char *c = pkt->p_cur;
   if (aexists(pkt, dtp, data, dsz)) return;
   if (!fit(pkt, c, 12 + dsz)) {
     setnonauth(pkt->p_buf); /* non-auth answer as we can't fit the record */
     return;
   }
-  addrr_start(c, dtp, &defttl_nbo); /* 10 bytes */
+  addrr_start(c, dtp, ttl); /* 10 bytes */
   *c++ = dsz>>8; *c++ = dsz; /* dsize */
   memcpy(c, data, dsz);
   pkt->p_cur = c + dsz;
@@ -387,9 +402,10 @@ void addrr_any(struct dnspacket *pkt, unsigned dtp,
 
 void
 addrr_a_txt(struct dnspacket *pkt, unsigned qtflag,
-             const char *rr, const char *subst) {
+            const char *rr, const char *subst,
+            const struct zonedataset *zds) {
   if (qtflag & NSQUERY_A)
-    addrr_any(pkt, DNS_T_A, rr, 4);
+    addrr_any(pkt, DNS_T_A, rr, 4, zds->zds_ttl);
   if (*(rr += 4) && (qtflag & NSQUERY_TXT)) {
     unsigned sl;
     char sb[256];
@@ -415,7 +431,7 @@ addrr_a_txt(struct dnspacket *pkt, unsigned qtflag,
     }
     sl = lp - sb;
     sb[0] = sl - 1;
-    addrr_any(pkt, DNS_T_TXT, sb, sl);
+    addrr_any(pkt, DNS_T_TXT, sb, sl, zds->zds_ttl);
   }
 }
 

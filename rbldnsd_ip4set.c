@@ -70,7 +70,8 @@ ds_ip4set_addent(struct dataset *ds, unsigned idx,
 }
 
 static int
-ds_ip4set_parseline(struct dataset *ds, char *s, int lineno) {
+ds_ip4set_parseline(struct zonedataset *zds, char *s, int lineno) {
+  struct dataset *ds = zds->zds_ds;
   ip4addr_t a, b;
   const char *rr;
   unsigned rrl;
@@ -212,8 +213,9 @@ ds_ip4set_find_masked(const struct entry *e, int b,
 }
 
 static int
-ds_ip4set_query(const struct dataset *ds, const struct dnsquery *qry,
+ds_ip4set_query(const struct zonedataset *zds, const struct dnsquery *qry,
                 struct dnspacket *pkt) {
+  const struct dataset *ds = zds->zds_ds;
   ip4addr_t q = qry->q_ip4;
   ip4addr_t f;
   const struct entry *e, *t;
@@ -257,7 +259,7 @@ ds_ip4set_query(const struct dataset *ds, const struct dnsquery *qry,
   if (!e->rr) return 0;		/* exclusion */
 
   ipsubst = (qry->q_tflag & NSQUERY_TXT) ? ip4atos(q) : NULL;
-  do addrr_a_txt(pkt, qry->q_tflag, e->rr, ipsubst);
+  do addrr_a_txt(pkt, qry->q_tflag, e->rr, ipsubst, zds);
   while(++e < t && e->addr == f);
 
   return 1;

@@ -49,7 +49,8 @@ static void ds_dnset_free(struct dataset *ds) {
 }
 
 static int
-ds_dnset_parseline(struct dataset *ds, char *s, int lineno) {
+ds_dnset_parseline(struct zonedataset *zds, char *s, int lineno) {
+  struct dataset *ds = zds->zds_ds;
   unsigned char dn[DNS_MAXDN];
   struct entry *e;
   const char *rr;
@@ -230,8 +231,9 @@ ds_dnset_find(const struct entry *e, int n,
 }
 
 static int
-ds_dnset_query(const struct dataset *ds, const struct dnsquery *qry,
+ds_dnset_query(const struct zonedataset *zds, const struct dnsquery *qry,
                struct dnspacket *pkt) {
+  const struct dataset *ds = zds->zds_ds;
   const unsigned char *rdn = qry->q_rdn;
   unsigned qlen = qry->q_dnlen - 1;
   unsigned qlab = qry->q_dnlab;
@@ -239,7 +241,7 @@ ds_dnset_query(const struct dataset *ds, const struct dnsquery *qry,
   const struct entry *e, *t;
   char name[DNS_MAXDOMAIN+1];
 
-  /* if (!qlab) return 0; we will never see empty query */
+  if (!qlab) return 0;		/* do not match empty dn */
 
   if (qlab > ds->maxlab[EP] 	/* if we have less labels, search unnec. */
       || !(e = ds_dnset_find(ds->e[EP], ds->n[EP], rdn, qlen, &sub))) {
@@ -300,7 +302,7 @@ ds_dnset_query(const struct dataset *ds, const struct dnsquery *qry,
     dns_dnreverse(e->lrdn + 1, dn, e->lrdn[0] + 1);
     dns_dntop(dn, name, sizeof(name));
   }
-  do addrr_a_txt(pkt, qry->q_tflag, e->rr, name);
+  do addrr_a_txt(pkt, qry->q_tflag, e->rr, name, zds);
   while(++e < t && e->lrdn == rdn);
 
   return 1;

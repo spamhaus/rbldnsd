@@ -304,14 +304,15 @@ should be on one line (line continuations are not supported),
 and should be specified completely (i.e. all domain names in
 values should be fully\-qualified, entry name may not be omitted).
 No wildcards are accepted.  Only A, TXT, and MX records
-are recognized.  Examples:
+are recognized.  TTL value may be specified before record type.  Examples:
 .IP
 .nf
  # bl.ex.com
  # specify some values for current zone
  $NS 0 ns1.ex.com
  $NS 0 ns2.ex.com
- www A 127.0.0.1
+ # record with TTL
+ www 3000 A 127.0.0.1
  about TXT "ex.com combined blocklist"
 .nf
 

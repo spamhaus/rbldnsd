@@ -197,6 +197,7 @@ static int loadzonedataset(struct zonedataset *zds) {
   if (zds->zds_ds)
     zds->zds_type->dst_freefn(zds->zds_ds);
   zds->zds_zsoa.zsoa_valid = 0;
+  memcpy(zds->zds_ttl, defttl, 4);
   zds->zds_zns = freezonens(zds->zds_zns);
   if (!(zds->zds_ds = zds->zds_type->dst_allocfn()))
     return 0;
@@ -243,7 +244,6 @@ static int updatezone(struct zone *zone) {
 
   for(zdl = zone->z_zdl; zdl; zdl = zdl->zdl_next) {
     const struct zonedataset *zds = zdl->zdl_zds;
-    zdl->zdl_ds = zds->zds_ds;
     if (!zds->zds_stamp)
       return 0;
     if (stamp < zds->zds_stamp)
@@ -257,8 +257,8 @@ static int updatezone(struct zone *zone) {
             nsp[zone->z_nns++] = zns->zns_dn;
           break;
         }
-        if (zns->zns_dn[0] == nsp[n][0] &&
-            memcmp(zns->zns_dn, nsp[n], nsp[n][0]) == 0)
+        if (zns->zns_dn[4] == nsp[n][4] &&
+            memcmp(zns->zns_dn + 4, nsp[n] + 4, nsp[n][4]) == 0)
           break;
       }
     }

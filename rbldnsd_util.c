@@ -14,17 +14,26 @@
 #define digit(c) ((c) >= '0' && (c) <= '9')
 #define d2n(c) ((c) - '0') 
 
-char *parse_uint32(unsigned char *s, u_int32_t *np) {
+char *parse_uint32(char *s, unsigned char nb[4]) {
+  unsigned char *t = (unsigned char*)s;
   unsigned n = 0;
-  if (!digit(*s))
+  if (!digit(*t))
     return NULL;
   do { 
     if (n > 0xffffffffu / 10) return 0;
-    if (n * 10 > 0xffffffffu - d2n(*s)) return 0;
-    n = n * 10 + d2n(*s++);
-  } while(digit(*s));
-  *np = n;
-  skipspace(s);
+    if (n * 10 > 0xffffffffu - d2n(*t)) return 0;
+    n = n * 10 + d2n(*t++);
+  } while(digit(*t));
+  nb[0] = n>>24; nb[1] = n>>16; nb[2] = n>>8; nb[3] = n;
+  skipspace(t);
+  return (char*)t;
+}
+
+char *parse_ttl(char *s, unsigned char ttl[4], const unsigned char defttl[4]) {
+  s = parse_uint32(s, ttl);
+  if (s)
+    if (memcmp(ttl, "\0\0\0\0", 4) == 0)
+      memcpy(ttl, defttl, 4);
   return s;
 }
 
@@ -53,7 +62,6 @@ zds_special(struct zonedataset *zds, char *line) {
     /* SOA record */
     struct zonesoa *zsoa = &zds->zds_zsoa;
     unsigned n;
-    u_int32_t v;
     unsigned char *bp;
 
     if (zsoa->zsoa_valid)
@@ -62,14 +70,16 @@ zds_special(struct zonedataset *zds, char *line) {
     line += 4;
     skipspace(line);
 
+    if (!(line = parse_ttl(line, zsoa->zsoa_ttl, zds->zds_ttl))) return 0;
+
     if (!(line = parse_dn(line, zsoa->zsoa_odn + 1, &n))) return 0;
     zsoa->zsoa_odn[0] = n;
     if (!(line = parse_dn(line, zsoa->zsoa_pdn + 1, &n))) return 0;
     zsoa->zsoa_pdn[0] = n;
 
     for(n = 0, bp = zsoa->zsoa_n; n < 5; ++n) {
-      if (!(line = parse_uint32(line, &v))) return 0;
-      *bp++ = v >> 24; *bp++ = v >> 16; *bp++ = v >> 8; *bp++ = v;
+      if (!(line = parse_uint32(line, bp))) return 0;
+      bp += 4;
     }
 
     if (*line) return 0;
@@ -84,14 +94,17 @@ zds_special(struct zonedataset *zds, char *line) {
       (line[2] == ' ' || line[2] == '\t')) {
 
      struct zonens *zns, **znsp;
-     unsigned char dn[DNS_MAXDN+1];
+     unsigned char dn[DNS_MAXDN+1+1];
      unsigned n;
 
      line += 3;
      skipspace(line);
 
-     if (!(line = parse_dn(line, dn + 1, &n))) return 0;
-     dn[0] = (unsigned char)n++;
+     if (!(line = parse_ttl(line, dn, zds->zds_ttl))) return 0;
+
+     if (!(line = parse_dn(line, dn + 5, &n))) return 0;
+     dn[4] = (unsigned char)n;
+     n += 5;
 
      zns = (struct zonens *)emalloc(sizeof(struct zonens) + n);
      if (!zns) return 0;
@@ -106,22 +119,25 @@ zds_special(struct zonedataset *zds, char *line) {
      return 1;
   }
 
-#if 0
   if ((line[0] == 't' || line[0] == 'T') &&
       (line[1] == 't' || line[1] == 'T') &&
-      (line[1] == 'l' || line[1] == 'L') &&
-      (line[1] == ' ' || line[1] == '\t')) {
-    /* ttl in a zone */
-    return 0;
+      (line[2] == 'l' || line[2] == 'L') &&
+      (line[3] == ' ' || line[3] == '\t')) {
+    unsigned char ttl[4];
+    line += 4;
+    skipspace(line);
+    if (!(line = parse_ttl(line, ttl, defttl))) return 0;
+    if (*line) return 0;
+    memcpy(zds->zds_ttl, ttl, 4);
+    return 1;
   }
-#endif
 
   return 0;
 }
 
 int
 readdslines(FILE *f, struct zonedataset *zds,
-            int (*dslpfn)(struct dataset *ds, char *line, int lineno)) {
+            int (*dslpfn)(struct zonedataset *zds, char *line, int lineno)) {
 #define bufsiz 512
   char _buf[bufsiz+4], *line, *eol;
 #define buf (_buf+4)  /* keep room for 4 IP octets in addrtxt() */
@@ -160,7 +176,7 @@ readdslines(FILE *f, struct zonedataset *zds,
       continue;
     }
     if (line[0] && line[0] != '#')
-      if (!dslpfn(zds->zds_ds, line, lineno))
+      if (!dslpfn(zds, line, lineno))
         return 0;
   }
   return 1;

@@ -27,7 +27,7 @@ extern int logto;
 #define LOGTO_SYSLOG 0x02
 void PRINTFLIKE(2,3) NORETURN error(int errnum, const char *fmt, ...);
 
-extern u_int32_t defttl_nbo;
+extern unsigned char defttl[4];
 
 struct zone;
 struct dataset;
@@ -39,11 +39,9 @@ struct dnsdnptr {	/* used for DN name compression */
   unsigned qpos;		/* position in query */
 };
 
-struct dnsdncompr {
+struct dnsdncompr {	/* dn compression structure */
   struct dnsdnptr ptr[DNS_MAXLABELS];	/* array of pointers */
   struct dnsdnptr *cptr;		/* current (last) pointer */
-  unsigned char dnbuf[1024];		/* buffer for saved domain names */
-  unsigned char *cdnp;			/* current (last) position in dnbuf */
 };
 
 struct dnspacket {		/* private structure */
@@ -66,7 +64,8 @@ struct dnsquery {	/* q */
 };
 
 #define skipspace(s) while(*s == ' ' || *s == '\t') ++s
-char *parse_uint32(unsigned char *s, u_int32_t *np);
+char *parse_uint32(char *s, unsigned char nb[4]);
+char *parse_ttl(char *s, unsigned char ttl[4], const unsigned char defttl[4]);
 char *parse_dn(char *s, unsigned char *dn, unsigned *dnlenp);
 
 typedef struct dataset *ds_allocfn_t(void);
@@ -74,14 +73,15 @@ typedef int ds_loadfn_t(struct zonedataset *zds, FILE *f);
 typedef int ds_finishfn_t(struct dataset *ds);
 typedef void ds_freefn_t(struct dataset *ds);
 typedef int
-ds_queryfn_t(const struct dataset *ds, const struct dnsquery *query,
-             struct dnspacket *packet);
+ds_queryfn_t(const struct zonedataset *zds, const struct dnsquery *qry,
+             struct dnspacket *pkt);
 
 /* use high word so that `generic' dataset works */
 #define NSQUERY_TXT	(1u<<16)
 #define NSQUERY_A	(1u<<17)
 #define NSQUERY_NS	(1u<<18)
 #define NSQUERY_SOA	(1u<<19)
+#define NSQUERY_MX	(1u<<20)
 #define NSQUERY_OTHER	(1u<<31)
 #define NSQUERY_ANY	0xffff0000u
 
@@ -99,6 +99,7 @@ struct dataset_type {	/* dst */
 /* dst_flags */
 #define DSTF_IP4REV	0x01	/* ip4 set */
 #define DSTF_DNREV	0x02	/* reverse query DN */
+#define DSTF_ZERODN	0x04	/* query for zero dn too */
 
 #define declaredstype(t) extern const struct dataset_type dataset_##t##_type
 #define definedstype(t, flags, descr) \
@@ -128,6 +129,7 @@ extern const struct dataset_type *dataset_types[];
 
 struct zonesoa { /* zsoa */
   int zsoa_valid;		/* true if valid */
+  unsigned char zsoa_ttl[4];		/* TTL value */
   unsigned char zsoa_odn[DNS_MAXDN+1];	/* SOA origin DN (len first) */
   unsigned char zsoa_pdn[DNS_MAXDN+1];	/* SOA person DN (len first) */
   unsigned char zsoa_n[20];	/* serial, refresh, retry, expire, minttl */
@@ -136,6 +138,10 @@ struct zonesoa { /* zsoa */
 struct zonens { /* zns */
   struct zonens *zns_next;	/* next pointer in the list */
   unsigned char *zns_dn;	/* domain name of a nameserver */
+    /* first 4 bytes in zns_ds are TTL value;
+     * next is length of DN;
+     * rest is DN itself
+     */
 };
 
 struct zonefile {	/* zf */
@@ -152,12 +158,12 @@ struct zonedataset {	/* zds */
   struct zonefile *zds_zf;		/* list of files for this data */
   struct zonesoa zds_zsoa;		/* SOA record */
   struct zonens *zds_zns;		/* NS records */
+  unsigned char zds_ttl[4];		/* default ttl for a dataset */
   struct zonedataset *zds_next;		/* next in global list */
 };
 
 struct zonedatalist {	/* zdl */
   struct zonedataset *zdl_zds;
-  struct dataset *zdl_ds;	/* cached from zds */
   ds_queryfn_t *zdl_queryfn;	/* cached from zds */
   struct zonedatalist *zdl_next;
 };
@@ -185,10 +191,16 @@ void logreply(const struct dnspacket *pkt, const char *ip,
 /* details of DNS packet structure are in rbldnsd_packet.c */
 
 /* add a record into answer section */
-void addrr_a_txt(struct dnspacket *p, unsigned qtflag,
-                 const char *rr, const char *subst);
-void addrr_any(struct dnspacket *p, unsigned dtp,
-               const void *data, unsigned dsz);
+void addrr_a_txt(struct dnspacket *pkt, unsigned qtflag,
+                 const char *rr, const char *subst,
+                 const struct zonedataset *zds);
+void addrr_any(struct dnspacket *pkt, unsigned dtp,
+               const void *data, unsigned dsz,
+               const unsigned char ttl[4]);
+void addrr_mx(struct dnspacket *pkt,
+              const unsigned char pri[2],
+              const unsigned char *mxdn, unsigned mxdnlen,
+              const unsigned char ttl[4]);
 
 struct dnsstats {
   time_t stime;			/* start time */
@@ -211,7 +223,7 @@ void PRINTFLIKE(1,2) dsloaded(const char *fmt, ...);
 
 int
 readdslines(FILE *f, struct zonedataset *zds,
-            int (*dslpfn)(struct dataset *ds, char *line, int lineno));
+            int (*dslpfn)(struct zonedataset *zds, char *line, int lineno));
 
 extern const char def_rr[5];
 

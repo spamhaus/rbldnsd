@@ -57,7 +57,7 @@ void error(int errnum, const char *fmt, ...) {
   _exit(1);
 }
 
-u_int32_t defttl_nbo = 2048;	/* default record TTL */
+unsigned char defttl[4];	/* default record TTL */
 static int recheck = 60;	/* interval between checks for reload */
 static int accept_in_cidr;	/* accept 127.0.0.1/8-style CIDRs */
 static int initialized;		/* 1 when initialized */
@@ -252,6 +252,7 @@ static int init(int argc, char **argv, struct zone **zonep) {
   ip4addr_t saddr;
   int fd;
   int nodaemon = 0, quickstart = 0;
+  unsigned ttl = 2048;
 
   if ((progname = strrchr(argv[0], '/')) != NULL)
     argv[0] = ++progname;
@@ -270,7 +271,7 @@ static int init(int argc, char **argv, struct zone **zonep) {
     case 't':
       if ((c = satoi(optarg)) < 0)
         error(0, "invalid ttl (-t) value `%.50s'", optarg);
-      defttl_nbo = c;
+      ttl = c;
       break;
     case 'c':
       if ((c = satoi(optarg)) < 0)
@@ -292,7 +293,8 @@ static int init(int argc, char **argv, struct zone **zonep) {
     error(0, "no zone(s) to service specified (-h for help)");
   argv += optind;
 
-  defttl_nbo = htonl(defttl_nbo);
+  defttl[0] = ttl>>24; defttl[1] = ttl>>16;
+  defttl[2] = ttl>>8; defttl[3] = ttl;
 
   if (nodaemon)
     logto = LOGTO_STDOUT;

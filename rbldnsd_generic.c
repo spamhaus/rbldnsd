@@ -12,7 +12,7 @@
 #include "dns.h"
 #include "mempool.h"
 
-definedstype(generic, DSTF_DNREV, "generic simplified bind-format");
+definedstype(generic, DSTF_DNREV|DSTF_ZERODN, "generic simplified bind-format");
 
 struct entry {
   const unsigned char *lrdn;
@@ -20,6 +20,7 @@ struct entry {
   unsigned dtyp;	/* data (query) type */
     /* last word is DNS RR type, first word is NSQUERY_XX bit */
   unsigned char *data;	/* data, mp-allocated (size depends on qtyp) */
+    /* first 4 bytes is ttl */
 };
 
 struct dataset {
@@ -38,7 +39,8 @@ static void ds_generic_free(struct dataset *ds) {
   }
 }
 
-static int ds_generic_parseany(struct dataset *ds, char *line) {
+static int ds_generic_parseany(struct zonedataset *zds, char *s) {
+  struct dataset *ds = zds->zds_ds;
   struct entry *e;
   char *t;
   unsigned dtyp, dsiz;
@@ -56,63 +58,86 @@ static int ds_generic_parseany(struct dataset *ds, char *line) {
   e += ds->n;
 
   /* dn */
-  if (!(line = parse_dn(line, data + DNS_MAXDN + 1, &dsiz)) || dsiz == 1)
+  if (s[0] == '@' && (s[1] == ' ' || s[1] == '\t')) {
+    data[DNS_MAXDN+1] = '\0';
+    dsiz = 1;
+    s += 2;
+    skipspace(s);
+  }
+  else if (!(s = parse_dn(s, data + DNS_MAXDN + 1, &dsiz)) || dsiz == 1)
     return -1;
   data[0] = (unsigned char)dsiz;
-  dns_dnreverse(data + DNS_MAXDN + 1, data, dsiz);
+  dns_dnreverse(data + DNS_MAXDN + 1, data + 1, dsiz);
   if (!(e->lrdn = mp_dmemdup(&ds->mp, data, dsiz + 1)))
     return 0;
 
-  skipspace(line);
+  skipspace(s);
+
+  if (*s >= '0' && *s <= '9') { /* ttl */
+    if (!(s = parse_ttl(s, data, zds->zds_ttl))) return 0;
+    skipspace(s);
+  }
+  else
+    memcpy(data, zds->zds_ttl, 4);
+  dp = data + 4;
 
   /* type */
-  t = line;
-  while(*line != ' ' && *line != '\t')
-    if (!*line) return -1;
-    else { *line = dns_dnlc(*line); ++line; }
-  *line++ = '\0';
-  skipspace(line);
-
-  dp = data;
+  t = s;
+  while(*s != ' ' && *s != '\t')
+    if (!*s) return -1;
+    else { *s = dns_dnlc(*s); ++s; }
+  *s++ = '\0';
+  skipspace(s);
 
   if (strcmp(t, "a") == 0) {
     ip4addr_t a;
     dtyp = NSQUERY_A | DNS_T_A;
-    if (!ip4addr(line, &a, &line)) return -1;
+    if (!ip4addr(s, &a, &s)) return -1;
     a = htonl(a);
-    memcpy(data, &a, 4);
+    memcpy(dp, &a, 4);
     dsiz = 4;
   }
 
   else if (strcmp(t, "txt") == 0) {
     dtyp = NSQUERY_TXT | DNS_T_TXT;
-    dsiz = strlen(line);
-    if (dsiz >= 2 && line[0] == '"' && line[dsiz-1] == '"')
-      ++line, dsiz -= 2;
+    dsiz = strlen(s);
+    if (dsiz >= 2 && s[0] == '"' && s[dsiz-1] == '"')
+      ++s, dsiz -= 2;
     if (dsiz > 254) dsiz = 254;
-    data[0] = (char)dsiz;
-    memcpy(data+1, line, dsiz);
+    dp[0] = (char)dsiz;
+    memcpy(dp+1, s, dsiz);
     dsiz += 1;
+  }
+
+  else if (strcmp(t, "mx") == 0) {
+    dtyp = NSQUERY_MX | DNS_T_MX;
+    if (!(s = parse_uint32(s, dp)) || dp[0] || dp[1]) return -1;
+    dp[0] = dp[2]; dp[1] = dp[3];
+    if (!(s = parse_dn(s, dp + 3, &dsiz))) return 0;
+    if (*s) return 0;
+    dp[2] = (unsigned char)dsiz;
+    dsiz += 3;
   }
 
   else
     return -1;
 
   e->dtyp = dtyp;
+  dsiz += 4;
   if (!(e->data = mp_alloc(&ds->mp, dsiz)))
     return 0;
   memcpy(e->data, data, dsiz);
 
   ++ds->n;
-  dsiz = dns_dnlabels(e->lrdn);
+  dsiz = dns_dnlabels(e->lrdn + 1);
   if (ds->maxlab < dsiz) ds->maxlab = dsiz;
 
   return 1;
 }
 
 static int
-ds_generic_parseline(struct dataset *ds, char *line, int lineno) {
-  int r = ds_generic_parseany(ds, line);
+ds_generic_parseline(struct zonedataset *zds, char *s, int lineno) {
+  int r = ds_generic_parseany(zds, s);
   if (r < 0) {
     dswarn(lineno, "invalid/unrecognized entry");
     return 1;
@@ -160,13 +185,16 @@ static int ds_generic_finish(struct dataset *ds) {
 }
 
 static int
-ds_generic_query(const struct dataset *ds, const struct dnsquery *query,
-                 struct dnspacket *packet) {
-  const unsigned char *rdn = query->q_rdn;
+ds_generic_query(const struct zonedataset *zds, const struct dnsquery *qry,
+                 struct dnspacket *pkt) {
+  const struct dataset *ds = zds->zds_ds;
+  const unsigned char *rdn = qry->q_rdn;
   const struct entry *e = ds->e, *t;
-  unsigned qlen = query->q_dnlen;
+  unsigned qlen = qry->q_dnlen;
+  const unsigned char *d;
   int a = 0, b = ds->n - 1, m, r;
-  if (query->q_dnlab > ds->maxlab || b < 0) return 0;
+
+  if (qry->q_dnlab > ds->maxlab || b < 0) return 0;
 
   for(;;) {
     if (a > b) {
@@ -190,14 +218,18 @@ ds_generic_query(const struct dataset *ds, const struct dnsquery *query,
 
   t = ds->e + ds->n;
   do {
-    if (!(query->q_tflag & e->dtyp))
+    if (!(qry->q_tflag & e->dtyp))
       continue;
+    d = e->data;
     switch(e->dtyp & 0xff) {
     case DNS_T_A:
-      addrr_any(packet, DNS_T_A, e->data, 4);
+      addrr_any(pkt, DNS_T_A, d + 4, 4, d);
       break;
     case DNS_T_TXT:
-      addrr_any(packet, DNS_T_TXT, e->data, (unsigned)(e->data[0]) + 1);
+      addrr_any(pkt, DNS_T_TXT, d + 4, (unsigned)(d[4]) + 1, d);
+      break;
+    case DNS_T_MX:
+      addrr_mx(pkt, d + 4, d + 7, d[4], d);
       break;
     }
   } while(++e < t && e->lrdn == rdn);
