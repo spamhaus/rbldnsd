@@ -6,7 +6,7 @@
 rbldnsd \- DNS daemon suitable for running DNS\-based blocklists
 .SH SYNOPSIS
 .B rbldnsd
-[options]
+options
 .IR zone : dataset ...
 
 .SH DESCRIPTION
@@ -115,20 +115,15 @@ should be available inside \fIrootdir\fR.
 (after chrooting to \fIrootdir\fR if \fB\-r\fR option is also specified).
 May be used to shorten filename paths.
 
-.IP "\fB\-P\fR \fIport\fR"
-specify non\-default port \fIport\fR to listen on, either numerically
-or symbolicaly.  Default port is "domain" (usually taken from
-/etc/services or equivalent).  \fBrbldnsd\fR uses a UDP socket.
-
-.IP "\fB\-b\fR \fIaddress\fR[/\fIport\fR]"
-\fBrbldnsd\fR will bind to specified \fIaddress\fR which defaults to
-a wildcard address.  Either numeric IP address or a hostname may be
-specified.  It is possible to specify several addresses to listen on
-this way.  \fIport\fR, if not specified, defaults to value of \fB\-P\fR
-option.  Note that you should specify address to use if you're running
-\fBrbldnsd\fR on a multihomed host, or else \fBrbldnsd\fR may use wrong
-source address when sending replies.  Note also that \fBrbldnsd\fR will
-work slightly faster if only one listening address is specified.
+.IP "\fB\-b\fR \fIaddress\fR[:\fIport\fR]"
+This option is \fIrequired\fR.  \fBrbldnsd\fR will bind to specified
+\fIaddress\fR and \fIport\fR (port defaults to port 53, domain).
+Either numeric IP address or a hostname may be specified; IP address
+may be enclosed in square brackets [] (mandatory for IPv6 addresses
+since they contain colons).  It is possible to specify several addresses
+to listen on this way, by repeating \fB\-b\fR option.
+Note that \fBrbldnsd\fR will work slightly faster if only one listening
+address is specified.
 
 .IP \fB\-4\fR
 Use IPv4 listening socket/transport, do not attempt to use IPv6.

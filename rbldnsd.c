@@ -150,7 +150,7 @@ static void NORETURN usage(int exitcode) {
    const struct dstype **dstp;
    printf(
 "%s: rbl dns daemon version %s\n"
-"Usage is: %s [options] zonespec...\n"
+"Usage is: %s options zonespec...\n"
 "where options are:\n"
 " -u user[:group] - run as this user:group (rbldns)\n"
 " -r rootdir - chroot to this directory\n"

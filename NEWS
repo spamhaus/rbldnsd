@@ -5,6 +5,10 @@ Never news are at top.
 
 0.98pre (10 Aug 2003)
 
+ - incompatible change: bind address (-b option) is now mandatory.
+   Too many problems with INADDR_ANY, multihomed hosts and wrong
+   source address on replies.
+
  - feature: allow listening on multiple addresses.  Needed e.g.
    on hosts where both IPv4 and IPv6 addresses are in use.  Having
    multiple listening addresses means rbldnsd now uses select/poll
@@ -12,8 +16,9 @@ Never news are at top.
    specified).  If your system does not provide working poll()
    system call, specify -DNOPOLL at compile time.
 
- - feature: recognize host/port syntax in argument for -b option
-   (bind address) to be able to bind to different ports.
+ - feature: recognize host:port and [ip.add.re.ss]:port syntax in
+   argument for -b option (bind address) to be able to bind to
+   different ports.
 
  - feature, and incompatibility change in dnset DN interpretation.
    *.example.com is now NOT the same as .example.com.  Specify
