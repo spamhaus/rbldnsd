@@ -95,7 +95,7 @@ void zloaded(const char *fmt, ...) {
   va_start(ap, fmt);
   vsnprintf(buf, sizeof(buf), fmt, ap);
   va_end(ap);
-  zlog(LOG_INFO, 0, "%04d-%02d-%02d %02d:%02d:%02d: %s",
+  zlog(LOG_INFO, 0, "%04d%02d%02d%02d%02d%02d: %s",
        tm->tm_year + 1900, tm->tm_mon + 1, tm->tm_mday,
        tm->tm_hour, tm->tm_min, tm->tm_sec,
        buf);
