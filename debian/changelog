@@ -5,6 +5,8 @@ rbldnsd (0.95pre) unstable; urgency=low
 
   * Allocate dataset to be part of zonedataset -> remove dataset's allocfn
 
+  * Added `combined' dummy dataset
+
  -- Michael Tokarev <mjt@corpit.ru>  Mon, 26 May 2003 18:19:16 +0400
 
 rbldnsd (0.94) unstable; urgency=low

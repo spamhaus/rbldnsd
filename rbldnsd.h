@@ -135,6 +135,7 @@ struct dataset_type {	/* dst */
 declaredstype(ip4set);
 declaredstype(dnset);
 declaredstype(generic);
+declaredstype(combined);
 
 extern const struct dataset_type *dataset_types[];
 

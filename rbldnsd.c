@@ -72,6 +72,7 @@ const struct dataset_type *dataset_types[] = {
   &dataset_ip4set_type,
   &dataset_dnset_type,
   &dataset_generic_type,
+  &dataset_combined_type,
   NULL
 };
 
