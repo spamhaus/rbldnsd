@@ -301,7 +301,7 @@ void dswarn(int lineno, const char *fmt, ...) {
   if (++ds_loading->ds_warn <= MAXWARN) { /* prevent syslog flood */
     va_list ap;
     va_start(ap, fmt);
-    dslog(LOG_WARNING, lineno, fmt, ap);
+    vdslog(LOG_WARNING, lineno, fmt, ap);
     va_end(ap);
   }
 }
