@@ -122,9 +122,11 @@ zds_special(struct zonedataset *zds, char *line) {
 int
 readdslines(FILE *f, struct zonedataset *zds,
             int (*dslpfn)(struct dataset *ds, char *line, int lineno)) {
-  char buf[512], *line, *eol;
+#define bufsiz 512
+  char _buf[bufsiz+4], *line, *eol;
+#define buf (_buf+4)  /* keep room for 4 IP octets in addrtxt() */
   int lineno = 0, noeol = 0;
-  while(fgets(buf, sizeof(buf), f)) {
+  while(fgets(buf, bufsiz, f)) {
     eol = buf + strlen(buf) - 1;
     if (eol < buf) /* can this happen? */
       continue;
@@ -162,6 +164,7 @@ readdslines(FILE *f, struct zonedataset *zds,
         return 0;
   }
   return 1;
+#undef buf
 }
 
 /* helper routine for dntoip4addr() */
@@ -194,87 +197,67 @@ unsigned dntoip4addr(const unsigned char *q, ip4addr_t *ap) {
   return 0;
 }
 
-int addrtxt(char *str, ip4addr_t *ap, char **txtp) {
+int parse_a_txt(char *str, const char **rrp, const char def_a[4]) {
+  char *rr;
   while(*str == ' ' || *str == '\t') ++str;
   if (*str == ':') {
-    unsigned bits = ip4addr(str + 1, ap, &str);
-    if (!*ap || !bits) return 0;
+    ip4addr_t a;
+    unsigned bits = ip4addr(str + 1, &a, &str);
+    if (!a || !bits) return 0;
     if (bits == 8)
-      *ap |= IP4A_LOOPBACK; /* only last digit in 127.0.0.x */
-    while(*str == ' ' || *str == '\t') ++str;
+      a |= IP4A_LOOPBACK; /* only last digit in 127.0.0.x */
+    skipspace(str);
     if (*str == ':')
       ++str;
     else if (*str != '\0' && *str != '#' && *str != '\0')
       return 0;
-    while(*str == ' ' || *str == '\t') ++str;
+    skipspace(str);
+    rr = (unsigned char*)str - 4;
+    rr[0] = a >> 24; rr[1] = a >> 16; rr[2] = a >> 8; rr[3] = a;
   }
-  else
-    *ap = 0;
-  if (*str == '#' || *str == '\0')
-    *txtp = NULL;
   else {
-    *txtp = str;
-    if (strlen(str) >= 255)
-      (str)[254] = '\0'; /* limited by DNS */
+    rr = (unsigned char*)str - 4;
+    memcpy(rr, def_a, 4);
   }
-  return 1;
+  if (*str != '#' && *str != '\0') {
+    int len = strlen(str);
+    str += len > 255 ? 255 : len;
+  }
+  *str = '\0';
+  *rrp = rr;
+  return 1 + (str - rr);
 }
 
-void *emalloc(unsigned size) {
+char *emalloc(unsigned size) {
   void *ptr = malloc(size);
   if (!ptr)
     oom();
   return ptr;
 }
 
-void *ezalloc(unsigned size) {
+char *ezalloc(unsigned size) {
   void *ptr = calloc(1, size);
   if (!ptr)
     oom();
   return ptr;
 }
 
-void *erealloc(void *ptr, unsigned size) {
+char *erealloc(void *ptr, unsigned size) {
   void *nptr = realloc(ptr, size);
   if (!nptr)
     oom();
   return nptr;
 }
 
+char *ememdup(const void *buf, unsigned len) {
+  char *b = emalloc(len);
+  if (b)
+    memcpy(b, buf, len);
+  return b;
+}
+
 char *estrdup(const char *str) {
-  char *s = strdup(str);
-  if (!s) oom();
-  return s;
-}
-
-void *mp_ealloc(struct mempool *mp, unsigned size) {
-  void *p = mp_alloc(mp, size);
-  if (!p) oom();
-  return p;
-}
-
-char *mp_estrdup(struct mempool *mp, const char *str) {
-  str = mp_strdup(mp, str);
-  if (!str) oom();
-  return (char*)str;
-}
-
-void *mp_ememdup(struct mempool *mp, const void *buf, unsigned len) {
-  buf = mp_memdup(mp, buf, len);
-  if (!buf) oom();
-  return (void*)buf;
-}
-
-const char *mp_edstrdup(struct mempool *mp, const char *str) {
-  str = mp_dstrdup(mp, str);
-  if (!str) oom();
-  return str;
-}
-
-const void *mp_edmemdup(struct mempool *mp, const void *buf, unsigned len) {
-  buf = mp_dmemdup(mp, buf, len);
-  if (!buf) oom();
-  return buf;
+  return ememdup(str, strlen(str) + 1);
 }
 
 /* what a mess... this routine is to work around various snprintf

@@ -1,6 +1,6 @@
 /* $Id$
- * dataset type which consists of a set of (possible wildcarded)
- * domain names, all sharing the same (A,TXT) result.
+ * Dataset type which consists of a set of (possible wildcarded)
+ * domain names together with (A,TXT) result for each.
  */
 
 #include <errno.h>
@@ -11,7 +11,12 @@
 #include "dns.h"
 #include "mempool.h"
 
-definedstype(dnset, 0, "set of domain names");
+definedstype(dnset, DSTF_DNREV, "set of (domain name, value) pairs");
+
+struct entry {
+  unsigned char *lrdn;	/* reverseDN key, mp-allocated, length-1 first */
+  const char *rr;	/* A and TXT RRs */
+};
 
 /*
  * We store all domain names in a sorted array, using binary
@@ -20,22 +25,14 @@ definedstype(dnset, 0, "set of domain names");
  * variables indexed by EP and EW.
  */
 
-struct entry {
-  unsigned char *lrdn; /* reverseDN key, mp-allocated, length-1 first */
-};
-
 struct dataset {
-  unsigned n[2];	/* number of entries */
-  unsigned a[2];	/* entries allocated so far (for loading only) */
-  int nfile;		/* file #: we read default only from first file */
-  int defread;		/* defaults has been read */
-  struct entry *e[2];	/* entries: plain and wildcard */
-  unsigned minlab[2];	/* min level of labels */
-  unsigned maxlab[2];	/* max level of labels */
-  ip4addr_t r_a;	/* result: address */
-  const char *r_txt;	/* result: text */
-  struct mempool mp;	/* mempool for domain names */
-  /* not strpool: we usually don't need to check dups */
+  unsigned n[2]; /* number of entries */
+  unsigned a[2]; /* entries allocated (used only when loading) */
+  struct entry *e[2]; /* entries: plain and wildcard */
+  unsigned maxlab[2]; /* max level of labels */
+  unsigned minlab[2]; /* min level of labels */
+  struct mempool mp; /* mempool for domain names and TXT RRs */
+  const char *def_rr; /* default A and TXT RRs */
 };
 
 /* indexes */
@@ -52,40 +49,58 @@ static void ds_dnset_free(struct dataset *ds) {
 }
 
 static int
-ds_dnset_parseline(struct dataset *ds, char *line, int lineno) {
+ds_dnset_parseline(struct dataset *ds, char *s, int lineno) {
   unsigned char dn[DNS_MAXDN];
-  unsigned idx, dnlen;
   struct entry *e;
+  const char *rr;
+  unsigned idx, dnlen, size;
+  int not;
 
-  if (line[0] == ':') {		/* default entry */
-    if (ds->nfile > 1)		/* do nothing if not first file */
-      return 1;
-    if (ds->defread) {
-      dswarn(lineno, "second default entry ignored");
-      return 1;
-    }
-    if (!addrtxt(line, &ds->r_a, &line)) { /* parse it */
+  if (*s == ':') {		/* default entry */
+    if (!(size = parse_a_txt(s, &rr, def_rr))) {
       dswarn(lineno, "invalid default entry");
       return 1;
     }
-    if (!ds->r_a) ds->r_a = R_A_DEFAULT;
-    if (line && !(ds->r_txt = mp_estrdup(&ds->mp, line)))
+    if (!(ds->def_rr = mp_dmemdup(&ds->mp, rr, size)))
       return 0;
-    ds->defread = 1;
     return 1;
   }
 
+  /* check negation */
+  if (*s == '!') {
+    not = 1;
+    do ++s;
+    while(*s == ' ' || *s == '\t');
+  }
+  else
+    not = 0;
+
   /* check for wildcard: .xxx or *.xxx */
-  if (*line == '.') { idx = EW; ++line; }
-  else if (*line == '*' && line[1] == '.') { idx = EW; line += 2; }
+  if (*s == '.') { idx = EW; ++s; }
+  else if (s[0] == '*' && s[1] == '.') { idx = EW; s += 2; }
   else idx = EP;
 
   /* disallow emptry DN to be listed (i.e. "all"?) */
-  if (!(line = parse_dn(line, dn, &dnlen)) || dnlen == 1) {
+  if (!(s = parse_dn(s, dn, &dnlen)) || dnlen == 1) {
     dswarn(lineno, "invalid domain name");
     return 1;
   }
+
   dns_dntol(dn, dn);		/* lowercase */
+
+  if (not)
+    rr = NULL;			/* negation entry */
+  else {			/* else parse rest */
+    skipspace(s);
+    if (!*s)			/* use default if none given */
+      rr = ds->def_rr;
+    else if (!(size = parse_a_txt(s, &rr, ds->def_rr))) {
+      dswarn(lineno, "invalid value");
+      return 1;
+    }
+    else if (!(rr = mp_dmemdup(&ds->mp, rr, size)))
+      return 0;
+  }
 
   e = ds->e[idx];
   if (ds->n[idx] >= ds->a[idx]) { /* expand array */
@@ -97,33 +112,42 @@ ds_dnset_parseline(struct dataset *ds, char *line, int lineno) {
 
   /* fill up an entry */
   e += ds->n[idx]++;
-  if (!(e->lrdn = (unsigned char*)mp_ealloc(&ds->mp, dnlen + 1))) return 0;
+  if (!(e->lrdn = (unsigned char*)mp_alloc(&ds->mp, dnlen + 1)))
+    return 0;
   e->lrdn[0] = (unsigned char)(dnlen - 1);
   dns_dnreverse(dn, e->lrdn + 1, dnlen);
+  e->rr = rr;
 
   /* adjust min/max #labels */
   dnlen = dns_dnlabels(dn);
   if (ds->maxlab[idx] < dnlen) ds->maxlab[idx] = dnlen;
   if (ds->minlab[idx] > dnlen) ds->minlab[idx] = dnlen;
- 
+
   return 1;
 }
 
 static struct dataset *ds_dnset_alloc() {
   struct dataset *ds = tzalloc(struct dataset);
-  if (ds) {
-    ds->r_a = R_A_DEFAULT;
+  if (ds)
     ds->minlab[EP] = ds->minlab[EW] = DNS_MAXDN;
-  }
   return ds;
 }
 
 static int ds_dnset_load(struct zonedataset *zds, FILE *f) {
-  ++zds->zds_ds->nfile;
+  zds->zds_ds->def_rr = def_rr;
   return readdslines(f, zds, ds_dnset_parseline);
 }
 
 #define min(a,b) ((a)<(b)?(a):(b))
+
+static int ds_dnset_lt(const struct entry *a, const struct entry *b) {
+  /* comparision includes next label length byte (note min()+1) */
+  int r = memcmp(a->lrdn + 1, b->lrdn + 1, min(a->lrdn[0], b->lrdn[0]) + 1);
+  return
+     r < 0 ? 1 :
+     r > 0 ? 0 :
+     a->rr < b->rr;
+}
 
 static int ds_dnset_finish(struct dataset *ds) {
   unsigned r;
@@ -133,12 +157,17 @@ static int ds_dnset_finish(struct dataset *ds) {
 #   define QSORT_TYPE struct entry
 #   define QSORT_BASE ds->e[r]
 #   define QSORT_NELT ds->n[r]
-    /* comparision includes next label length byte (note min()+1) */
-#   define QSORT_LT(a,b) \
-   memcmp(a->lrdn + 1, b->lrdn + 1, min(a->lrdn[0], b->lrdn[0]) + 1) < 0
+#   define QSORT_LT(a,b) ds_dnset_lt(a,b)
 #   include "qsort.c"
 
-#define dnset_eeq(a,b) memcmp(a.lrdn, b.lrdn, a.lrdn[0]) == 0
+    /* we make all the same DNs point to one string for faster searches */
+    { register struct entry *e, *t;
+      for(e = ds->e[r], t = e + ds->n[r] - 1; e < t; ++e)
+        if (e[0].lrdn[0] == e[1].lrdn[0] &&
+            memcmp(e[0].lrdn, e[1].lrdn, e[0].lrdn[0] + 1) == 0)
+          e[1].lrdn = e[0].lrdn;
+    }
+#define dnset_eeq(a,b) a.lrdn == b.lrdn && rrs_equal(a,b)
     REMOVE_DUPS(struct entry, ds->e[r], ds->n[r], dnset_eeq);
     SHRINK_ARRAY(struct entry, ds->e[r], ds->n[r], ds->a[r]);
   }
@@ -174,7 +203,14 @@ ds_dnset_find(const struct entry *e, int n,
     if (r < 0) a = m + 1;	/* look in last half */
     else if (r > 0) b = m - 1;	/* look in first half */
     /* prefixes match (r == 0) */
-    else if (t->lrdn[0] == dnlen) return t; /* found exact match */
+    else if (t->lrdn[0] == dnlen) {
+      /* found exact match, seek back to
+       * first entry with this domain name */
+      rdn = (t--)->lrdn;
+      while(t > e && t->lrdn == rdn)
+        --t;
+      return t + 1;
+    }
     else if (t->lrdn[0] < dnlen) a = m + 1; /* look in last half */
     else b = m - 1;		/* look in first half */
   }
@@ -194,13 +230,14 @@ ds_dnset_find(const struct entry *e, int n,
 }
 
 static int
-ds_dnset_query(const struct dataset *ds, const struct dnsquery *query,
-               struct dnspacket *packet) {
-  const unsigned char *rdn = query->q_rdn;
-  unsigned qlen = query->q_dnlen - 1;
-  unsigned qlab = query->q_dnlab;
-  const struct entry *e;
+ds_dnset_query(const struct dataset *ds, const struct dnsquery *qry,
+               struct dnspacket *pkt) {
+  const unsigned char *rdn = qry->q_rdn;
+  unsigned qlen = qry->q_dnlen - 1;
+  unsigned qlab = qry->q_dnlab;
   int sub = 0;
+  const struct entry *e, *t;
+  char name[DNS_MAXDOMAIN+1];
 
   /* if (!qlab) return 0; we will never see empty query */
 
@@ -214,7 +251,7 @@ ds_dnset_query(const struct dataset *ds, const struct dnsquery *query,
      * is last label in rdn.  "removing" is done by substracting
      * length of next label from qlen */
 
-    const unsigned char *dn = query->q_dn;
+    const unsigned char *dn = qry->q_dn;
 
     /* remove labels until number of labels in query is greather
      * than we have in wildcard array, but remove at least 1 label
@@ -230,30 +267,41 @@ ds_dnset_query(const struct dataset *ds, const struct dnsquery *query,
         /* oh, number of labels in query become less than
          * minimum we have listed.  Nothing to search anymore */
         if (sub) return 1;	/* if subdomain listed, positive */
-        if (query->q_dnlab > ds->maxlab[EW])
+        if (qry->q_dnlab > ds->maxlab[EW])
           return 0; /* query can't be superdomain */
         /* if query listed as a wildcard base... */
-        if (ds_dnset_find(ds->e[EW], ds->n[EW], rdn, query->q_dnlen - 1, &sub))
+        if (ds_dnset_find(ds->e[EW], ds->n[EW], rdn, qry->q_dnlen - 1, &sub))
           return 1;
         return sub;		/* ..or it's subdomain */
       }
+
       /* lookup an entry, do not watch if some subdomain
        * listed (we removed some labels already) */
       if ((e = ds_dnset_find(ds->e[EW], ds->n[EW], rdn, qlen, NULL)))
         break;			/* found, listed */
+
       /* remove next label at the end of rdn */
       qlen -= *dn + 1;
       dn += *dn + 1;
       --qlab;
+
     }
+    t = ds->e[EW] + ds->n[EW];
+
   }
-  if (query->q_tflag & NSQUERY_A) addrec_a(packet, ds->r_a);
-  if (ds->r_txt && (query->q_tflag & NSQUERY_TXT)) {
-    unsigned char dn[DNS_MAXDN];
-    char name[DNS_MAXDOMAIN+1];
+  else
+    t = ds->e[EP] + ds->n[EP];
+
+  if (!e->rr) return 0;
+
+  rdn = e->lrdn;
+  if (qry->q_tflag & NSQUERY_TXT) {
+    char dn[DNS_MAXDN];
     dns_dnreverse(e->lrdn + 1, dn, e->lrdn[0] + 1);
     dns_dntop(dn, name, sizeof(name));
-    addrec_txt(packet, ds->r_txt, name);
   }
+  do addrec_a_txt(pkt, qry->q_tflag, e->rr, name);
+  while(++e < t && e->lrdn == rdn);
+
   return 1;
 }

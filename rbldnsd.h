@@ -58,10 +58,9 @@ struct dnsquery {	/* q */
   unsigned q_class;			/* query class */
   unsigned q_tflag;			/* query RR type flag (NSQUERY_XX) */
   unsigned char q_dn[DNS_MAXDN];	/* original query DN, lowercased */
-  unsigned char q_rdn_b[DNS_MAXDN];	/* reverse of q_dn - buffer */
-  unsigned char *q_rdn;			/* pointer into q_rdn_b */
   unsigned q_dnlen;			/* length of qdn */
   unsigned q_dnlab;			/* number of labels in qldn */
+  unsigned char q_rdn[DNS_MAXDN];	/* reverse of q_dn */
   ip4addr_t q_ip4;			/* parsed IP4 address */
   unsigned q_ip4oct;			/* number of valid octets in ip4 */
 };
@@ -116,9 +115,7 @@ struct dataset_type {	/* dst */
    descr }
 
 declaredstype(ip4set);
-declaredstype(ip4vset);
 declaredstype(dnset);
-declaredstype(dnvset);
 declaredstype(generic);
 
 /*
@@ -168,9 +165,8 @@ struct zone {	/* zone, list of zones */
   char *z_name;				/* name of the zone */
   time_t z_stamp;			/* timestamp, 0 if not loaded */
   unsigned char *z_dn;			/* zone domain name */
-  unsigned char *z_rdn;			/* reverse domain name */
-  unsigned z_dnlen;			/* length of z_dnr[] */
-  unsigned z_dnlab;			/* number of dnr labels */
+  unsigned z_dnlen;			/* length of z_dn[] */
+  unsigned z_dnlab;			/* number of dn labels */
   unsigned z_dstflags;			/* flags of all datasets */
   struct zonedatalist *z_zdl;		/* list of datas */
   struct zonesoa z_zsoa;		/* SOA record */
@@ -187,8 +183,8 @@ void logreply(const struct dnspacket *pkt, const char *ip,
 /* details of DNS packet structure are in rbldnsd_packet.c */
 
 /* add a record into answer section */
-int addrec_a(struct dnspacket *p, ip4addr_t aip);
-int addrec_txt(struct dnspacket *p, const char *txt, const char *subst);
+void addrec_a_txt(struct dnspacket *p, unsigned qtflag,
+                  const char *rr, const char *subst);
 int addrec_any(struct dnspacket *p, unsigned dtp,
                const void *data, unsigned dsz);
 int addrec_ns(struct dnspacket *p,
@@ -216,11 +212,18 @@ void PRINTFLIKE(3,4) dslog(int level, int lineno, const char *fmt, ...);
 void PRINTFLIKE(2,3) dswarn(int lineno, const char *fmt, ...);
 void PRINTFLIKE(1,2) dsloaded(const char *fmt, ...);
 
-#define R_A_DEFAULT ((ip4addr_t)0x7f000002)
 
 int
 readdslines(FILE *f, struct zonedataset *zds,
             int (*dslpfn)(struct dataset *ds, char *line, int lineno));
+
+extern const char def_rr[5];
+
+/* parse line in form :ip:text into rr
+ * where first 4 bytes is ip in network byte order.
+ * Note this routine uses 4 bytes BEFORE str (it's safe to call it after
+ * readdslines() */
+int parse_a_txt(char *str, const char **rrp, const char def_a[4]);
 
 /* parse a DN as reverse-octet IP4 address.  Return number of octets
  * (1..4) or 0 in case q isn't a valid IP4 address. */
@@ -230,24 +233,16 @@ unsigned dntoip4addr(const unsigned char *q, ip4addr_t *ap);
 unsigned ip4parse_cidr(const char *s, ip4addr_t *ap, char **np);
 int ip4parse_range(const char *s, ip4addr_t *a1p, ip4addr_t *a2p, char **np);
 
-int addrtxt(char *str, ip4addr_t *ap, char **txtp);
-
 void oom();
-void *emalloc(unsigned size);
-void *ezalloc(unsigned size); /* zero-fill */
-void *erealloc(void *ptr, unsigned size);
+char *emalloc(unsigned size);
+char *ezalloc(unsigned size); /* zero-fill */
+char *erealloc(void *ptr, unsigned size);
 char *estrdup(const char *str);
+char *ememdup(const void *buf, unsigned size);
 
 #define tmalloc(type) ((type*)emalloc(sizeof(type)))
 #define tzalloc(type) ((type*)ezalloc(sizeof(type)))
 #define trealloc(type,ptr,n) ((type*)erealloc((ptr),(n)*(sizeof(type))))
-
-struct mempool;
-void *mp_ealloc(struct mempool *mp, unsigned size);
-char *mp_estrdup(struct mempool *mp, const char *str);
-void *mp_ememdup(struct mempool *mp, const void *buf, unsigned len);
-const char *mp_edstrdup(struct mempool *mp, const char *str);
-const void *mp_edmemdup(struct mempool *mp, const void *buf, unsigned len);
 
 int vssprintf(char *buf, int bufsz, const char *fmt, va_list ap);
 int PRINTFLIKE(3, 4) ssprintf(char *buf, int bufsz, const char *fmt, ...);
@@ -277,78 +272,17 @@ int PRINTFLIKE(3, 4) ssprintf(char *buf, int bufsz, const char *fmt, ...);
     }					\
 }
 
-/* helper macro to test whenever two given entries
- * with r_a and r_txt fields, are equal, provided
- * that if r_a is zero, this is an exclusion entry.
- *  if a's r_a is zero, we're treating them equal.
- *   if r_a's are equal,
- *    if a.r_txt is non-null
- *      if b.r_txt is non-null
- *        strcmp
- *      else not eq
- *    else if b.r_txt is non-null -> not eq
- *    else eq
+/* helper macro to test whenever two given RRs (A and TXT) are equal,
+ * provided that arr is zero, this is an exclusion entry.
+ *  if arr is zero, we're treating them equal.
+ *   else compare pointers
+ *   else memcmp first 4 (A) bytes and strcmp rest (TXT)
  */
 #define rrs_equal(a, b) \
-  (!(a).r_a \
-   || ((a).r_a == (b).r_a \
-       && ((a).r_txt \
-             ? ((b).r_txt \
-                  ? strcmp((a).r_txt, (b).r_txt) == 0 \
-                  : 0 \
-               ) \
-             : ((b).r_txt ? 0 : 1) \
-          ) \
+  (!(a).rr \
+   || (a).rr == (b).rr \
+   || (memcmp((a).rr, (b).rr, 4) == 0 \
+       && strcmp((a).rr + 4, (b).rr + 4) == 0 \
       ) \
   )
-
-
-/* helper macro for ip4range_expand:
- * deal with last octet, shifting a and b when done
- */
-#define _ip4range_expand_octet(a,b,fn,bits)		\
-  if ((a | 255u) >= b) {				\
-    if ((a ^ b) == 255u)				\
-      return fn((bits>>3)+1, a<<bits, 1);		\
-    else						\
-      return fn(bits>>3, a<<bits, b - a + 1);		\
-  }							\
-  if (a & 255u) {					\
-    if (!fn(bits>>3, a<<bits, 256u - (a & 255u)))	\
-      return 0;						\
-    a = (a >> 8) + 1;					\
-  }							\
-  else							\
-    a >>= 8;						\
-  if ((b & 255u) != 255u) {				\
-    if (!fn((bits>>3), (b & ~255u)<<bits, (b&255u)+1))	\
-      return 0;						\
-    b = (b >> 8) - 1;					\
-  }							\
-  else							\
-    b >>= 8
-
-/* ip4range_expand(start,stop,function)
- * "expand" an ip4 range [start,stop] to a set of
- * arrays of /32, /24, /16 and /8 cidr ranges, calling
- * a given function for each array with parameters
- *  int function(idx, start, count):
- *   idx - "index", 0=/32, 1=/24, 2=/16 and 3=/8
- *   start - starting IP address
- *   number of consecutive entries
- * Side effect: ip4range_expand is "terminal routine",
- * that is, it does return from the caller with int
- * result (0/1): if function returns 0, ip4range_expand
- * will return from a caller with code 0, else, when all
- * is done, it will return with 1.
- * This marco is used to convert ip4 ranges to array
- * elements in ip4set and ip4vset types.
- */
-
-#define ip4range_expand(a,b,fn)	{	\
-  _ip4range_expand_octet(a,b,fn,0);	\
-  _ip4range_expand_octet(a,b,fn,8);	\
-  _ip4range_expand_octet(a,b,fn,16);	\
-  return fn(3, a << 24, b - a + 1); }
-
 

@@ -42,9 +42,7 @@ LIB_OBJS = $(LIBDNS_OBJS) $(LIBIP4_OBJS) mempool.o
 LIB_GSRC = $(LIBDNS_GSRC) $(LIBIP4_GSRC)
 
 RBLDNSD_SRCS = rbldnsd.c rbldnsd_zones.c rbldnsd_packet.c \
-  rbldnsd_generic.c \
-  rbldnsd_ip4set.c rbldnsd_ip4vset.c \
-  rbldnsd_dnset.c rbldnsd_dnvset.c \
+  rbldnsd_generic.c rbldnsd_ip4set.c rbldnsd_dnset.c \
   rbldnsd_util.c
 RBLDNSD_HDRS = rbldnsd.h
 RBLDNSD_OBJS = $(RBLDNSD_SRCS:.c=.o) librbldnsd.a

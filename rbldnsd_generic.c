@@ -60,7 +60,7 @@ static int ds_generic_parseany(struct dataset *ds, char *line) {
     return -1;
   data[0] = (unsigned char)dsiz;
   dns_dnreverse(data + DNS_MAXDN + 1, data, dsiz);
-  if (!(e->lrdn = (const unsigned char*)mp_edmemdup(&ds->mp, data, dsiz + 1)))
+  if (!(e->lrdn = mp_dmemdup(&ds->mp, data, dsiz + 1)))
     return 0;
 
   skipspace(line);
@@ -119,7 +119,7 @@ static int ds_generic_parseany(struct dataset *ds, char *line) {
     return -1;
 
   e->dtyp = dtyp;
-  if (!(e->data = mp_ealloc(&ds->mp, dsiz)))
+  if (!(e->data = mp_alloc(&ds->mp, dsiz)))
     return 0;
   memcpy(e->data, data, dsiz);
 

@@ -16,7 +16,7 @@
  * becomes less than an average allocated block size.
  */
 
-void oom();
+void *emalloc(unsigned size);
 
 #define MEMPOOL_CHUNKSIZE (65536-sizeof(unsigned)*3)
 
@@ -38,15 +38,13 @@ void mp_init(struct mempool *mp) {
   mp->mp_lastlen = 0;
 }
 
-void *mp_alloc(struct mempool *mp, unsigned size) {
+char *mp_alloc(struct mempool *mp, unsigned size) {
   if (size >= MEMPOOL_CHUNKSIZE / 2) {
     /* for large blocks, allocate separate "full" chunk */
     struct mempool_cfull *c =
-      (struct mempool_cfull*)malloc(sizeof(*c)+size-1);
-    if (!c) {
-      oom();
+      (struct mempool_cfull*)emalloc(sizeof(*c)+size-1);
+    if (!c)
       return NULL;
-    }
     c->next = mp->mp_fullc;
     mp->mp_fullc = (struct mempool_chunk*)c;
     return c->buf;
@@ -81,11 +79,9 @@ void *mp_alloc(struct mempool *mp, unsigned size) {
     }
 
     else { /* no sutable chunks -> allocate new one */
-      c = (struct mempool_chunk *)malloc(sizeof(*c));
-      if (!c) {
-        oom();
+      c = (struct mempool_chunk *)emalloc(sizeof(*c));
+      if (!c)
         return NULL;
-      }
       c->next = mp->mp_chunk;
       mp->mp_chunk = c;
       c->size = MEMPOOL_CHUNKSIZE - size;
@@ -107,8 +103,8 @@ void mp_free(struct mempool *mp) {
   mp_init(mp);
 }
 
-void *mp_memdup(struct mempool *mp, const void *buf, unsigned len) {
-  void *b = (char*)mp_alloc(mp, len);
+char *mp_memdup(struct mempool *mp, const void *buf, unsigned len) {
+  char *b = (char*)mp_alloc(mp, len);
   if (b)
     memcpy(b, buf, len);
   return b;
@@ -122,7 +118,7 @@ char *mp_strdup(struct mempool *mp, const char *str) {
  * elimination of dups (only last request is checked)
  */
 
-const void *mp_dmemdup(struct mempool *mp, const void *buf, unsigned len) {
+const char *mp_dmemdup(struct mempool *mp, const void *buf, unsigned len) {
   if (mp->mp_lastlen == len && memcmp(mp->mp_lastbuf, buf, len) == 0)
     return mp->mp_lastbuf;
   else if ((buf = mp_memdup(mp, buf, len)) != NULL)

@@ -18,9 +18,7 @@
 
 /* a list of zonetypes. */
 static const struct dataset_type *dataset_types[] = {
-  &dataset_ip4vset_type,
   &dataset_ip4set_type,
-  &dataset_dnvset_type,
   &dataset_dnset_type,
   &dataset_generic_type
 };
@@ -168,15 +166,11 @@ struct zone *addzone(struct zone *zonelist, const char *spec) {
   for (;;) {
     if (!(zone = *zonep)) {
       *zonep = zone = tzalloc(struct zone);
-      zone->z_dn = (unsigned char*)emalloc(dnlen*2+sizeof(int)); /* align */
-      zone->z_rdn = zone->z_dn + dnlen;
-      memcpy(zone->z_dn, dn, dnlen);
-      dns_dnreverse(dn, zone->z_rdn, dnlen);
+      zone->z_dn = ememdup(dn, dnlen);
       zone->z_dnlen = dnlen;
       zone->z_dnlab = dns_dnlabels(dn);
       dns_dntop(dn, name, sizeof(name));
       zone->z_name = estrdup(name);
-      strcpy(zone->z_name, name);
       break;
     }
     else if (zone->z_dnlen == dnlen && memcmp(zone->z_dn, dn, dnlen) == 0)

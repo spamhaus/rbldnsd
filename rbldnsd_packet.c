@@ -63,7 +63,7 @@ static int add_soa(struct dnspacket *pkt, const struct zone *zone, int auth);
 
 static unsigned char *
 parsequery(register const unsigned char *q, unsigned qlen,
-           struct dnsquery *qry) {
+           struct dnsquery *qry, unsigned char **lptr) {
 
   /* parsing incoming query.  Untrusted data read directly from the network.
    * q is a buffer ptr - data that was read (DNS_MAXPACKET max).
@@ -90,25 +90,27 @@ parsequery(register const unsigned char *q, unsigned qlen,
   if (q[p_qdcnt1] || q[p_qdcnt2] != 1)	/* qdcount should be == 1 */
     return NULL;
 
-  /* parse query DN, count labels */
+  /* parse and lowercase query DN, count and init labels */
   qlab = 0;			/* number of labels so far */
-  e = q = q + p_hdrsize;	/* start of qDN */
-  while(*e) {			/* loop by DN lables */
-    if (*e > DNS_MAXLABEL	/* too long label? */
-        || (e += *e + 1) > x)	/* or it ends past packet? */
+  q += p_hdrsize;		/* start of qDN */
+  d = qry->q_dn;		/* destination lowercased DN */
+  while((*d = *q) != 0) {	/* loop by DN lables */
+    lptr[qlab++] = d++;		/* another label */
+    e = q + *q + 1;		/* end of this label */
+    if (*q > DNS_MAXLABEL	/* too long label? */
+        || e > x)		/* or it ends past packet? */
       return NULL;
-    ++qlab;			/* yet another label */
+    /* lowercase it */
+    ++q;			/* length */
+    do *d++ = dns_dnlc(*q);	/* lowercase each char */
+    while(++q < e);		/* until end of label */
   }
-  /* e points to qDN terminator now */
-  qry->q_dnlen = ++e - q;
+  /* d points to qDN terminator now */
+  qry->q_dnlen = d - qry->q_dn + 1;
   qry->q_dnlab = qlab;
 
-  /* lowercase qDN into qry->q_dn. label lengths are ok too */
-  d = qry->q_dn;
-  do *d++ = dns_dnlc(*q);
-  while(++q < e);
-
   /* q is end of qDN. decode qtype and qclass, and prepare for an answer */
+  ++q;
   qry->q_type = ((unsigned)(q[0]) << 8) | q[1];
   qry->q_class = ((unsigned)(q[2]) << 8) | q[3];
 
@@ -116,14 +118,15 @@ parsequery(register const unsigned char *q, unsigned qlen,
 }
 
 /* construct reply to a query. */
-int replypacket(struct dnspacket *pkt, unsigned len, const struct zone *zone) {
+int replypacket(struct dnspacket *pkt, unsigned qlen, const struct zone *zone) {
 
   struct dnsquery qry;			/* query structure */
-  register unsigned char *const h	/* packet's header */
-     = pkt->p_buf;
+  unsigned char *const h = pkt->p_buf;	/* packet's header */
+  unsigned qlab;
+  unsigned char *lptr[DNS_MAXLABELS];
   int found;
 
-  if (!(pkt->p_cur = pkt->p_sans = parsequery(h, len, &qry)))
+  if (!(pkt->p_cur = pkt->p_sans = parsequery(h, qlen, &qry, lptr)))
     return 0;
 
   /* from now on, we see (almost?) valid dns query, should reply */
@@ -162,16 +165,19 @@ int replypacket(struct dnspacket *pkt, unsigned len, const struct zone *zone) {
   }
   h[p_f2] = DNS_R_NOERROR;
 
-  /* make reverse of qdn */
-  dns_dnreverse(qry.q_dn, qry.q_rdn_b, len = qry.q_dnlen);
-
   /* find matching zone */
+  qlab = qry.q_dnlab;
+  qlen = qry.q_dnlen;
   for(;; zone = zone->z_next) {
+    unsigned char *q;
     if (!zone) /* not authoritative */
       return refuse(DNS_R_REFUSED);
-    if (zone->z_dnlen <= len &&
-        memcmp(zone->z_rdn, qry.q_rdn_b, zone->z_dnlen - 1) == 0)
-      break;
+    if (zone->z_dnlab > qlab) continue;
+    q = lptr[qlab - zone->z_dnlab];
+    if (zone->z_dnlen != qlen - (q - qry.q_dn)) continue;
+    if (memcmp(zone->z_dn, q, zone->z_dnlen)) continue;
+    *q = '\0'; /* terminate at base zone */
+    break;
   }
 
   /* found matching zone */
@@ -179,9 +185,7 @@ int replypacket(struct dnspacket *pkt, unsigned len, const struct zone *zone) {
     return refuse(DNS_R_SERVFAIL);
 
   /* initialize query */
-  qry.q_dnlen = (len -= zone->z_dnlen - 1);
-  qry.q_dn[qry.q_dnlen - 1] = '\0';
-  qry.q_rdn = qry.q_rdn_b + zone->z_dnlen - 1;
+  qry.q_dnlen = (qlen -= zone->z_dnlen - 1);
   qry.q_dnlab -= zone->z_dnlab;
 
   { /* initialize DN compression */
@@ -189,11 +193,11 @@ int replypacket(struct dnspacket *pkt, unsigned len, const struct zone *zone) {
      * unnecessary long DN.  Zone DN should fit in dncompr array */
     struct dnsdnptr *ptr = pkt->p_dncompr.ptr;
     const unsigned char *dn = zone->z_dn;
-    unsigned qpos = (pkt->p_sans - h) - 4 - len;
+    unsigned qpos = (pkt->p_sans - h) - 4 - qlen;
     unsigned llen;
     while((llen = *dn)) {
       ptr->dnp = dn; dn += ++llen;
-      ptr->dnlen = len; len -= llen;
+      ptr->dnlen = qlen; qlen -= llen;
       ptr->qpos = qpos; qpos += llen;
       ++ptr;
     }
@@ -225,6 +229,8 @@ int replypacket(struct dnspacket *pkt, unsigned len, const struct zone *zone) {
     /* initialize various query variations */
     if (zone->z_dstflags & DSTF_IP4REV) /* ip4 address */
       qry.q_ip4oct = qry.q_dnlab <= 4 ? dntoip4addr(qry.q_dn, &qry.q_ip4) : 0;
+    if (zone->z_dstflags & DSTF_DNREV)	/* reverse DN */
+      dns_dnreverse(qry.q_dn, qry.q_rdn, qry.q_dnlen);
 
     /* search the datasets */
     found = 0;
@@ -397,39 +403,38 @@ int addrec_any(struct dnspacket *pkt, unsigned dtp,
   return 1;
 }
 
-int
-addrec_a(struct dnspacket *pkt, ip4addr_t aip) {
-  unsigned char ip[4];
-  ip[0] = aip >> 24; ip[1] = aip >> 16; ip[2] = aip >> 8; ip[3] = aip;
-  return addrec_any(pkt, DNS_T_A, ip, 4);
-}
-
-int
-addrec_txt(struct dnspacket *pkt, const char *txt, const char *subst) {
-  unsigned sl;
-  char sb[256];
-  char *lp = sb + 1, *s, *const e = sb + 254;
-  if (!txt) return 1;
-  if (!subst) subst = "$";
-  while(lp < e) {
-    if ((s = strchr(txt, '$')) == NULL)
-      s = (char*)txt + strlen(txt);
-    sl = s - txt;
-    if (lp + sl > e)
-      sl = e - lp;
-    memcpy(lp, txt, sl);
-    lp += sl;
-    if (!*s) break;
-    sl = strlen(subst);
-    if (lp + sl > e) /* silently truncate TXT RR >255 bytes */
-      sl = e - lp;
-    memcpy(lp, subst, sl);
-    lp += sl;
-    txt = s + 1;
+void
+addrec_a_txt(struct dnspacket *pkt, unsigned qtflag,
+             const char *rr, const char *subst) {
+  if (qtflag & NSQUERY_A)
+    addrec_any(pkt, DNS_T_A, rr, 4);
+  if (*(rr += 4) && (qtflag & NSQUERY_TXT)) {
+    unsigned sl;
+    char sb[256];
+    char *const e = sb + 254;
+    char *lp = sb + 1;
+    const char *s;
+    if (!subst) subst = "$";
+    while(lp < e) {
+      if ((s = strchr(rr, '$')) == NULL)
+        s = (char*)rr + strlen(rr);
+      sl = s - rr;
+      if (lp + sl > e)
+	sl = e - lp;
+      memcpy(lp, rr, sl);
+      lp += sl;
+      if (!*s) break;
+      sl = strlen(subst);
+      if (lp + sl > e) /* silently truncate TXT RR >255 bytes */
+	sl = e - lp;
+      memcpy(lp, subst, sl);
+      lp += sl;
+      rr = s + 1;
+    }
+    sl = lp - sb;
+    sb[0] = sl - 1;
+    addrec_any(pkt, DNS_T_TXT, sb, sl);
   }
-  sl = lp - sb;
-  sb[0] = sl - 1;
-  return addrec_any(pkt, DNS_T_TXT, sb, sl);
 }
 
 static const char *

@@ -65,6 +65,7 @@ static char *logfile;		/* log file name */
 static struct ip4list *logfilt;	/* log filter: IPs/nets to log */
 static struct ip4list *qryfilt;	/* which IPs/nets will be serviced */
 static int logmemtms;		/* print memory usage and (re)load time info */
+const char def_rr[5] = "\1\0\0\177\0";
 
 static int satoi(const char *s) {
   int n = 0;
