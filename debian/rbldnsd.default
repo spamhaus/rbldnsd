@@ -13,13 +13,13 @@
 #   multihop.dsbl.org:ip4set:multihop \
 #   unconfirmed.dsbl.org:ip4set:unconfirmed \
 #
-# osirusoft -r/var/lib/rbldns/osirusoft -b 127.3 \
-#   dialups.relays.osirusoft.com:ip4set:dialups \
-#   spews.relays.osirusoft.com:ip4set:spews \
-#   inputs.relays.osirusoft.com:ip4set:inputs \
-#   relays.osirusoft.com:ip4set:dialups \
-#   relays.osirusoft.com:ip4set:spews \
-#   relays.osirusoft.com:ip4set:inputs \
+# local -r/var/lib/rbldns/local -b 127.3 \
+#   dialups.bl.example.com:ip4set:dialups \
+#   spews.bl.example.com:ip4set:spews \
+#   inputs.bl.example.com:ip4set:inputs \
+#   bl.example.com:ip4set:dialups \
+#   bl.example.com:ip4set:spews \
+#   bl.example.com:ip4set:inputs \
 #
 #  "
 #
@@ -27,7 +27,7 @@
 # easily editable.
 #
 # the first word, key, will be used to form pid file name, like
-# /var/run/rbldnsd-dsbl.pid, /var/run/rbldnsd-osirusoft.pid etc.
+# /var/run/rbldnsd-dsbl.pid, /var/run/rbldnsd-local.pid etc.
 # So, all keys should be unique.  This is done in order to support
 # several instances of rbldnsd, if that'll be required.  In a
 # simple case, when only one instance is needed, key may be
