@@ -649,8 +649,11 @@ unsigned ip4parse_cidr(const char *s, ip4addr_t *ap, char **np) {
 
 int ip4parse_range(const char *s, ip4addr_t *a1p, ip4addr_t *a2p, char **np) {
   unsigned bits = ip4range(s, a1p, a2p, np);
-  if (bits && !accept_in_cidr && (*a1p & ~ip4mask(bits)))
-    return 0;
+  if (!bits) return 0;
+  if (*a1p & ~ip4mask(bits)) {
+    if (accept_in_cidr) *a1p &= ip4mask(bits);
+    else return 0;
+  }
   return 1;
 }
 
