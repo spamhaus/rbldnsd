@@ -3,6 +3,7 @@
  */
 
 #include <stdarg.h>
+#include <sys/types.h>
 #include "ip4addr.h"
 
 #if !defined(__GNUC__) && !defined(__attribute__)
@@ -31,10 +32,23 @@ struct zonetype;
 struct zonedata;
 struct dnspacket;
 
+struct dnsstats {
+  time_t stime;			/* start time */
+  /* n - number of requests;
+   * i - number of bytes read
+   * o - number of bytes written
+   * a - number of answers */
+  unsigned nbad, ibad;			/* unrecognized, short etc requests */
+  unsigned nnxd, inxd, onxd;		/* NXDOMAINs */
+  unsigned nrep, irep, orep, arep;	/* OK replies */
+  unsigned nerr, ierr, oerr;		/* other errors (REFUSED, FORMERR...) */
+};
+
 struct zone *addzone(struct zone *zlist, const char *spec);
 int reloadzones(struct zone *zl);
 void printzonetypes(FILE *f);
-int udp_request(int fd, const struct zone *zonelist, FILE *flog);
+int udp_request(int fd, const struct zone *zonelist,
+                struct dnsstats *stats, FILE *flog);
 
 void PRINTFLIKE(3,4) zlog(int level, int lineno, const char *fmt, ...);
 void PRINTFLIKE(2,3) zwarn(int lineno, const char *fmt, ...);

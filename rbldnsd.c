@@ -248,21 +248,22 @@ static int init(int argc, char **argv, struct zone **zonep) {
   return fd;
 }
 
-static volatile int want_reload;
+static volatile int signalled;
+#define SIGNALLED_ALRM	0x01
+#define SIGNALLED_HUP	0x02
+#define SIGNALLED_USR1	0x04
+#define SIGNALLED_USR2	0x08
+#define SIGNALLED_TERM	0x10
 
 static void sighandler(int sig) {
   switch(sig) {
-  case SIGALRM:
-    alarm(recheck);
-    want_reload = 1;
-    break;
-  case SIGHUP:
-    want_reload = 2;
-    break;
+  case SIGALRM: alarm(recheck); signalled |= SIGNALLED_ALRM; break;
+  case SIGHUP: signalled |= SIGNALLED_HUP; break;
+  case SIGUSR1: signalled |= SIGNALLED_USR1; break;
+  case SIGUSR2: signalled |= SIGNALLED_USR2; break;
   case SIGTERM:
   case SIGINT:
-    zlog(LOG_INFO, 0, "terminating");
-    exit(0);
+    signalled |= SIGNALLED_TERM;
   }
 }
 
@@ -277,33 +278,73 @@ static void setup_signals() {
   sigaddset(&ssblock, SIGHUP);
   sigaction(SIGALRM, &sa, NULL);
   sigaddset(&ssblock, SIGALRM);
+  sigaction(SIGUSR1, &sa, NULL);
+  sigaddset(&ssblock, SIGUSR1);
+  sigaction(SIGUSR2, &sa, NULL);
+  sigaddset(&ssblock, SIGUSR2);
   sigaction(SIGTERM, &sa, NULL);
   sigaction(SIGINT, &sa, NULL);
+}
+
+static void logstats(struct dnsstats *s, int reset) {
+  time_t t = time(NULL);
+  zlog(LOG_INFO, 0,
+    "stats for %ldsec (num/in/out/ans): "
+    "tot=%u/%u/%u/%u "
+    "ok=%u/%u/%u/%u "
+    "nxd=%u/%u/%u "
+    "err=%u/%u/%u "
+    "bad=%u/%u",
+    t - s->stime,
+    s->nrep+s->nnxd+s->nerr+s->nbad,
+    s->irep+s->inxd+s->ierr,
+    s->orep+s->onxd+s->oerr,
+    s->arep,
+    s->nrep, s->irep, s->orep, s->arep,
+    s->nnxd, s->inxd, s->onxd,
+    s->nerr, s->ierr, s->oerr,
+    s->nbad, s->ibad);
+  if (reset) {
+    memset(s, 0, sizeof(*s));
+    s->stime = t;
+  }
 }
 
 int main(int argc, char **argv) {
   int fd;
   struct zone *zonelist;
+  struct dnsstats stats;
   FILE *flog;
   fd = init(argc, argv, &zonelist);
   flog = logfile ? fopen(logfile, "a") : NULL;
   setup_signals();
   alarm(recheck);
+  memset(&stats, 0, sizeof(stats));
+  stats.stime = time(NULL);
+
   for(;;) {
-    if (want_reload) {
+
+    if (signalled) {
       sigset_t ssorig;
       sigprocmask(SIG_BLOCK, &ssblock, &ssorig);
-      reloadzones(zonelist);
-      if (want_reload > 1 && logfile) {
-	if (flog) fclose(flog);
-	flog = fopen(logfile, "a");
+      if (signalled & (SIGNALLED_USR1|SIGNALLED_USR2|SIGNALLED_TERM))
+        logstats(&stats, signalled & SIGNALLED_USR2);
+      if (signalled & SIGNALLED_TERM) {
+        zlog(LOG_INFO, 0, "terminating");
+        return 0;
       }
-      want_reload = 0;
+      if (signalled & (SIGNALLED_HUP|SIGNALLED_ALRM))
+        reloadzones(zonelist);
+      if ((signalled & SIGNALLED_HUP) && logfile) {
+        if (flog) fclose(flog);
+        flog = fopen(logfile, "a");
+      }
+      signalled = 0;
       sigprocmask(SIG_SETMASK, &ssorig, NULL);
     }
-    udp_request(fd, zonelist, flog);
+
+    udp_request(fd, zonelist, &stats, flog);
   }
-  return 0;
 }
 
 unsigned ip4parse_cidr(const char *s, ip4addr_t *ap, char **np) {

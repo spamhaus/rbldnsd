@@ -66,7 +66,8 @@ static unsigned processpacket(struct dnspacket *p, const struct zone *zone) {
   p->nans = 0;
 
 #define refuse(p,code) (p->p[2] = 0x84, p->p[3] = (code), (p->sans - p->p))
-#define nxdomain(p) (p->p[2] = 0x84, p->p[3] = 3, (p->sans - p->p))
+#define nxdomain(p) \
+	(p->p[2] = 0x84, p->p[3] = DNS_C_NXDOMAIN, (p->sans - p->p))
 
   /* construct reply packet */
   /* identifier already in place */
@@ -77,21 +78,21 @@ static unsigned processpacket(struct dnspacket *p, const struct zone *zone) {
   p->p[10] = p->p[11] = 0; /* arcount */
 
   if (qcls != DNS_C_IN && qcls != DNS_C_ANY)
-    return refuse(p,1); /* format error */
+    return refuse(p,DNS_C_FORMERR);
   if (p->p[2] & 126)
-    return refuse(p,4); /* not implemented */
+    return refuse(p,DNS_C_NOTIMPL);
   switch(qtyp) {
   case DNS_T_ANY: qtyp = NSQUERY_ANY; break;
   case DNS_T_A:   qtyp = NSQUERY_A; break;
   case DNS_T_TXT: qtyp = NSQUERY_TXT; break;
   case DNS_T_NS:  qtyp = NSQUERY_NS; break;
   case DNS_T_SOA: qtyp = NSQUERY_SOA; break;
-  default: return refuse(p,5); /* refused */
+  default: return refuse(p,DNS_C_REFUSED);
   }
 
   p->p[2] = 0x80; /* 0x81?! */
   if (qcls == DNS_C_IN) p->p[2] |= 0x04; /* AA */
-  p->p[3] = 0;
+  p->p[3] = DNS_C_NOERROR;
 
   nm = nf = 0;
 
@@ -125,7 +126,7 @@ static unsigned processpacket(struct dnspacket *p, const struct zone *zone) {
   else if (nm)
     return nxdomain(p);
   else
-    return refuse(p, 5); /* refused */
+    return refuse(p, DNS_C_REFUSED); /* refused */
 }
 
 /* this routine should log to a file instead of syslog */
@@ -177,12 +178,12 @@ loganswer(FILE *flog,
   p = pkt->p;
   q = p[3];
   switch(q) {
-  case 0: v = "NOERROR"; break;
-  case 1: v = "FORMERR"; break;
-  case 2: v = "SERVFAIL"; break;
-  case 3: v = "NXDOMAIN"; break;
-  case 4: v = "NOTIMPL"; break;
-  case 5: v = "REFUSED"; break;
+  case DNS_C_NOERROR:  v = "NOERROR";  break;
+  case DNS_C_FORMERR:  v = "FORMERR";  break;
+  case DNS_C_SERVFAIL: v = "SERVFAIL"; break;
+  case DNS_C_NXDOMAIN: v = "NXDOMAIN"; break;
+  case DNS_C_NOTIMPL:  v = "NOTIMPL";  break;
+  case DNS_C_REFUSED:  v = "REFUSED";  break;
   default: s += sprintf(s, "code%u", q); v = NULL;
   }
   if (v) s += sprintf(s, "%s", v);
@@ -192,24 +193,40 @@ loganswer(FILE *flog,
   write(fileno(flog), logbuf, s - logbuf);
 }
 
-int udp_request(int fd, const struct zone *zonelist, FILE *flog) {
+int udp_request(int fd, const struct zone *zonelist,
+                struct dnsstats *stats, FILE *flog) {
   struct dnspacket p;
   unsigned char buf[DNS_MAXPACKET+1];
-  int r;
+  int r, n;
   struct sockaddr_in sin;
   socklen_t sinl = sizeof(sin);
 
   p.p = buf;
   p.e = buf + sizeof(buf);
 
-  r = recvfrom(fd, buf, sizeof(buf), 0, (struct sockaddr *)&sin, &sinl);
-  if (r < 0)
+  n = recvfrom(fd, buf, sizeof(buf), 0, (struct sockaddr *)&sin, &sinl);
+  if (n < 0)
     return 0;
-  p.c = buf + r;
-  if (!(r = processpacket(&p, zonelist)))
+  p.c = buf + n;
+  if (!(r = processpacket(&p, zonelist))) {
+    stats->nbad += 1;
+    stats->ibad += n;
     return 0;
+  }
   if (flog)
     loganswer(flog, &p, &sin);
+  switch(buf[3]) {
+  case DNS_C_NOERROR:
+    stats->nrep += 1; stats->irep += n; stats->orep += r;
+    stats->arep += p.nans;
+    break;
+  case DNS_C_NXDOMAIN:
+    stats->nnxd += 1; stats->inxd += n; stats->onxd += r;
+    break;
+  default:
+    stats->nerr += 1; stats->ierr += n; stats->oerr += r;
+    break;
+  }
   while((r = sendto(fd, buf, r, 0, (struct sockaddr *)&sin, sizeof(sin))) < 0)
     if (errno != EINTR) break;
   return r < 0 ? 0 : 1;
