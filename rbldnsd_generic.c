@@ -70,9 +70,11 @@ static int ds_generic_parseany(struct dataset *ds, char *line) {
     data[0] = '\0';
     dsiz = 1;
   }
-  dns_dnreverse(data, data + DNS_MAXDN + 1, dsiz);
   data[DNS_MAXDN] = (unsigned char)dsiz;
-  dtyp = (dsiz + sizeof(int)) / sizeof(int) * sizeof(int); /* align (memcmp) */
+  dns_dnreverse(data, data + DNS_MAXDN + 1, dsiz);
+  /* allocate a bit more than needed, so that memcmp() will work
+   * (align at sizeof(int) */
+  dtyp = (dsiz + sizeof(int)) / sizeof(int) * sizeof(int);
   memset(data + DNS_MAXDN + 1 + dsiz, 0, sizeof(int));
   if (!(e->lrdn = (unsigned char*)mp_edmemdup(&ds->mp, data + DNS_MAXDN, dtyp)))
     return 0;
