@@ -100,23 +100,22 @@ should be available inside \fIrootdir\fR.
 (after chrooting to \fIrootdir\fR if \fB\-r\fR option is also specified).
 May be used to shorten filename paths.
 
-.IP "\fB\-b\fR [\fIaddress\fR][:\fIport\fR]"
+.IP "\fB\-b\fR \fIaddress\fR"
 \fBrbldnsd\fR will bind to specified \fIaddress\fR which defaults to
-a wildcard address, and \fIport\fR which defaults to 53 (standard DNS
-port).
+a wildcard address.  Either numeric IP address or a hostname may be
+specified.  \fBrbldnsd\fR will use first available address for a
+multihomed hostname.
 
-.IP "\fB\-a\fR \fInetlist\fR"
-access control list: answer queries that orginate from IP addresses
-matching \fInetlist\fR only.  Queries originated from other IPs will
-be silently ignored.  By default, all IPs are allowed.  \fInetlist\fR
-consists of comma\-separated list of CIDR ranges or hostnames, optionally
-negated by exclamation mark, like 127.0.0.1,!127/8.  Implicit all\-matching
-entry are always added at the end of the list, to allow access to the
-rest of IPs if last entry was negative and to disallow access if it was
-positive (so this example allows access from 127.0.0.1, disallows from
-all other IPs in loopback range, and allows to everyone else).  By default,
-\fBrbldnsd\fR allows access from any IP address.  Note that hostnames
-may be used in \fInetlist\fR too, like localhost/8.
+.IP "\fB\-P\fR \fIport\fR"
+specify non-default port \fIport\fR to listen on, either numerically
+or symbolicaly.  Default port is "domain" (usually taken from
+/etc/services or equivalent).  \fBrbldnsd\fR uses UDP socket.
+
+.IP \fB\-4\fR
+Use IPv4 listening socket/transport, do not attempt to use IPv6.
+
+.IP \fB\-6\fR
+Use IPv6 listening socket/transport, do not attempt to use IPv4.
 
 .IP "\fB\-t\fR \fIttl\fR"
 Set answer time\-to\-live value to be \fIttl\fR secounds.  All answers will

@@ -7,7 +7,12 @@
 #include <stdio.h>
 #include <sys/types.h>
 #include <unistd.h>
+#include <netdb.h>
 #include "rbldnsd.h"
+
+#ifndef NI_WITHSCOPEID
+# define NI_WITHSCOPEID 0
+#endif
 
 static int addrr_soa(struct dnspacket *pkt, const struct zone *zone, int auth);
 static int addrr_ns(struct dnspacket *pkt, const struct zone *zone, int auth);
@@ -441,13 +446,21 @@ addrr_a_txt(struct dnspacket *pkt, unsigned qtflag,
   }
 }
 
-void logreply(const struct dnspacket *pkt, const char *ip,
+void logreply(const struct dnspacket *pkt,
+              const struct sockaddr *peeraddr, int peeraddrlen,
               FILE *flog, int flushlog) {
-  char cbuf[DNS_MAXDOMAIN + 200];
+  char cbuf[DNS_MAXDOMAIN + NI_MAXHOST + 50];
   char *cp = cbuf;
   const unsigned char *const q = pkt->p_sans - 4;
 
-  cp += sprintf(cp, "%lu %s ", (unsigned long)time(NULL), ip);
+  cp += sprintf(cp, "%lu ", (unsigned long)time(NULL));
+  if (getnameinfo(peeraddr, peeraddrlen,
+                  cp, sizeof(NI_MAXHOST), NULL, 0,
+                  NI_NUMERICHOST|NI_WITHSCOPEID) == 0)
+    cp += strlen(cp);
+  else
+    *cp++ = '?';
+  *cp++ = ' ';
   cp += dns_dntop(pkt->p_buf + p_hdrsize, cp, DNS_MAXDOMAIN);
   cp += sprintf(cp, " %s %s: %s/%u/%d\n",
       dns_typename(((unsigned)q[0]<<8)|q[1]),

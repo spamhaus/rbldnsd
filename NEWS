@@ -3,6 +3,17 @@ $Id$
 This file describes user-visible changes in rbldnsd.
 Never news are at top.
 
+0.90 (10 May 2003)
+
+ - IPv6 transport support.  Specify -4 or -6 to use particular
+   transport, default is to use first available.
+
+ - -b (bindaddr) now does not accept port specification, only
+   host address.  Use new option -P to specify listening port.
+
+ - acl (-a) and log filter (-L) - per-IP filters - are gone
+   for now, as I should figure out how to do that with IPv6.
+
 0.89p4 (8 May 2003)
 
  - since bind9 returns NXDOMAIN for b.example.com even if a.b.example.com

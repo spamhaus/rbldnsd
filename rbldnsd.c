@@ -27,11 +27,9 @@
 
 #include "rbldnsd.h"
 
-struct ip4list {
-  ip4addr_t addr, mask;		/* NOTE: _NETWORK_ byte order! */
-  int value;
-  struct ip4list *next;
-};
+#ifndef NI_WITHSCOPEID
+# define NI_WITHSCOPEID 0
+#endif
 
 const char *version = VERSION;
 char *progname; /* limited to 32 chars */
@@ -60,10 +58,8 @@ static int recheck = 60;	/* interval between checks for reload */
 static int accept_in_cidr;	/* accept 127.0.0.1/8-style CIDRs */
 static int initialized;		/* 1 when initialized */
 static char *logfile;		/* log file name */
-static struct ip4list *logfilt;	/* log filter: IPs/nets to log */
-static struct ip4list *qryfilt;	/* which IPs/nets will be serviced */
 static int logmemtms;		/* print memory usage and (re)load time info */
-const char def_rr[5] = "\2\0\0\177\0";
+const char def_rr[5] = "\2\0\0\177\0";	/* default A RR */
 
 /* a list of zonetypes. */
 const struct dataset_type *dataset_types[] = {
@@ -137,7 +133,10 @@ static void NORETURN usage(int exitcode) {
 " -u user[:group] - run as this user:group (rbldns)\n"
 " -r rootdir - chroot to this directory\n"
 " -w workdir - working directory with zone files\n"
-" -b [address][:port] - bind to (listen on) this address (*:53)\n"
+" -b address - bind to (listen on) this address\n"
+" -P port - listen on this port\n"
+" -4 - use IPv4 socket type\n"
+" -6 - use IPv6 socket type\n"
 " -t ttl - TTL value set in answers (2048)\n"
 " -e - enable CIDR ranges where prefix is not on the range boundary\n"
 "  (by default ranges such 127.0.0.1/8 will be rejected)\n"
@@ -147,8 +146,6 @@ static void NORETURN usage(int exitcode) {
 " -q - quickstart, load zones after backgrounding\n"
 " -l logfile - log queries and answers to this file\n"
 "  (relative to chroot directory)\n"
-" -L netlist - only log queries from IPs matching netlist\n"
-" -a netlist - only answer queries from IPs matching netlist\n"
 " -s - print memory usage and (re)load time info on zone reloads\n"
 "each zone specified using `name:type:file,file...'\n"
 "syntax, repeated names constitute the same zone.\n"
@@ -156,79 +153,7 @@ static void NORETURN usage(int exitcode) {
 , progname, version, progname);
   for(dstp = dataset_types; *dstp; ++dstp)
     printf(" %s - %s\n", (*dstp)->dst_name, (*dstp)->dst_descr);
-  printf(
-"netlist is a comma-separated list of CIDR network ranges or hosts,\n"
-"possible negated, 127.0.0.1,!127/8 (0/0 added implicitly)\n"
-	);
   exit(exitcode);
-}
-
-static struct ip4list *
-ip4list_new(ip4addr_t addr, ip4addr_t mask, int value) {
-   struct ip4list *e = (struct ip4list *)emalloc(sizeof(*e));
-   e->addr = addr & mask;
-   e->mask = mask;
-   e->value = value;
-   return e;
-}
-
-static int ip4list_match(const struct ip4list *list, ip4addr_t addr) {
-  while (list)
-    if ((addr & list->mask) == list->addr)
-      return list->value;
-    else
-      list = list->next;
-  return 0;
-}
-
-static struct ip4list *
-parsenetlist(char *list) {
-  static const char *const sep = ",; ";
-  char *e;
-  struct ip4list *iplist = NULL, **lp = &iplist;
-  int accept = 1;
-  ip4addr_t addr, mask;
-  list = estrdup(list);
-  for(e = strtok(list, sep); e; e = strtok(NULL, sep)) {
-    if (*e != '!') accept = 1;
-    else ++e, accept = 0;
-    if (strspn(e, "0123456789./") == strlen(e)) { /* ip address */
-      mask = ip4cidr(e, &addr, NULL);
-      if (!mask)
-	error(0, "invalid network range `%s'", e);
-      mask = ip4mask(mask);
-      *lp = ip4list_new(htonl(addr), htonl(mask), accept);
-      lp = &((*lp)->next);
-    }
-    else {
-      struct hostent *he;
-      char **addrp;
-      char *m = strchr(e, '/');
-      if (m) {
-        int b;
-        *m++ = '\0';
-        if ((b = atoi(m)) < 1 || b > 32)
-          error(0, "invalid mask `/%s'", m);
-        mask = ip4mask(b);
-	mask = htonl(mask);
-      }
-      else
-        mask = 0xffffffffu;
-      he = gethostbyname(e);
-      if (!he || he->h_addrtype != AF_INET || he->h_length != 4)
-        error(0, "unknown host/net `%s'", e);
-      for(addrp = he->h_addr_list; *addrp; ++addrp) {
-        memcpy(&addr, *addrp, 4);
-        *lp = ip4list_new(addr, mask, accept);
-        lp = &((*lp)->next);
-      }
-      endhostent();
-    }
-  }
-  free(list);
-  *lp = ip4list_new(0, 0, !accept);
-  (*lp)->next = NULL;
-  return iplist;
 }
 
 static volatile int signalled;
@@ -241,16 +166,16 @@ static volatile int signalled;
 static int init(int argc, char **argv, struct zone **zonep) {
   int c;
   char *p;
-  char *user = NULL, *bindaddr = "";
+  char *user = NULL, *bindaddr = NULL, *port = "domain";
   char *rootdir = NULL, *workdir = NULL, *pidfile = NULL;
   FILE *fpid = NULL;
   uid_t uid = 0;
   gid_t gid = 0;
-  struct sockaddr_in sin;
-  ip4addr_t saddr;
+  struct addrinfo hints, *aires, *ai;
   int fd;
   int nodaemon = 0, quickstart = 0;
   unsigned ttl = 2048;
+  char host[NI_MAXHOST], serv[NI_MAXSERV];
 
   if ((progname = strrchr(argv[0], '/')) != NULL)
     argv[0] = ++progname;
@@ -259,11 +184,19 @@ static int init(int argc, char **argv, struct zone **zonep) {
 
   if (argc <= 1) usage(1);
 
-  while((c = getopt(argc, argv, "u:r:b:w:t:c:p:nel:L:a:qsh")) != EOF)
+  memset(&hints, 0, sizeof(hints));
+  hints.ai_family = AF_UNSPEC;
+  hints.ai_socktype = SOCK_DGRAM;
+  hints.ai_flags = AI_PASSIVE;
+
+  while((c = getopt(argc, argv, "u:r:b:P:w:t:c:p:nel:qsh46")) != EOF)
     switch(c) {
     case 'u': user = optarg; break;
     case 'r': rootdir = optarg; break;
     case 'b': bindaddr = optarg; break;
+    case 'P': port = optarg; break;
+    case '4': hints.ai_family = AF_INET; break;
+    case '6': hints.ai_family = AF_INET6; break;
     case 'w': workdir = optarg; break;
     case 'p': pidfile = optarg; break;
     case 't':
@@ -279,8 +212,6 @@ static int init(int argc, char **argv, struct zone **zonep) {
     case 'n': nodaemon = 1; break;
     case 'e': accept_in_cidr = 1; break;
     case 'l': logfile = optarg; break;
-    case 'L': logfilt = parsenetlist(optarg); break;
-    case 'a': qryfilt = parsenetlist(optarg); break;
     case 's': logmemtms = 1; break;
     case 'q': quickstart = 1; break;
     case 'h': usage(0);
@@ -302,48 +233,23 @@ static int init(int argc, char **argv, struct zone **zonep) {
     logto = LOGTO_STDOUT | LOGTO_SYSLOG;
   }
 
-  fd = socket(PF_INET, SOCK_DGRAM, IPPROTO_UDP);
+  c = getaddrinfo(bindaddr, port, &hints, &aires);
+  if (!bindaddr) bindaddr = "*";
+  if (c != 0)
+    error(0, "%s/%s: %s", bindaddr, port, gai_strerror(c));
+  for(ai = aires, errno = 0, fd = -1; ai; ai = ai->ai_next)
+    if (ai->ai_family == AF_INET || ai->ai_family == AF_INET6)
+      if ((fd = socket(ai->ai_family, ai->ai_socktype, ai->ai_protocol)) >= 0)
+        break;
   if (fd < 0)
-    error(errno, "unable to create listening socket");
-  memset(&sin, 0, sizeof(sin));
-  sin.sin_family = AF_INET;
-  if (*bindaddr) {
-    if ((p = strchr(bindaddr, ':')) != NULL)
-      *p++ = '\0';
-    if (*bindaddr && ip4addr(bindaddr, &saddr, NULL))
-      sin.sin_addr.s_addr = htonl(saddr);
-    else {
-      struct hostent *he = gethostbyname(bindaddr);
-      if (!he)
-        error(0, "invalid bind address specified: `%.50s'", bindaddr);
-      if (he->h_addrtype != AF_INET || he->h_length != sizeof(sin.sin_addr))
-        error(0, "unexpected type of listening address `%.50s'", bindaddr);
-      memcpy(&sin.sin_addr, he->h_addr_list[0], sizeof(sin.sin_addr));
-      saddr = ntohl(sin.sin_addr.s_addr);
-      endhostent();
-    }
-  }
-  else {
-    p = NULL;
-    saddr = 0;
-  }
-  if (p && *p) {
-    if ((c = satoi(p)) > 0)
-      ;
-    else {
-      struct servent *se = getservbyname(p, "udp");
-      if (!se)
-        error(0, "%.50s/udp: unknown service", p);
-      c = se->s_port;
-      endservent();
-    }
-    p[-1] = ':';
-  }
-  else
-    c = DNS_PORT;
-  sin.sin_port = htons(c);
-  if (bind(fd, (struct sockaddr *)&sin, sizeof(sin)) < 0)
-    error(errno, "unable to bind to %s:%d", ip4atos(saddr), c);
+    error(errno, "%s/%s: no available protocols", bindaddr, port);
+  getnameinfo(ai->ai_addr, ai->ai_addrlen,
+              host, sizeof(host),
+	      serv, sizeof(serv),
+              NI_NUMERICHOST|NI_WITHSCOPEID|NI_NUMERICSERV);
+
+  if (bind(fd, ai->ai_addr, ai->ai_addrlen) < 0)
+    error(errno, "unable to bind to [%s]/%s", host, serv);
 
   c = 65536;
   do
@@ -399,7 +305,9 @@ static int init(int argc, char **argv, struct zone **zonep) {
   for(c = 0; c < argc; ++c)
     *zonep = addzone(*zonep, argv[c]);
 
-#define logstarted() dslog(LOG_INFO, 0, "version %s started", version)
+#define logstarted() \
+  dslog(LOG_INFO, 0, "version %s started (listening on [%s]:%s", \
+        version, host, serv)
   if (quickstart)
     signalled = SIGNALLED_ALRM;	/* zones will be (re)loaded after fork */
   else if (!do_reload(*zonep))
@@ -506,8 +414,8 @@ int main(int argc, char **argv) {
   struct dnsstats stats;
   FILE *flog;
   int q, r;
-  struct sockaddr_in sin;
-  socklen_t sinl;
+  struct sockaddr_storage sa;
+  socklen_t salen;
   struct dnspacket pkt;
   int flushlog = 0;
 
@@ -548,12 +456,11 @@ int main(int argc, char **argv) {
       sigprocmask(SIG_SETMASK, &ssorig, NULL);
     }
 
-    sinl = sizeof(sin);
-    q = recvfrom(fd, pkt.p_buf, sizeof(pkt.p_buf), 0, (struct sockaddr *)&sin, &sinl);
+    salen = sizeof(sa);
+    q = recvfrom(fd, pkt.p_buf, sizeof(pkt.p_buf), 0,
+                 (struct sockaddr *)&sa, &salen);
     if (q <= 0)			/* interrupted? */
       continue;
-    if (qryfilt && !ip4list_match(qryfilt, sin.sin_addr.s_addr))
-      continue;			/* ignore requests from unauth nets */
 
     r = replypacket(&pkt, q, zonelist);
     if (!r) {
@@ -563,8 +470,8 @@ int main(int argc, char **argv) {
 #endif
       continue;
     }
-    if (flog && (!logfilt || ip4list_match(logfilt, sin.sin_addr.s_addr)))
-      logreply(&pkt, ip4atos(ntohl(sin.sin_addr.s_addr)), flog, flushlog);
+    if (flog)
+      logreply(&pkt, (struct sockaddr *)&sa, salen, flog, flushlog);
 #ifndef NOSTATS
     switch(pkt.p_buf[3]) {
     case DNS_R_NOERROR:
@@ -581,7 +488,7 @@ int main(int argc, char **argv) {
 #endif
 
     /* finally, send a reply */
-    while(sendto(fd, pkt.p_buf, r, 0, (struct sockaddr *)&sin, sizeof(sin)) < 0)
+    while(sendto(fd, pkt.p_buf, r, 0, (struct sockaddr *)&sa, salen) < 0)
       if (errno != EINTR) break;
 
   }
