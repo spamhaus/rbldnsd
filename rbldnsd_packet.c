@@ -322,7 +322,7 @@ static int addrr_soa(struct dnspacket *pkt, const struct zone *zone, int auth) {
     if ((c = add_dn(pkt, c, dssoa->dssoa_odn, dssoa->dssoa_odnlen)) &&
         (c = add_dn(pkt, c, dssoa->dssoa_pdn, dssoa->dssoa_pdnlen)) &&
         fit(pkt, c, 20)) {
-      memcpy(c, &zone->z_soa_n, 20);
+      memcpy(c, zone->z_soa_n, 20);
       c += 20;
       dsz = (c - rstart) - 2;
       PACK16(rstart, dsz);
