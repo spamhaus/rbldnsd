@@ -401,6 +401,7 @@ int reloadzones(struct zone *zonelist) {
   struct dsfile *dsf;
   int reloaded = 0;
   int errors = 0;
+  extern void start_loading();
 
   for(ds = ds_list; ds; ds = ds->ds_next) {
     int load = 0;
@@ -425,6 +426,13 @@ int reloadzones(struct zone *zonelist) {
       continue;
 
     ++reloaded;
+
+    if (load < 0 && !ds->ds_stamp) {
+      ++errors;
+      continue;
+    }
+
+    start_loading();
 
     if (load < 0 || !loaddataset(ds)) {
       ++errors;

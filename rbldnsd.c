@@ -20,6 +20,8 @@
 #include <syslog.h>
 #include <time.h>
 #include <fcntl.h>
+#include <setjmp.h>
+#include <sys/wait.h>
 #include "rbldnsd.h"
 
 #ifdef NOPOLL
@@ -91,6 +93,9 @@ static FILE *flog;		/* log file */
 static int flushlog;		/* flush log after each line */
 static struct zone *zonelist;	/* list of zones we're authoritative for */
 int lazy;			/* don't return AUTH section by default */
+static int fork_on_reload;
+  /* >0 - perform fork on reloads, <0 - this is a child of reloading parent */
+static pid_t bgq_pid;		/* pid of bg query process */
 
 /* a list of zonetypes. */
 const struct dstype *ds_types[] = {
@@ -182,6 +187,8 @@ static void NORETURN usage(int exitcode) {
 " -c check - time interval to check for data file updates (1m)\n"
 " -p pidfile - write pid to specified file\n"
 " -n - do not become a daemon\n"
+" -f - fork a child process while reloading zones, to process requests\n"
+"  during reload (may double memory requiriments)\n"
 " -q - quickstart, load zones after backgrounding\n"
 " -l logfile - log queries and answers to this file\n"
 " -s statsfile - write a line with short statistics summary into this\n"
@@ -358,7 +365,7 @@ static void init(int argc, char **argv) {
   int nba = 0;
   uid_t uid = 0;
   gid_t gid = 0;
-  int nodaemon = 0, quickstart = 0, dump = 0, nover = 0;
+  int nodaemon = 0, quickstart = 0, dump = 0, nover = 0, forkon = 0;
   int family = AF_UNSPEC;
 
   if ((progname = strrchr(argv[0], '/')) != NULL)
@@ -368,7 +375,7 @@ static void init(int argc, char **argv) {
 
   if (argc <= 1) usage(1);
 
-  while((c = getopt(argc, argv, "u:r:b:w:t:c:p:nel:qs:h46dva")) != EOF)
+  while((c = getopt(argc, argv, "u:r:b:w:t:c:p:nel:qs:h46dvaf")) != EOF)
     switch(c) {
     case 'u': user = optarg; break;
     case 'r': rootdir = optarg; break;
@@ -402,6 +409,7 @@ static void init(int argc, char **argv) {
     case 'd': dump = 1; break;
     case 'v': show_version = nover++ ? NULL : "rbldnsd"; break;
     case 'a': lazy = 1; break;
+    case 'f': forkon = 1; break;
     case 'h': usage(0);
     default: error(0, "type `%.50s -h' for help", progname);
     }
@@ -528,9 +536,7 @@ static void init(int argc, char **argv) {
     zonelist = addzone(zonelist, argv[c]);
   init_zones_caches(zonelist);
 
-  if (quickstart)
-    signalled = SIGNALLED_RELOAD;	/* zones will be loaded after fork */
-  else if (!do_reload())
+  if (!quickstart && !do_reload())
     error(0, "zone loading errors, aborting");
 
   { const struct zone *z;
@@ -550,6 +556,10 @@ static void init(int argc, char **argv) {
     logto = LOGTO_SYSLOG;
   }
 
+  if (quickstart)
+    do_reload();
+
+  fork_on_reload = forkon;
 }
 
 static void sighandler(int sig) {
@@ -561,12 +571,14 @@ static void sighandler(int sig) {
     alarm(recheck);
     signalled |= SIGNALLED_RELOAD|SIGNALLED_SSTATS;
     break;
+#ifndef NOSTATS
   case SIGUSR1:
     signalled |= SIGNALLED_LSTATS|SIGNALLED_SSTATS;
     break;
   case SIGUSR2:
     signalled |= SIGNALLED_LSTATS|SIGNALLED_SSTATS|SIGNALLED_ZSTATS;
     break;
+#endif
   case SIGTERM:
   case SIGINT:
     signalled |= SIGNALLED_TERM;
@@ -719,10 +731,19 @@ static void reopenlog(void) {
   }
 }
 
+static jmp_buf reload_ctx; /* longjmp in start_reload() */
+
 static void do_signalled(void) {
   sigset_t ssorig;
   sigprocmask(SIG_BLOCK, &ssblock, &ssorig);
   if (signalled & SIGNALLED_TERM) {
+    if (fork_on_reload < 0) {
+      struct zone *z;
+      for(z = zonelist; z; z = z->z_next)
+        if (write(500, &z->z_stats, sizeof(z->z_stats)) < 0)
+          break;
+      _exit(0);
+    }
     dslog(LOG_INFO, 0, "terminating");
     if (statsfile)
       dumpstats();
@@ -740,10 +761,87 @@ static void do_signalled(void) {
   }
   if (signalled & SIGNALLED_RELOG)
     reopenlog();
-  if (signalled & SIGNALLED_RELOAD)
-    do_reload();
+  if (signalled & SIGNALLED_RELOAD) {
+    if (!fork_on_reload) /* normal reload */
+      do_reload();
+    else /* else two-process reload */
+    if (!setjmp(reload_ctx)) {
+      do_reload();
+      if (bgq_pid > 0) {
+        struct zone *z;
+        int s;
+        kill(bgq_pid, SIGTERM);
+        for(z = zonelist; z; z = z->z_next)
+          if (read(500, &z->z_stats, sizeof(z->z_stats)) < 0)
+            break;
+        close(500);
+        wait(&s);
+        bgq_pid = 0;
+      }
+      bgq_pid = 0;
+    }
+  }
   signalled = 0;
   sigprocmask(SIG_SETMASK, &ssorig, NULL);
+}
+
+/* two-process reload:
+ * we call reloadzones(), which first check whenever
+ * any files changed, and if yes, it calls start_loading()
+ * (for every dataset with changed files) and performs all
+ * necessary updates.
+ * In first call to start_reload(), we fork the child.
+ * In child, we return (with longjmp) back into do_signalled(),
+ * setjmp() returning !=0, and we just continue servicing requests
+ * at this poing with fork_at_reload set to -1.
+ * In parent, real reload continues, do_reload completes,
+ * and we check for bgq_pid: this is our child, we kill it,
+ * and read all the counters from the pipe we opened.
+ * In child (note fork_on_reload is <0), upon receiving SIGTERM,
+ * we write all the stats into pipe and terminate silently.
+ * All signals are still blocked during the whole reload in parent,
+ * we unblock signals only after we successefully reaped the child.
+ * In child, we ignore all the signals as well (may use the same ssblock).
+ * The only possible problem is when the parent gets killed (either
+ * SIGKILL or crash) while child is running - in this case child will
+ * stay running forever.  It may be a good idea to setup SIGALRM
+ * handler in child to check for parent periodically...
+ */
+
+int start_loading() {
+  int pfd[2];
+  pid_t cpid;
+  if (!fork_on_reload || bgq_pid) return 0;
+  if (pipe(pfd) < 0) {
+    bgq_pid = -1;
+    return 0;
+  }
+  cpid = fork();
+  if (cpid < 0) {
+    close(pfd[0]);
+    close(pfd[1]);
+    bgq_pid = -1;
+    return 0;
+  }
+  if (!cpid) { /* child, continue answering queries */
+    close(pfd[0]);
+    dup2(pfd[1], 500);
+    close(pfd[1]);
+    fork_on_reload = -1;
+    alarm(0);
+    signal(SIGALRM, SIG_IGN);
+    signal(SIGHUP, SIG_IGN);
+#ifndef NO_STATS
+    signal(SIGUSR1, SIG_IGN);
+    signal(SIGUSR2, SIG_IGN);
+#endif
+    longjmp(reload_ctx, 1);
+  }
+  close(pfd[1]);
+  dup2(pfd[0], 500);
+  close(pfd[0]);
+  bgq_pid = cpid;
+  return 0;
 }
 
 static void request(int fd) {
