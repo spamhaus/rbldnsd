@@ -12,10 +12,10 @@
 #include "dns.h"
 #include "mempool.h"
 
-definedstype(generic, 0, "generic simplified bind-format");
+definedstype(generic, DSTF_DNREV, "generic simplified bind-format");
 
 struct entry {
-  const unsigned char *dn; /* mp-allocated */
+  unsigned char *rdn;	/* reversed DN, mp-allocated; first byte is length */
   u_int16_t dtyp;	/* data (query) type */
   u_int16_t dsiz;	/* data size */
   unsigned char *data;	/* data of size dsize, mp-allocated */
@@ -34,7 +34,6 @@ struct dataset {
   unsigned n;		/* number of entries */
   unsigned a;		/* entries allocated (only when loading) */
   struct entry *e;	/* entries */
-  unsigned minlab;	/* min level of labels */
   unsigned maxlab;	/* max level of labels */
   struct mempool mp;	/* mempool for domain names and RR data */
 };
@@ -70,8 +69,10 @@ static int ds_generic_parseany(struct dataset *ds, char *line) {
     data[0] = '\0';
     dsiz = 1;
   }
-  if (!(e->dn = (const unsigned char*)mp_edmemdup(&ds->mp, data, dsiz)))
+  if (!(e->rdn = (unsigned char*)mp_ealloc(&ds->mp, dsiz + 1)))
     return 0;
+  e->rdn[0] = (unsigned char)dsiz;
+  dns_dnreverse(data, e->rdn + 1, dsiz);
 
   skipspace(line);
 
@@ -128,15 +129,14 @@ static int ds_generic_parseany(struct dataset *ds, char *line) {
   else
     return -1;
 
-  if (!(e->data = mp_alloc(&ds->mp, dsiz)))
+  if (!(e->data = mp_ealloc(&ds->mp, dsiz)))
     return 0;
   e->dtyp = dtyp;
   e->dsiz = dsiz;
   memcpy(e->data, data, dsiz);
 
   ++ds->n;
-  dsiz = dns_dnlabels(e->dn);
-  if (ds->minlab > dsiz) ds->minlab = dsiz;
+  dsiz = dns_dnlabels(e->rdn);
   if (ds->maxlab < dsiz) ds->maxlab = dsiz;
 
   return 1;
@@ -161,13 +161,11 @@ static int ds_generic_load(struct zonedataset *zds, FILE *f) {
 
 static struct dataset *ds_generic_alloc() {
   struct dataset *ds = tzalloc(struct dataset);
-  if (ds)
-    ds->minlab = DNS_MAXDN;
   return ds;
 }
 
 static inline int ds_generic_lt(const struct entry *a, const struct entry *b) {
-  int r = strcmp(a->dn, b->dn);
+  int r = strcmp(a->rdn + 1, b->rdn + 1);
   return
      r < 0 ? 1 :
      r > 0 ? 0 :
@@ -186,8 +184,8 @@ static int ds_generic_finish(struct dataset *ds) {
     /* collect all equal DNs to point to the same place */
     { struct entry *e, *t;
       for(e = ds->e, t = e + ds->n - 1; e < t; ++e)
-        if (e[0].dn != e[1].dn && strcmp(e[0].dn, e[1].dn) == 0)
-          e[1].dn = e[0].dn;
+        if (e[0].rdn != e[1].rdn && strcmp(e[0].rdn, e[1].rdn) == 0)
+          e[1].rdn = e[0].rdn;
     }
     SHRINK_ARRAY(struct entry, ds->e, ds->n, ds->a);
   }
@@ -195,50 +193,74 @@ static int ds_generic_finish(struct dataset *ds) {
   return 1;
 }
 
-static const struct entry *
-ds_generic_find(const struct entry *e, int b, const unsigned char *q) {
-  int a = 0, m, r;
+#if 0
+static int
+ds_generic_find(const struct entry *e, int n,
+                const unsigned char *q, unsigned qlen,
+                const struct entry **ep) {
+  int a = 0, b = n - 1, m, r;
   while(a <= b) {
-    if (!(r = strcmp(e[(m = (a + b) >> 1)].dn, q))) {
+    if (!(r = strcmp(e[(m = (a + b) >> 1)].rdn + 1, q))) {
       const struct entry *p = e + m;
-      q = (p--)->dn;
-      while(p >= e && p->dn == q)
+      q = (p--)->rdn;
+      while(p >= e && p->rdn == q)
         --p;
-      return p + 1;
+      *ep = p + 1;
+      return 1;
     }
     else if (r < 0) a = m + 1;
     else b = m - 1;
   }
-  return NULL;
+  if (a < n && qlen < e[a].rdn[0] && !memcmp(q, e[a].rdn + 1, qlen - 1))
+    return 0;
+  return -1;
 }
+#endif
 
 static int
-ds_generic_query(const struct dataset *const ds, struct dnspacket *p,
-                 const unsigned char *const query, unsigned labels,
-                 unsigned qtyp)
-{
-  const struct entry *e, *t;
-  const unsigned char *dn;
-  if (labels > ds->minlab) return 0;
-  /*XXX if we have a.b.c, but query is for b.c, we should NOT return NXDOMAIN */
-  if (!(e = ds_generic_find(ds->e, ds->n - 1, query)))
-    return 0;
+ds_generic_query(const struct dataset *ds,
+                 const struct dnsquery *query, unsigned qtyp,
+                 struct dnspacket *packet) {
+  const unsigned char *rdn = query->qrdn;
+  const struct entry *e = ds->e, *t;
+  int a = 0, b = ds->n - 1, m, r;
+
+  if (query->qlab > ds->maxlab) return 0;
+
+  for(;;) {
+    if (a > b) {
+      /* we should not return NXDOMAIN if a subdomain of a query exists */
+      if ((unsigned)a < ds->n && query->qlen < e[a].rdn[0] &&
+          memcmp(rdn, e[a].rdn + 1, query->qlen - 1) == 0)
+       return 1;
+      return 0;
+    }
+    if (!(r = strcmp(e[(m = (a + b) >> 1)].rdn + 1, rdn))) break;
+    else if (r < 0) a = m + 1;
+    else b = m - 1;
+  }
+
+  t = e + m;
+  rdn = (t--)->rdn;
+  while(t >= e && t->rdn == rdn)
+    --t;
+  e = t + 1;
+
   t = ds->e + ds->n;
-  dn = e->dn;
   do {
     if (!(qtyp & e->dtyp))
       continue;
     switch(e->dtyp & 0xff) {
     case DNS_T_NS:
-      addrec_ns(p, e->data + 1, e->data[0]);
+      addrec_ns(packet, e->data + 1, e->data[0]);
       break;
     case DNS_T_MX:
-      addrec_mx(p, e->data, e->data + 3, e->data[2]);
+      addrec_mx(packet, e->data, e->data + 3, e->data[2]);
       break;
     default:
-      addrec_any(p, e->dtyp & 0xff, e->data, e->dsiz);
+      addrec_any(packet, e->dtyp & 0xff, e->data, e->dsiz);
       break;
     }
-  } while(++e < t && e->dn == dn);
+  } while(++e < t && e->rdn == rdn);
   return 1;
 }

@@ -153,25 +153,25 @@ ds_ip4set_find_masked(const ip4addr_t *e, int b, ip4addr_t q, ip4addr_t mask) {
 }
 
 static int
-ds_ip4set_query(const struct dataset *const ds, struct dnspacket *p,
-                const unsigned char *const UNUSED query, unsigned labels,
-                unsigned qtyp) {
-  ip4addr_t q = p->qip4;
+ds_ip4set_query(const struct dataset *ds,
+                const struct dnsquery *query, unsigned qtyp,
+                struct dnspacket *packet) {
+  ip4addr_t q = query->qip4;
 
-  if (p->qip4octets < 4) {
+  if (query->qip4octets < 4) {
     ip4addr_t f;
-    unsigned n;
+    unsigned n, l;
 
-    if (!(labels = p->qip4octets)) return 0;
+    if (!(l = query->qip4octets)) return 0;
 
     /* we can't return NXDOMAIN for 3.2.1.bl.example.com -
      * e.g. if 4.3.2.1.bl.example.com exists */
-    f = ip4mask(labels * 8);
+    f = ip4mask(l * 8);
     n = E32;
     do
       if (ds_ip4set_find_masked(ds->e[n], ds->n[n] - 1, q, f))
         return 1;
-    while (++n < 4 - labels);
+    while (++n < 4 - l);
     while(n <= E08) {
       q &= f;
       if (ds_ip4set_find(ds->e[n], ds->n[n] - 1, q)) return 1;
@@ -189,8 +189,8 @@ ds_ip4set_query(const struct dataset *const ds, struct dnspacket *p,
       !try(E16, 0xffff0000) && !try(E08, 0xff000000))
     return 0;
   if (qtyp & NSQUERY_A)
-    addrec_a(p, ds->r_a);
+    addrec_a(packet, ds->r_a);
   if (ds->r_txt && qtyp & NSQUERY_TXT)
-    addrec_txt(p, ds->r_txt, ip4atos(q));
+    addrec_txt(packet, ds->r_txt, ip4atos(q));
   return 1;
 }

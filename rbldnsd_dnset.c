@@ -145,10 +145,11 @@ ds_dnset_find(const struct entry *e, int b, const unsigned char *q) {
 }
 
 static int
-ds_dnset_query(const struct dataset *const ds, struct dnspacket *p,
-               const unsigned char *const query, unsigned labels, unsigned qtyp)
-{
-  const unsigned char *dn = query;
+ds_dnset_query(const struct dataset *ds,
+               const struct dnsquery *query, unsigned qtyp,
+               struct dnspacket *packet) {
+  const unsigned char *dn = query->qdn;
+  unsigned labels = query->qlab;
   if (!labels)
     return 0;
   if (labels > ds->maxlab[EP] || labels < ds->minlab[EP] ||
@@ -164,12 +165,11 @@ ds_dnset_query(const struct dataset *const ds, struct dnspacket *p,
       --labels;
     }
   }
-  if (qtyp & NSQUERY_A) addrec_a(p, ds->r_a);
+  if (qtyp & NSQUERY_A) addrec_a(packet, ds->r_a);
   if (ds->r_txt && (qtyp & NSQUERY_TXT)) {
     char name[DNS_MAXDOMAIN+1];
-    dns_dntop(query, name, sizeof(name));
-    addrec_txt(p, ds->r_txt, name);
+    dns_dntop(query->qdn, name, sizeof(name));
+    addrec_txt(packet, ds->r_txt, name);
   }
   return 1;
 }
-

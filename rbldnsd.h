@@ -50,11 +50,16 @@ struct dnspacket {		/* private structure */
   unsigned char p[DNS_MAXPACKET]; /* packet buffer */
   unsigned char *c;		/* current pointer */
   unsigned char *sans;		/* start of answers */
-  unsigned char qdn[DNS_MAXDN];	/* query DN, lowercased */
-  unsigned char qdnr[DNS_MAXDN]; /* part of qdn after zone dn, reversed */
-  ip4addr_t qip4;		/* query as an IP4 */
-  unsigned qip4octets;		/* number of valid octets in qip4 */
   struct dnsdncompr compr;	/* DN compression state */
+};
+
+struct dnsquery {
+  unsigned char qdn[DNS_MAXDN];		/* original query DN, lowercased */
+  unsigned char qrdn[DNS_MAXDN];	/* reverse of qdn */
+  unsigned qlen;			/* length of DN */
+  unsigned qlab;			/* number of labels in DN */
+  ip4addr_t qip4;			/* parsed IP4 address */
+  unsigned qip4octets;			/* number of valid octets in ip4 */
 };
 
 #define skipspace(s) while(*s == ' ' || *s == '\t') ++s
@@ -66,8 +71,9 @@ typedef int ds_loadfn_t(struct zonedataset *zds, FILE *f);
 typedef int ds_finishfn_t(struct dataset *ds);
 typedef void ds_freefn_t(struct dataset *ds);
 typedef int
-ds_queryfn_t(const struct dataset *const ds, struct dnspacket *p,
-             const unsigned char *const query, unsigned qlevels, unsigned qtyp);
+ds_queryfn_t(const struct dataset *ds,
+             const struct dnsquery *query, unsigned qtyp,
+             struct dnspacket *packet);
 
 /* flags used in qtyp. should be in MSB byte for `generic' dataset */
 #define NSQUERY_TXT	(1u<< 8)

@@ -56,6 +56,8 @@ int replypacket(struct dnspacket *p, unsigned qlen, const struct zone *zone) {
 
   int found;
 
+  struct dnsquery query;
+
   x = q + qlen - 5;	/* last possible qDN zero terminator position */
   /* qlen isn't needed anymore, it'll be used as length of qDN below */
 
@@ -69,7 +71,7 @@ int replypacket(struct dnspacket *p, unsigned qlen, const struct zone *zone) {
 
   {	/* parse and lowercase query DN, count labels */
     register unsigned char *s = q + 12;	/* orig src DN in question (<= x) */
-    register unsigned char *d = p->qdn;	/* dest lowercased ptr */
+    register unsigned char *d = query.qdn; /* dest lowercased ptr */
     register unsigned char *e;		/* end of current label */
     qlab = 0;
     while((qlen = (*d++ = *s++)) != 0) { /* loop by DN lables */
@@ -78,14 +80,14 @@ int replypacket(struct dnspacket *p, unsigned qlen, const struct zone *zone) {
       do *d++ = dns_dnlc(*s);	/* lowercase current label */
       while (++s < e);		/* ..until it's end */
     }
-    qlen = d - p->qdn;	/* d points past the end of qdn now */
+    qlen = d - query.qdn;	/* d points past the end of qdn now */
 
     /* s is end of qdn. decode qtype and qclass, and prepare for an answer */
     qtyp = ((unsigned)(s[0]) << 8) | s[1];
     qcls = ((unsigned)(s[2]) << 8) | s[3];
     p->c = p->sans = s + 4; /* answers will start here */
   }
- 
+
   /* from now on, we see (almost?) valid dns query, should reply */
   /* vars still in use:
    *  p (packet); q (it's p->p); qlen, qlab; qtyp, qcls */
@@ -130,7 +132,7 @@ int replypacket(struct dnspacket *p, unsigned qlen, const struct zone *zone) {
 
     if (zone->z_dnlab > qlab) continue;
     x = qlp[qlab - zone->z_dnlab];
-    if (zone->z_dnlen != qlen - (x - p->qdn)) continue;
+    if (zone->z_dnlen != qlen - (x - query.qdn)) continue;
     if (memcmp(zone->z_dn, x, zone->z_dnlen) != 0) continue;
 
     break;
@@ -142,17 +144,19 @@ int replypacket(struct dnspacket *p, unsigned qlen, const struct zone *zone) {
 
   *x = '\0';	/* terminate dn to end at zone base dn */
 
-  qlab -= zone->z_dnlab;
+  query.qlab = (qlab -= zone->z_dnlab);
   found = qlab == 0;	/* no NXDOMAIN if it's a query for the zone base DN */
+  query.qlen = (qlen -= zone->z_dnlen - 1);
   /* vars still in use:
    *  p (packet struct); q (p->p); qlab is #of labels w/o zone dn;
    *  qtyp (converted to a bitmask); found (flag - if we found smth) */
 
   /* initialize various query variations */
   if (zone->z_dstflags & DSTF_IP4REV) /* ip4 address */
-    p->qip4octets = qlab && qlab <= 4 ? dntoip4addr(p->qdn, &p->qip4) : 0;
+    query.qip4octets =
+      qlab && qlab <= 4 ? dntoip4addr(query.qdn, &query.qip4) : 0;
   if (zone->z_dstflags & DSTF_DNREV) /* reverse qdn */
-    dns_dnreverse(p->qdn, p->qdnr, qlen - zone->z_dnlen + 1);
+    dns_dnreverse(query.qdn, query.qrdn, qlen);
 
   { /* initialize DN compression */
     /* start at zone DN, not at query DN, as it may contain
@@ -174,7 +178,7 @@ int replypacket(struct dnspacket *p, unsigned qlen, const struct zone *zone) {
   /* search the datasets */
   { register const struct zonedatalist *zdl;
     for(zdl = zone->z_zdl; zdl; zdl = zdl->zdl_next)
-      if (zdl->zdl_queryfn(zdl->zdl_ds, p, p->qdn, qlab, qtyp))
+      if (zdl->zdl_queryfn(zdl->zdl_ds, &query, qtyp, p))
         found = 1;	/* positive answer */
   }
 
