@@ -56,16 +56,17 @@ static int ds_generic_parseany(struct dataset *ds, char *line) {
   e += ds->n;
 
   /* dn */
-  if (!(line = parse_dn(line, data, &dsiz))) return -1;
-  if (strcmp(data, "\1@") == 0) {
-    data[0] = '\0';
+  if (line[0] == '@' && (line[1] == ' ' || line[1] == '\t')) {
+    data[DNS_MAXDN+1] = '\0';
     dsiz = 1;
+    line += 2;
+    skipspace(line);
   }
-  data[DNS_MAXDN] = (unsigned char)dsiz;
-  dns_dnreverse(data, data + DNS_MAXDN + 1, dsiz);
-  e->lrdn =
-    (const unsigned char*)mp_edmemdup(&ds->mp, data + DNS_MAXDN, dsiz + 1);
-  if (!e->lrdn)
+  else if (!(line = parse_dn(line, data + DNS_MAXDN + 1, &dsiz)))
+    return -1;
+  data[0] = (unsigned char)dsiz;
+  dns_dnreverse(data + DNS_MAXDN + 1, data, dsiz);
+  if (!(e->lrdn = (const unsigned char*)mp_edmemdup(&ds->mp, data, dsiz + 1)))
     return 0;
 
   skipspace(line);
