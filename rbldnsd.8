@@ -3,8 +3,8 @@
 .\"
 .TH rbldnsd 8 "Apr 2003"
 .SH NAME
-rbldnsd \- DNS daemon sutable for running DNS\-based blocklists
-.SH SYNOPSYS
+rbldnsd \- DNS daemon suitable for running DNS\-based blocklists
+.SH SYNOPSIS
 .B rbldnsd
 [options]
 .IR zone : dataset ...
@@ -44,14 +44,14 @@ reused for several zones too (and in this case, it will
 be read into memory only once).
 
 .PP
-There are several dataset formats available, each is sutable
-and optimized (in terms of memory, speed and easy use)
+There are several dataset formats available, each is suitable
+and optimized (in terms of memory, speed and ease of use)
 for a specific task.  Available dataset types may be grouped
 into 3 categories:
 .IP
-lists of IP addresses.  When query is done to a zone with such
+lists of IP addresses.  When a query is done to a zone with such
 data, query is interpreted as an IP address in a reverse form
-(similar to in\-addr.arpa zone).  If an address in question is
+(similar to in\-addr.arpa zone).  If the address is
 found in dataset data,
 .B rbldnsd
 will return A and TXT records specified in data for that IP.
@@ -63,7 +63,7 @@ This type of data may be used to form a blocklist of e.g.
 sender domain names.
 .IP
 generic list of various types of records, as an auxilary data
-to form complete nameserver.  This format is similar to bind\-style
+to form a complete nameserver.  This format is similar to bind\-style
 datafiles, but very simplified.  One may specify A, TXT, NS and MX
 records here.
 
@@ -73,9 +73,9 @@ records here.
 The following options may be specified:
 
 .IP "\fB\-u\fR \fIuser\fR[:\fIgroup\fR]"
-\fBrbldnsd\fR will change it's userid to the specified \fIuser\fR, which
+\fBrbldnsd\fR will change its userid to the specified \fIuser\fR, which
 defaults to \fBrbldnsd\fR, and \fIgroup\fR, which by default is the
-primary group of a \fIuser\fR. \fBrbldnsd\fR will refuse to run as root
+primary group of a \fIuser\fR. \fBrbldnsd\fR will refuse to run as the root
 user, since this is insecure.
 
 .IP "\fB\-r\fR \fIrootdir\fR"
@@ -83,7 +83,7 @@ user, since this is insecure.
 should be available inside \fIrootdir\fR.
 
 .IP "\fB\-w\fR \fIworkdir\fR"
-\fBrbldnsd\fR will change it's working directory to \fIworkdir\fR
+\fBrbldnsd\fR will change its working directory to \fIworkdir\fR
 (after chrooting to \fIrootdir\fR if \fB\-r\fR option is also specified).
 May be used to shorten filename paths.
 
@@ -96,7 +96,7 @@ multihomed hostname.
 .IP "\fB\-P\fR \fIport\fR"
 specify non\-default port \fIport\fR to listen on, either numerically
 or symbolicaly.  Default port is "domain" (usually taken from
-/etc/services or equivalent).  \fBrbldnsd\fR uses UDP socket.
+/etc/services or equivalent).  \fBrbldnsd\fR uses a UDP socket.
 
 .IP \fB\-4\fR
 Use IPv4 listening socket/transport, do not attempt to use IPv6.
@@ -105,11 +105,11 @@ Use IPv4 listening socket/transport, do not attempt to use IPv6.
 Use IPv6 listening socket/transport, do not attempt to use IPv4.
 
 .IP "\fB\-t\fR \fIttl\fR"
-Set answer time\-to\-live value to be \fIttl\fR secounds.  All answers will
+Set answer time\-to\-live value to be \fIttl\fR seconds.  All answers will
 contain \fIttl\fR as a value of time\-to\-live field.  \fIttl\fI may
-follow by a single character specifying the time unit: s for secounds,
+be followed by a single character specifying the time unit: s for seconds,
 m for minutes, h for hours, d for days and w for weeks.  If no unit
-modifier given, secounds assumed.  Default \fIttl\fR is 35m.
+modifier given, seconds assumed.  Default \fIttl\fR is 35m.
 
 .IP "\fB\-c\fR \fIcheck\fR"
 Set interval between checking for zone file changes to be \fIcheck\fR,
@@ -117,7 +117,7 @@ default is 1m (one minute).  \fBrbldnsd\fR will check zone file's last
 modification time every so often, and if it detects a change, zone will
 be automatically reloaded.  Setting this value to 0 disables automatic
 zone change detection.  This procedure may also be triggered by sending
-SIGHUP signal to \fBrbldnsd\fR (see SIGNALS section below).
+a SIGHUP signal to \fBrbldnsd\fR (see SIGNALS section below).
 
 .IP \fB\-e\fR
 Allow non\-network addresses to be used in CIDR ranges.  Normally,
@@ -126,7 +126,7 @@ is not within the network mask derived from bit number (in this
 case, correct form is 127.2.3.0/24, note the trailing zero in prefix).
 This is done in order to catch possible typos in zones (\fBrbldnsd\fR
 will warn about a problem and will ignore such entry).  This option
-removes a check whenever CIDR prefix fits within network mask.
+disables checking whether the CIDR prefix fits within the network mask.
 
 .IP \fB\-q\fR
 Quick and quiet start.  Normally,
@@ -139,17 +139,17 @@ option is also given), and zone load errors will be non\-fatal.
 
 .IP "\fB\-p\fR \fIpidfile\fR"
 Write rbldnsd's pid to the specified \fIpidfile\fR, so it will be easily
-findable.  This file gets written before entering chroot jail (if specified)
+findable.  This file gets written before entering a chroot jail (if specified)
 and before changing userid, so it's ok to specify e.g. /var/run/rbldnsd.pid
 here.
 
 .IP "\fB\-l\fR \fIlogfile\fR"
 Specifies a file to which log all requests made.  This file is created
-after entering chroot jail and becoming a user.  Logfiles may be quite
+after entering a chroot jail and becoming a user.  Logfiles may be quite
 large, esp. on busy sites (\fBrbldnsd\fR will log \fIevery\fR recognized
 request if this option is specified).  This option is mainly intended for
 debugging purposes.  Upon receiption of SIGHUP signal, \fBrbldnsd\fR
-reopens it's logfile.  If \fIlogfile\fR prefixed with a plus sign (+),
+reopens its logfile.  If \fIlogfile\fR prefixed with a plus sign (+),
 logging will not be buffered (i.e. each line will be flushed to disk);
 by default, logging is buffered to reduce system load.
 
@@ -161,7 +161,7 @@ from allowed networks.
 
 .IP \fB\-n\fR
 Do not become a daemon.  Normally, \fBrbldnsd\fR will fork and go to the
-background after successeful initialization.  This option disables this
+background after successful initialization.  This option disables this
 behaviour.
 
 .IP \fB\-s\fR
@@ -169,7 +169,7 @@ Log memory usage info (obtained via mallinfo(3) routine) and (re)load
 times (obtined via utimes(2) routine) on zone (re)loads.
 
 .IP \fB\-d\fR
-Dump all zones to stdout in BIND format and exit.  This may be sutable
+Dump all zones to stdout in BIND format and exit.  This may be suitable
 to convert easily editable rbldnsd-style data into BIND zone.  \fBrbldnsd\fR
 dumps all zones as one stream, so one may want to specify only one zone
 with \fB\-d\fR.  Zone file will have appropriate $ORIGIN tags.  Note
@@ -186,7 +186,7 @@ should not be present in a data set).  In this mode, \fBrbldnsd\fR ignores
 .PP
 Dataset files are text files which are interpreted depending on
 type specified in command line.  Empty lines and lines starting
-with hash character (#) or semicolon (;) are ignored, except of
+with hash character (#) or semicolon (;) are ignored, except for
 a special case outlined below.  A (comma\-separated) list of files
 is interpreted as if all files where logically combined into one
 single file.
@@ -196,8 +196,8 @@ If a line starts with a dollar sign ($), hash character and a dollar
 sign (#$), semicolon and dollar sign (;#) or colon and a dollar sign (:$),
 it is interpreted in a special way, regardless of dataset type (this
 is one exception where a line starting with hash character is not
-ignored \- to be able to reuse zone files of DJB's rbldns).  After
-dollar sign, keyword is expected, to mean one of the following:
+ignored \- to be able to reuse zone files of DJB's rbldns).
+The following keywords, following a dollar sign, are recognized:
 
 .IP "\fB$SOA\fR \fIttl origindn persondn serial refresh retry expire minttl"
 Specifies SOA (Start Of Authority) record for all zones using this
@@ -219,7 +219,7 @@ in time units.  See \fB\-t\fR option for details.
 
 .IP "\fB$NS\fR \fIttl\fR \fInameserverdn\fR"
 Specifies NS (Name Server) record for all zones using this dataset.
-For any given zone (which may consists from several datasets), only
+For any given zone (which may consist of several datasets), only
 first 20 NS records will be recognized.  If \fIttl\fR is zero, default
 ttl will be used.
 
@@ -238,7 +238,7 @@ See below for usage.
 The following dataset types are available:
 
 .IP \fBip4set\fR
-A set of IP addresses or CIDR address ranges, with together with A and
+A set of IP addresses or CIDR address ranges, together with A and
 TXT resulting values.  IP addresses are specified one per line, by an IP
 address prefix (initial octets), complete IP address, CIDR range, or IP
 prefix range (two IP prefixes or complete addresses delimited by
@@ -269,11 +269,11 @@ prefix (127.16.0\-31 is treated as 127.16.0.0\-127.16.31.255, i.e.
 127.16.0.0/19).
 .IP
 After an IP address range, A and TXT values for a given entry may be specified.
-If none given, default values in current scope (see below) applies.  If value
+If none given, default values in current scope (see below) applies.  If a value
 starts with a colon, it is interpreted as a pair of A record and TXT template,
-delimited by colon (:127.0.0.2:This entry is listed).  If value does not start
-with colon, it is interpreted as TXT template only, with A record defaults to
-default A value in current scope.
+delimited by colon (:127.0.0.2:This entry is listed).  If a value does not start
+with a colon, it is interpreted as TXT template only, with A record defaulting
+to the default A value in current scope.
 .IP
 IP address range may be followed by a comment char (either hash character (#)
 or semicolon (;)), e.g.:
@@ -287,13 +287,13 @@ Every IP address that fits within any of specified ranges is "listed", and
 .B rbldnsd
 will respond to reverse queries against it within specified zone with
 positive results.  In contrast, if an entry starts with an exclamation
-sign (!), this is
+sign (!), this is an
 .I exclusion
 entry, i.e. corresponding address range is excluded from being listed
 (and any value for this record is ignored).  This may be used to specify
 large range except some individual addresses, in a compact form.
 .IP
-If a line starts with a colon (:), this line specifies defaul A value
+If a line starts with a colon (:), this line specifies the default A value
 and TXT template to return (see below) for all subsequent entries up
 to end of current file.  If no default entry specified, and no value
 specified for a given record, \fBrbldnsd\fR will return 127.0.0.2 for
@@ -304,7 +304,7 @@ so singe TXT template may be used to e.g. refer to a webpage for an
 additional information for a specific IP address.
 
 .IP \fBdnset\fR
-Set of (possible wildcarded) domain names with assotiated A and TXT values.
+Set of (possible wildcarded) domain names with associated A and TXT values.
 Similar to \fBip4set\fR, but instead of IP addresses, data consists of
 domain names (\fInot\fR in reverse form).  One domain name per line,
 possible starting with wildcard (either with star\-dot (*.) or just a dot).
@@ -337,7 +337,7 @@ are recognized.  TTL value may be specified before record type.  Examples:
 .IP \fBcombined\fR
 This is a special dataset that stores no data by itself but acts
 like a container for several other datasets of any type except of
-combined type itself.  The data file contains optional common section,
+combined type itself.  The data file contains an optional common section,
 where various specials are recognized like $NS, $SOA, $TTL (see above),
 and a series of sections, each of which defines one (nested) dataset
 and several subzones of the base zone, for which this dataset should
@@ -352,12 +352,12 @@ always be relative to the base zone name specified on command line.
 If \fIsubzone\fR specified as single character "@", dataset will be
 connected to the base zone itself.
 .IP
-This dataset type aimed to simplify subzone maintenance, in order to
+This dataset type aims to simplify subzone maintenance, in order to
 be able to include several subzones in one file for easy data transfer,
 atomic operations and to be able to modify list of subzones on remote
 secondary nameservers.
 .IP
-Example of the complete dataset that contains subzone `proxies' with a
+Example of a complete dataset that contains subzone `proxies' with a
 list of open proxies, subzone `relays' with a list of open relays, subzone
 `multihop' with output IPs of multihop open relays, and the base zone
 itself includes proxies and relays but not multihops:
@@ -529,7 +529,7 @@ or:
 .PP
 (note you should specify combined bl.ex.com zone
 .I after
-all it's subzones in a command line, or else subzones
+all its subzones in a command line, or else subzones
 will not be consulted at all).
 .PP
 In the first form, there will be 3 independant data
@@ -622,26 +622,26 @@ There is no TCP mode.  If a resource record does not fit UDP
 packet (512 bytes), it will be silently ignored.  For most
 usages, this isn't a problem, because there should be only a
 few RRs in an answer, and because one record is usually sufficient
-to descide whenever a given entry is "listed" or not.
+to decide whenever a given entry is "listed" or not.
 .B rbldnsd
 isn't a full\-featured nameserver, after all.
 
 .PP
 .B rbldnsd
-will not always return list of nameserver records in AUTHORITY
+will not always return a list of nameserver records in the AUTHORITY
 section of every positive answer: NS records will be provided
 (if given) only if there's a room for them in single UDP packet.
 If records does not fit, AUTHORITY section will be empty.
 
 .PP
-Also, \fBrbldnsd\fR does not add A records into ADDITIONAL
+Also, \fBrbldnsd\fR does not add A records into the ADDITIONAL
 section in answers for nameservers.  In order to work around
-this, made nameservers to be inside another domain/zone which
+this, set up nameservers inside another domain/zone that
 isn't handled by \fBrbldnsd\fR (and thus \fBrbldnsd\fR is
 not authoritative for that zone), i.e. instead of using
 e.g. ns0.list.dsbl.org NS for list.dsbl.org zone, use
 n0-list.dsbl.org (inside parent zone, not controlled by
-\fBrbldnsd\fR).  Since parent zone accessed much less
+\fBrbldnsd\fR).  Since the parent zone is accessed much less
 frequently than the DNSBL zone itself, it may require less
 nameservers (and much less load).
 
@@ -652,7 +652,7 @@ stupidiest yet common thing to do \- use rsync for zone
 transfers instead.  This isn't a bug in
 .B rbldnsd
 itself, but in common practice of using AXFR and the like
-to transfer huge zones in a format which isn't sutable for
+to transfer huge zones in a format which isn't suitable for
 such a task.  Perhaps in the future, if there will be some
 real demand, I'll implement AXFR "server" support (so that
 .B rbldnsd
