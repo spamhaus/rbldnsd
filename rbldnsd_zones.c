@@ -332,6 +332,7 @@ static int loaddataset(struct dataset *ds) {
   struct dsfile *dsf;
   time_t stamp = 0;
   FILE *f;
+  struct stat st0, st1;
 
   freedataset(ds);
 
@@ -340,8 +341,9 @@ static int loaddataset(struct dataset *ds) {
   for(dsf = ds->ds_dsf; dsf; dsf = dsf->dsf_next) {
     ds->ds_fname = dsf->dsf_name;
     f = fopen(dsf->dsf_name, "r");
-    if (!f) {
+    if (!f || fstat(fileno(f), &st0) < 0) {
       dslog(LOG_ERR, 0, "unable to open file: %s", strerror(errno));
+      if (f) fclose(f);
       return 0;
     }
     ds->ds_type->dst_startfn(ds);
@@ -349,12 +351,20 @@ static int loaddataset(struct dataset *ds) {
       fclose(f);
       return 0;
     }
-    if (ferror(f)) {
+    if (ferror(f) || fstat(fileno(f), &st1) < 0) {
       dslog(LOG_ERR, 0, "error reading file: %s", strerror(errno));
       fclose(f);
       return 0;
     }
     fclose(f);
+    if (st0.st_mtime != st1.st_mtime ||
+        st0.st_size  != st1.st_size) {
+      dslog(LOG_ERR, 0, "file changed while we where reading it, data load aborted");
+      dslog(LOG_ERR, 0, "do not write data files directly, use temp file and rename(2) instead");
+      return 0;
+    }
+    dsf->dsf_stamp = st0.st_mtime;
+    dsf->dsf_size  = st0.st_size;
     if (dsf->dsf_stamp > stamp)
       stamp = dsf->dsf_stamp;
   }
@@ -416,9 +426,11 @@ int reloadzones(struct zone *zonelist) {
         load = -1;
         break;
       }
-      else if (dsf->dsf_stamp != st.st_mtime) {
+      else if (dsf->dsf_stamp != st.st_mtime ||
+               dsf->dsf_size  != st.st_size) {
         load = 1;
         dsf->dsf_stamp = st.st_mtime;
+        dsf->dsf_size = st.st_size;
       }
     }
 

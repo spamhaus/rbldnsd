@@ -150,6 +150,7 @@ extern const struct dstype *ds_types[];
 
 struct dsfile {	/* dsf */
   time_t dsf_stamp;		/* last timestamp of this file */
+  off_t  dsf_size;		/* last size of this file */
   struct dsfile *dsf_next;	/* next file in list */
   const char *dsf_name;		/* name of this file */
 };
