@@ -21,7 +21,7 @@ definedstype(dnset, 0, "set of domain names");
  */
 
 struct entry {
-  const unsigned char *dn; /* mp-allocated */
+  unsigned char *lrdn; /* reverseDN key, mp-allocated, length-1 first */
 };
 
 struct dataset {
@@ -39,8 +39,8 @@ struct dataset {
 };
 
 /* indexes */
-#define EP 0
-#define EW 1
+#define EP 0			/* plain entry */
+#define EW 1			/* wildcard entry */
 
 static void ds_dnset_free(struct dataset *ds) {
   if (ds) {
@@ -78,7 +78,7 @@ ds_dnset_parseline(struct dataset *ds, char *line, int lineno) {
   if (*line == '.') { idx = EW; ++line; }
   else if (*line == '*' && line[1] == '.') { idx = EW; line += 2; }
   else idx = EP;
-  if (!(line = parse_dn(line, dn, &dnlen))) {
+  if (!(line = parse_dn(line, dn, &dnlen)) || dnlen == 1) {
     dswarn(lineno, "invalid domain name");
     return 1;
   }
@@ -92,7 +92,9 @@ ds_dnset_parseline(struct dataset *ds, char *line, int lineno) {
     ds->e[idx] = e;
   }
   e += ds->n[idx]++;
-  if (!(e->dn = (const unsigned char*)mp_ememdup(&ds->mp, dn, dnlen))) return 0;
+  if (!(e->lrdn = (unsigned char*)mp_ealloc(&ds->mp, dnlen + 1))) return 0;
+  e->lrdn[0] = (unsigned char)(dnlen - 1);
+  dns_dnreverse(dn, e->lrdn + 1, dnlen);
   dnlen = dns_dnlabels(dn);
   if (ds->maxlab[idx] < dnlen) ds->maxlab[idx] = dnlen;
   if (ds->minlab[idx] > dnlen) ds->minlab[idx] = dnlen;
@@ -114,6 +116,8 @@ static int ds_dnset_load(struct zonedataset *zds, FILE *f) {
   return readdslines(f, zds, ds_dnset_parseline);
 }
 
+#define min(a,b) ((a)<(b)?(a):(b))
+
 static int ds_dnset_finish(struct dataset *ds) {
   unsigned r;
   for(r = 0; r < 2; ++r) {
@@ -122,10 +126,11 @@ static int ds_dnset_finish(struct dataset *ds) {
 #   define QSORT_TYPE struct entry
 #   define QSORT_BASE ds->e[r]
 #   define QSORT_NELT ds->n[r]
-#   define QSORT_LT(a,b) strcmp(a->dn, b->dn) < 0
+#   define QSORT_LT(a,b) \
+   memcmp(a->lrdn + 1, b->lrdn + 1, min(a->lrdn[0], b->lrdn[0]) + 1) < 0
 #   include "qsort.c"
 
-#define dnset_eeq(a,b) strcmp(a.dn, b.dn) == 0
+#define dnset_eeq(a,b) memcmp(a.lrdn, b.lrdn, a.lrdn[0]) == 0
     REMOVE_DUPS(struct entry, ds->e[r], ds->n[r], dnset_eeq);
     SHRINK_ARRAY(struct entry, ds->e[r], ds->n[r], ds->a[r]);
   }
@@ -133,14 +138,36 @@ static int ds_dnset_finish(struct dataset *ds) {
   return 1;
 }
 
+/* entry->lrdn[0] is total length of a dn MINUS ONE.
+ * `dnlen' is length of rdn, again minus one byte.
+ * This is in order to be able to look up beginning
+ * of `rdn' easily: we don't look at last terminating
+ * byte, but compare lengths instead, as when looking
+ * beginning of `rdn', next label will not be empty.
+ * `sub' will be set to 1 if some entry in array
+ * starts with `rdn' (i.e. some subdomain of `rdn'
+ * is listed) - this is important since we should
+ * not return NXDOMAIN in a case when we have listed
+ * some subdomain of query domain.
+ */
+
 static int
-ds_dnset_find(const struct entry *e, int b, const unsigned char *q) {
-  int a = 0, m, r;
+ds_dnset_find(const struct entry *e, int n,
+              const unsigned char *rdn, unsigned dnlen,
+              int *sub) {
+  int a = 0, b = n - 1, m, r;
   while(a <= b) {
-    if (!(r = strcmp(e[(m = (a + b) >> 1)].dn, q))) return 1;
-    else if (r < 0) a = m + 1;
+    const struct entry *t = e + (m = (a + b) >> 1);
+    r = memcmp(t->lrdn + 1, rdn, min(t->lrdn[0], dnlen));
+    if (r < 0) a = m + 1;
+    else if (r > 0) b = m - 1;
+    else if (t->lrdn[0] == dnlen) return 1;
+    else if (t->lrdn[0] < dnlen) a = m + 1;
     else b = m - 1;
   }
+  if (sub && a < n && dnlen < (e += a)->lrdn[0] &&
+      memcmp(rdn, e->lrdn + 1, dnlen) == 0)
+    *sub = 1;
   return 0;
 }
 
@@ -148,21 +175,32 @@ static int
 ds_dnset_query(const struct dataset *ds,
                const struct dnsquery *query, unsigned qtyp,
                struct dnspacket *packet) {
-  const unsigned char *dn = query->q_dn;
-  unsigned lab = query->q_dnlab;
-  if (!lab)
+  const unsigned char *rdn = query->q_rdn;
+  unsigned qlen = query->q_dnlen - 1;
+  unsigned qlab = query->q_dnlab;
+  int sub = 0;
+  if (!qlab)
     return 0;
-  if (lab > ds->maxlab[EP] || lab < ds->minlab[EP] ||
-      !ds_dnset_find(ds->e[EP], ds->n[EP] - 1, dn)) {
+  if (qlab > ds->maxlab[EP] ||
+      !ds_dnset_find(ds->e[EP], ds->n[EP], rdn, qlen, &sub)) {
     /* try wildcard; require at least 1 label on the left */
+    const unsigned char *dn = query->q_dn;
     do
-      --lab, dn += 1 + *dn;
-    while(lab > ds->maxlab[EW]);
+      --qlab, qlen -= *dn + 1, dn += *dn + 1;
+    while(qlab > ds->maxlab[EW]);
     for(;;) {
-      if (lab < ds->minlab[EW]) return 0;
-      if (ds_dnset_find(ds->e[EW], ds->n[EW]-1, dn)) break;
-      dn += 1 + *dn;
-      --lab;
+      if (qlab < ds->minlab[EW]) {
+        if (sub) return 1;
+        if (query->q_dnlab > ds->maxlab[EW]) return 0;
+        if (ds_dnset_find(ds->e[EW], ds->n[EW], rdn, query->q_dnlen - 1, &sub))
+          return 1;
+        return sub;
+      }
+      if (ds_dnset_find(ds->e[EW], ds->n[EW], rdn, qlen, NULL))
+        break;
+      qlen -= *dn + 1;
+      dn += *dn + 1;
+      --qlab;
     }
   }
   if (qtyp & NSQUERY_A) addrec_a(packet, ds->r_a);

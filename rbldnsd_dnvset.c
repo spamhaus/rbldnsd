@@ -14,9 +14,9 @@
 definedstype(dnvset, 0, "set of (domain name, value) pairs");
 
 struct entry {
-  const unsigned char *dn;	/* key, mp-allocated */
-  ip4addr_t r_a;		/* A RR */
-  const char *r_txt;		/* TXT RR, mp-allocated */
+  unsigned char *lrdn;	/* reverseDN key, mp-allocated, length-1 first */
+  ip4addr_t r_a;	/* A RR */
+  const char *r_txt;	/* TXT RR, mp-allocated */
 };
 
 /* dataset and operations is the same as in rbldnsd_dnset,
@@ -27,16 +27,16 @@ struct dataset {
   unsigned n[2]; /* number of entries */
   unsigned a[2]; /* entries allocated (used only when loading) */
   struct entry *e[2]; /* entries: plain and wildcard */
-  unsigned minlab[2]; /* min level of labels */
   unsigned maxlab[2]; /* max level of labels */
+  unsigned minlab[2]; /* min level of labels */
   struct mempool mp; /* mempool for domain names and TXT RRs */
   ip4addr_t r_a; /* default result: address */
   const char *r_txt; /* default result: text (mp-allocated) */
 };
 
 /* indexes */
-#define EP 0
-#define EW 1
+#define EP 0			/* plain entry */
+#define EW 1			/* wildcard entry */
 
 static void ds_dnvset_free(struct dataset *ds) {
   if (ds) {
@@ -77,7 +77,7 @@ ds_dnvset_parseline(struct dataset *ds, char *line, int lineno) {
   if (*line == '.') { idx = EW; ++line; }
   else if (line[0] == '*' && line[1] == '.') { idx = EW; line += 2; }
   else idx = EP;
-  if (!(line = parse_dn(line, dn, &dnlen))) {
+  if (!(line = parse_dn(line, dn, &dnlen)) || dnlen == 1) {
     dswarn(lineno, "invalid domain name");
     return 1;
   }
@@ -105,8 +105,10 @@ ds_dnvset_parseline(struct dataset *ds, char *line, int lineno) {
   if (not) e->r_txt = NULL;
   else if (!line) e->r_txt = ds->r_txt;
   else if (!(e->r_txt = mp_edstrdup(&ds->mp, line))) return 0;
-  if (!(e->dn = (const unsigned char*)mp_ememdup(&ds->mp, dn, dnlen)))
+  if (!(e->lrdn = (unsigned char*)mp_ealloc(&ds->mp, dnlen + 1)))
     return 0;
+  e->lrdn[0] = (unsigned char)(dnlen - 1);
+  dns_dnreverse(dn, e->lrdn + 1, dnlen);
   dnlen = dns_dnlabels(dn);
   if (ds->maxlab[idx] < dnlen) ds->maxlab[idx] = dnlen;
   if (ds->minlab[idx] > dnlen) ds->minlab[idx] = dnlen;
@@ -117,7 +119,7 @@ ds_dnvset_parseline(struct dataset *ds, char *line, int lineno) {
 static struct dataset *ds_dnvset_alloc() {
   struct dataset *ds = tzalloc(struct dataset);
   if (ds)
-    ds->minlab[EP] = ds->minlab[EW] = 255;
+    ds->minlab[EP] = ds->minlab[EW] = DNS_MAXDN;
   return ds;
 }
 
@@ -127,8 +129,10 @@ static int ds_dnvset_load(struct zonedataset *zds, FILE *f) {
   return readdslines(f, zds, ds_dnvset_parseline);
 }
 
+#define min(a,b) ((a)<(b)?(a):(b))
+
 static int ds_dnvset_lt(const struct entry *a, const struct entry *b) {
-  int r = strcmp(a->dn, b->dn);
+  int r = memcmp(a->lrdn + 1, b->lrdn + 1, min(a->lrdn[0], b->lrdn[0]) + 1);
   return
      r < 0 ? 1 :
      r > 0 ? 0 :
@@ -149,10 +153,11 @@ static int ds_dnvset_finish(struct dataset *ds) {
     /* we make all the same DNs point to one string for faster searches */
     { register struct entry *e, *t;
       for(e = ds->e[r], t = e + ds->n[r] - 1; e < t; ++e)
-        if (e[0].dn != e[1].dn && strcmp(e[0].dn, e[1].dn) == 0)
-          e[1].dn = e[0].dn;
+        if (e[0].lrdn[0] == e[1].lrdn[0] &&
+            memcmp(e[0].lrdn, e[1].lrdn, e[0].lrdn[0] + 1) == 0)
+          e[1].lrdn = e[0].lrdn;
     }
-#define dnvset_eeq(a,b) a.dn == b.dn && rrs_equal(a,b)
+#define dnvset_eeq(a,b) a.lrdn == b.lrdn && rrs_equal(a,b)
     REMOVE_DUPS(struct entry, ds->e[r], ds->n[r], dnvset_eeq);
     SHRINK_ARRAY(struct entry, ds->e[r], ds->n[r], ds->a[r]);
   }
@@ -161,19 +166,27 @@ static int ds_dnvset_finish(struct dataset *ds) {
 }
 
 static const struct entry *
-ds_dnvset_find(const struct entry *e, int b, const unsigned char *q) {
-  int a = 0, m, r;
+ds_dnvset_find(const struct entry *e, int n,
+               const unsigned char *rdn, unsigned dnlen,
+               int *sub) {
+  int a = 0, b = n - 1, m, r;
   while(a <= b) {
-    if (!(r = strcmp(e[(m = (a + b) >> 1)].dn, q))) {
-      const struct entry *p = e + m;
-      q = (p--)->dn;
-      while(p > e && p->dn == q)
-        --p;
-      return p + 1;
+    const struct entry *t = e + (m = (a + b) >> 1);
+    r = memcmp(t->lrdn + 1, rdn, min(t->lrdn[0], dnlen));
+    if (r < 0) a = m + 1;
+    else if (r > 0) b = m - 1;
+    else if (t->lrdn[0] == dnlen) {
+      rdn = (t--)->lrdn;
+      while(t > e && t->lrdn == rdn)
+        --t;
+      return t + 1;
     }
-    else if (r < 0) a = m + 1;
+    else if (t->lrdn[0] < dnlen) a = m + 1;
     else b = m - 1;
   }
+  if (sub && a < n && dnlen < (e += a)->lrdn[0] &&
+      memcmp(rdn, e->lrdn + 1, dnlen) == 0)
+    *sub = 1;
   return NULL;
 }
 
@@ -181,23 +194,35 @@ static int
 ds_dnvset_query(const struct dataset *ds,
                 const struct dnsquery *query, unsigned qtyp,
                 struct dnspacket *packet) {
-  const unsigned char *dn = query->q_dn;
+  const unsigned char *rdn = query->q_rdn;
+  unsigned qlen = query->q_dnlen - 1;
+  unsigned qlab = query->q_dnlab;
+  int sub = 0;
   const struct entry *e, *t;
   char name[DNS_MAXDOMAIN+1];
-  unsigned lab = query->q_dnlab;
-  if (!lab)
-    return 0;
-  if (lab > ds->maxlab[EP] || lab < ds->minlab[EP] ||
-      !(e = ds_dnvset_find(ds->e[EP], ds->n[EP] - 1, dn))) {
+
+  if (!qlab) return 0;
+ 
+  if (qlab > ds->maxlab[EP] ||
+    !(e = ds_dnvset_find(ds->e[EP], ds->n[EP], rdn, qlen, &sub))) {
     /* try wildcard; require at least 1 label on the left */
+    const unsigned char *dn = query->q_dn;
     do
-      --lab, dn += 1 + *dn;
-    while(lab > ds->maxlab[EW]);
+      --qlab, qlen -= *dn + 1, dn += *dn + 1;
+    while(qlab > ds->maxlab[EW]);
     for(;;) {
-      if (lab < ds->minlab[EW]) return 0;
-      if ((e = ds_dnvset_find(ds->e[EW], ds->n[EW]-1, dn)) != NULL) break;
-      dn += 1 + *dn;
-      --lab;
+      if (qlab < ds->minlab[EW]) {
+        if (sub) return 1;
+        if (query->q_dnlab > ds->maxlab[EW]) return 0;
+        if (ds_dnvset_find(ds->e[EW], ds->n[EW], rdn, query->q_dnlen - 1, &sub))
+          return 1;
+        return sub;
+      }
+      if ((e = ds_dnvset_find(ds->e[EW], ds->n[EW], rdn, qlen, NULL)))
+        break;
+      qlen -= *dn + 1;
+      dn += *dn + 1;
+      --qlab;
     }
     t = ds->e[EW] + ds->n[EW];
   }
@@ -206,7 +231,7 @@ ds_dnvset_query(const struct dataset *ds,
 
   if (!e->r_a) return 0;
 
-  dn = e->dn;
+  rdn = e->lrdn;
   if (qtyp & NSQUERY_TXT)
     dns_dntop(query->q_dn, name, sizeof(name));
   do {
@@ -214,7 +239,7 @@ ds_dnvset_query(const struct dataset *ds,
       addrec_a(packet, e->r_a);
     if (ds->r_txt && qtyp & NSQUERY_TXT)
       addrec_txt(packet, e->r_txt, name);
-  } while(++e < t && e->dn == dn);
+  } while(++e < t && e->lrdn == rdn);
 
   return 1;
 }
