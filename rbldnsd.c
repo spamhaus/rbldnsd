@@ -609,7 +609,7 @@ break;
   stats_iov = (struct iovec *)emalloc(numzones * sizeof(struct iovec));
   { struct zone *z;
     for(c = 0, z = zonelist; z; z = z->z_next, ++c) {
-      stats_iov[c].iov_base = &z->z_stats;
+      stats_iov[c].iov_base = (char*)&z->z_stats;
       stats_iov[c].iov_len = sizeof(z->z_stats);
     }
   }
