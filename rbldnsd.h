@@ -51,6 +51,7 @@ struct dnspacket {		/* private structure */
   unsigned char *p_cur;		/* current pointer */
   unsigned char *p_sans;	/* start of answers */
   struct dnsdncompr p_dncompr;	/* DN compression state */
+  unsigned p_bdnpos;		/* base DN position */
 };
 
 struct dnsquery {	/* q */
@@ -158,27 +159,27 @@ extern const struct dstype *ds_types[];
  * Each zonedata is composed of a list of files.
  */
 
-struct zonesoa { /* zsoa */
-  int zsoa_valid;		/* true if valid */
-  unsigned char zsoa_ttl[4];		/* TTL value */
-  unsigned char zsoa_oldn[DNS_MAXDN+1];	/* SOA origin DN (len first) */
-  unsigned char zsoa_pldn[DNS_MAXDN+1];	/* SOA person DN (len first) */
-  unsigned char zsoa_n[20];	/* serial, refresh, retry, expire, minttl */
-};
-
-struct zonens { /* zns */
-  struct zonens *zns_next;	/* next pointer in the list */
-  unsigned char zns_ttlldn[1];	/* domain name of a nameserver, varchar */
-    /* first 4 bytes in zns_ttllds are TTL value;
-     * next is length of DN;
-     * rest is DN itself
-     */
-};
-
 struct dsfile {	/* dsf */
   time_t dsf_stamp;		/* last timestamp of this file */
   struct dsfile *dsf_next;	/* next file in list */
   const char *dsf_name;		/* name of this file */
+};
+
+struct dssoa { /* dssoa */
+  unsigned char dssoa_ttl[4];		/* TTL value */
+  const unsigned char *dssoa_odn;	/* origin DN */
+  unsigned dssoa_odnlen;		/* len of dssoa_odn */
+  const unsigned char *dssoa_pdn;	/* person DN */
+  unsigned dssoa_pdnlen;		/* len of dssoa_pdn */
+  unsigned dssoa_serial;		/* SOA serial # */
+  unsigned char dssoa_n[16];		/* refresh, retry, expire, minttl */
+};
+
+struct dsns { /* dsns, nameserver */
+  struct dsns *dsns_next;		/* next nameserver in list */
+  unsigned dsns_dnlen;			/* len of dsns_dn */
+  unsigned char dsns_ttl[4];		/* TTL value */
+  unsigned char dsns_dn[1];		/* nameserver DN, varlen */
 };
 
 struct dataset {	/* ds */
@@ -187,16 +188,17 @@ struct dataset {	/* ds */
   time_t ds_stamp;			/* timestamp */
   const char *ds_spec;			/* original specification */
   struct dsfile *ds_dsf;		/* list of files for this data */
-  struct zonesoa ds_zsoa;		/* SOA record */
-  struct zonens *ds_zns;		/* NS records */
+  struct dssoa *ds_dssoa;		/* SOA record */
+  struct dsns *ds_dsns;			/* list of nameservers */
+  struct dsns **ds_dsnslp;		/* last nameserver pointer */
   unsigned char ds_ttl[4];		/* default ttl for a dataset */
   char *ds_subst[10];			/* substitution variables */
   struct mempool *ds_mp;		/* memory pool for data */
   struct dataset *ds_next;		/* next in global list */
   /* for (re)loads */
   unsigned ds_warn;			/* number of load warnings */
-  const char *ds_fname;		/* current file name */
-  struct dataset *ds_subset;	/* currently loading subset */
+  const char *ds_fname;			/* current file name */
+  struct dataset *ds_subset;		/* currently loading subset */
 };
 
 struct dslist {	/* dsl */
@@ -213,9 +215,10 @@ struct zone {	/* zone, list of zones */
   unsigned z_dstflags;			/* flags of all datasets */
   struct dslist *z_dsl;			/* list of datasets */
   struct dslist **z_dslp;		/* last z_dsl in list */
-  struct zonesoa z_zsoa;		/* SOA record */
-  const unsigned char *z_zttllns[20];	/* list of nameservers */
-    /* keep z_zns definition in sync with rbldnsd_packet.c:addrr_ns() */
+  /* SOA record */
+  const struct dssoa *z_dssoa;		/* original SOA from a dataset */
+  unsigned char z_soa_n[20];		/* serial,refresh,retry,expire,minttl*/
+  const struct dsns *z_dsnsa[20];	/* array of nameservers */
   unsigned z_nns;			/* number of nameservers */
   struct zone *z_next;			/* next in list */
 };

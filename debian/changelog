@@ -13,6 +13,12 @@ rbldnsd (0.96pre) unstable; urgency=low
      zds_special() => ds_special()
    and so on.
 
+  * reworked NS and SOA internals, to use more natural data structures
+    (no more ugly packing of several fields into one char[])
+
+  * always assume that SOA and NS refers to zone's base DN -
+    less work for DN compression routines
+
  -- Michael Tokarev <mjt@corpit.ru>  Tue, 27 May 2003 22:18:20 +0400
 
 rbldnsd (0.95) unstable; urgency=low
