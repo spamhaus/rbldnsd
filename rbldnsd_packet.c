@@ -143,6 +143,7 @@ int replypacket(struct dnspacket *p, unsigned qlen, const struct zone *zone) {
   query.q_dn[qlen - 1] = '\0';
   query.q_rdn = query.q_rdn_b + zone->z_dnlen - 1;
   query.q_dnlab = (qlab -= zone->z_dnlab);
+  query.q_type = qtyp;
 
   found = qlab == 0;	/* no NXDOMAIN if it's a query for the zone base DN */
   /* vars still in use:
@@ -174,7 +175,7 @@ int replypacket(struct dnspacket *p, unsigned qlen, const struct zone *zone) {
   /* search the datasets */
   { register const struct zonedatalist *zdl;
     for(zdl = zone->z_zdl; zdl; zdl = zdl->zdl_next)
-      if (zdl->zdl_queryfn(zdl->zdl_ds, &query, qtyp, p))
+      if (zdl->zdl_queryfn(zdl->zdl_ds, &query, p))
         found = 1;	/* positive answer */
   }
 

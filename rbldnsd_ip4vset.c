@@ -185,8 +185,7 @@ ds_ip4vset_find_masked(const struct entry *e, int b,
 }
 
 static int
-ds_ip4vset_query(const struct dataset *ds,
-                 const struct dnsquery *query, unsigned qtyp,
+ds_ip4vset_query(const struct dataset *ds, const struct dnsquery *query,
                  struct dnspacket *packet) {
   ip4addr_t q = query->q_ip4;
   ip4addr_t f;
@@ -230,11 +229,11 @@ ds_ip4vset_query(const struct dataset *ds,
 
   if (!e->r_a) return 0;
 
-  ipsubst = (qtyp & NSQUERY_TXT) ? ip4atos(q) : NULL;
+  ipsubst = (query->q_type & NSQUERY_TXT) ? ip4atos(q) : NULL;
   do {
-    if (qtyp & NSQUERY_A)
+    if (query->q_type & NSQUERY_A)
       addrec_a(packet, e->r_a);
-    if (e->r_txt && qtyp & NSQUERY_TXT)
+    if (e->r_txt && (query->q_type & NSQUERY_TXT))
       addrec_txt(packet, e->r_txt, ipsubst);
   } while(++e < t && e->addr == f);
 

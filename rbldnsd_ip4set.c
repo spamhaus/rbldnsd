@@ -153,8 +153,7 @@ ds_ip4set_find_masked(const ip4addr_t *e, int b, ip4addr_t q, ip4addr_t mask) {
 }
 
 static int
-ds_ip4set_query(const struct dataset *ds,
-                const struct dnsquery *query, unsigned qtyp,
+ds_ip4set_query(const struct dataset *ds, const struct dnsquery *query,
                 struct dnspacket *packet) {
   ip4addr_t q = query->q_ip4;
 
@@ -188,9 +187,9 @@ ds_ip4set_query(const struct dataset *ds,
   if (!try(E32, 0xffffffff) && !try(E24, 0xffffff00) &&
       !try(E16, 0xffff0000) && !try(E08, 0xff000000))
     return 0;
-  if (qtyp & NSQUERY_A)
+  if (query->q_type & NSQUERY_A)
     addrec_a(packet, ds->r_a);
-  if (ds->r_txt && qtyp & NSQUERY_TXT)
+  if (ds->r_txt && (query->q_type & NSQUERY_TXT))
     addrec_txt(packet, ds->r_txt, ip4atos(q));
   return 1;
 }

@@ -54,6 +54,7 @@ struct dnspacket {		/* private structure */
 };
 
 struct dnsquery {	/* q */
+  unsigned q_type;			/* query RR type (NSQUERY_XXX) */
   unsigned char q_dn[DNS_MAXDN];	/* original query DN, lowercased */
   unsigned char q_rdn_b[DNS_MAXDN];	/* reverse of q_dn - buffer */
   unsigned char *q_rdn;			/* pointer into q_rdn_b */
@@ -72,8 +73,7 @@ typedef int ds_loadfn_t(struct zonedataset *zds, FILE *f);
 typedef int ds_finishfn_t(struct dataset *ds);
 typedef void ds_freefn_t(struct dataset *ds);
 typedef int
-ds_queryfn_t(const struct dataset *ds,
-             const struct dnsquery *query, unsigned qtyp,
+ds_queryfn_t(const struct dataset *ds, const struct dnsquery *query,
              struct dnspacket *packet);
 
 /* flags used in qtyp. should be in MS word for `generic' dataset to work */

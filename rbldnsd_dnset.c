@@ -194,8 +194,7 @@ ds_dnset_find(const struct entry *e, int n,
 }
 
 static int
-ds_dnset_query(const struct dataset *ds,
-               const struct dnsquery *query, unsigned qtyp,
+ds_dnset_query(const struct dataset *ds, const struct dnsquery *query,
                struct dnspacket *packet) {
   const unsigned char *rdn = query->q_rdn;
   unsigned qlen = query->q_dnlen - 1;
@@ -248,8 +247,8 @@ ds_dnset_query(const struct dataset *ds,
       --qlab;
     }
   }
-  if (qtyp & NSQUERY_A) addrec_a(packet, ds->r_a);
-  if (ds->r_txt && (qtyp & NSQUERY_TXT)) {
+  if (query->q_type & NSQUERY_A) addrec_a(packet, ds->r_a);
+  if (ds->r_txt && (query->q_type & NSQUERY_TXT)) {
     unsigned char dn[DNS_MAXDN];
     char name[DNS_MAXDOMAIN+1];
     dns_dnreverse(e->lrdn + 1, dn, e->lrdn[0] + 1);

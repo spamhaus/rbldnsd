@@ -186,8 +186,7 @@ static int ds_generic_finish(struct dataset *ds) {
 }
 
 static int
-ds_generic_query(const struct dataset *ds,
-                 const struct dnsquery *query, unsigned qtyp,
+ds_generic_query(const struct dataset *ds, const struct dnsquery *query,
                  struct dnspacket *packet) {
   const unsigned char *rdn = query->q_rdn;
   const struct entry *e = ds->e, *t;
@@ -217,7 +216,7 @@ ds_generic_query(const struct dataset *ds,
 
   t = ds->e + ds->n;
   do {
-    if (!(qtyp & e->dtyp))
+    if (!(query->q_type & e->dtyp))
       continue;
     switch(e->dtyp & 0xff) {
     case DNS_T_NS:
