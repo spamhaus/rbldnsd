@@ -247,7 +247,11 @@ to specify SOA \- by default, \fBrbldnsd\fR will not add any SOA record
 into answers, and will REFUSE to answer to certain queries (notably, SOA
 query to zone's base domain name).  It is recommended, but not mandatory
 to specify SOA record for every zone.  If no SOA is given, negative replies
-will not be cacheable by caching nameservers.
+will not be cacheable by caching nameservers.  Only one, first $SOA line is
+recognized in every dataset (all subsequent $SOA lines encountered in the
+same dataset are silently ignored).  When constructing a zone, SOA will
+be used from first dataset where $SOA line is given, in an order as
+specified in command line.
 .IP
 If \fIserial\fR value specified is zero, timestamp of most recent
 modified file will be substituted as \fIserial\fR.
@@ -258,11 +262,14 @@ value, see below) will be used.
 All time fields (ttl, refresh, retry, expire, minttl) may be specified
 in time units.  See \fB\-t\fR option for details.
 
-.IP "\fB$NS\fR \fIttl\fR \fInameserverdn\fR"
-Specifies NS (Name Server) record for all zones using this dataset.
-For any given zone (which may consist of several datasets), only
-first 20 NS records will be recognized.  If \fIttl\fR is zero, default
-ttl will be used.
+.IP "\fB$NS\fR \fIttl\fR \fInameserverdn\fR \fInameserverdn\fI..."
+Specifies NS (Name Server) records for all zones using this dataset.
+Only first $NS line in a dataset is recognized, all subsequent lines
+are silently ignored.  When constructing a zone from several datasets,
+rbldnsd uses nameservers from $NS line in only first dataset where $NS
+line is given, in command-line order, just like for $SOA record.  Only
+first 20 namservers are recognized.  If \fIttl\fR is zero, default ttl
+will be used.
 
 .IP "\fB$TTL\fR \fItime-to-live\fR"
 Specifies TTL (time-to-live) value for all records in current dataset.
@@ -393,8 +400,7 @@ are recognized.  TTL value may be specified before record type.  Examples:
 .nf
  # bl.ex.com
  # specify some values for current zone
- $NS 0 ns1.ex.com
- $NS 0 ns2.ex.com
+ $NS 0 ns1.ex.com ns2.ex.com
  # record with TTL
  www 3000 A 127.0.0.1
  about TXT "ex.com combined blocklist"
@@ -429,8 +435,7 @@ list of open proxies, subzone `relays' with a list of open relays, subzone
 itself includes proxies and relays but not multihops:
 .nf
   # common section
-  $NS 1w ns1.ex.com
-  $NS 1w ns2.ex.com
+  $NS 1w ns1.ex.com ns2.ex.com
   $SOA 1w ns1.ex.com admin.ex.com 0 2h 2h 1w 1h
   # list of open proxies,
   # in `proxies' subzone and in base zone
