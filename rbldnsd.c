@@ -379,7 +379,7 @@ static void init(int argc, char **argv) {
     case 'w': workdir = optarg; break;
     case 'p': pidfile = optarg; break;
     case 't':
-      if (!(p = parse_time(optarg, &def_ttl)) || *p)
+      if (!(p = parse_time(optarg, &def_ttl)) || *p || !def_ttl)
         error(0, "invalid ttl (-t) value `%.50s'", optarg);
       break;
     case 'c':
