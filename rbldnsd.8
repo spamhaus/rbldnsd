@@ -1,7 +1,7 @@
 .\" $Id$
 .\" rbldnsd manpage
 .\"
-.TH rbldnsd 8 "Jun 2004"
+.TH rbldnsd 8 "Jul 2004"
 .SH NAME
 rbldnsd \- DNS daemon suitable for running DNS\-based blocklists
 .SH SYNOPSIS
@@ -273,17 +273,32 @@ will return REFUSE code.
 Dataset files are text files which are interpreted depending on
 type specified in command line.  Empty lines and lines starting
 with hash character (#) or semicolon (;) are ignored, except for
-a special case outlined below.  A (comma\-separated) list of files
-is interpreted as if all files where logically combined into one
-single file.
+a special case outlined below in section titled "Special Entries".
 
+.PP
+A (comma\-separated) list of files in dataset specification
+(in \fItype\fR:\fIfile\fR,\fIfile\fR,...) is interpreted as if
+all files where logically combined into one single file.
+
+.PP
+.B rbldnsd
+is designed to service a DNSBL, where each entry have single
+A record and optional TXT record assotiated with it.
+.B rbldnsd
+allows to specify A value and TXT \fItemplate\fR either for each
+entry individually, or to use default A value and TXT template
+pair for a group of entries.  See section "Resulting A values
+and TXT templates" below for a way to specify them.
+
+.SS "Special Entries"
 .PP
 If a line starts with a dollar sign ($), hash character and a dollar
 sign (#$), semicolon and dollar sign (;#) or colon and a dollar sign (:$),
 it is interpreted in a special way, regardless of dataset type (this
 is one exception where a line starting with hash character is not
-ignored \- to be able to reuse zone files of DJB's rbldns).
-The following keywords, following a dollar sign, are recognized:
+ignored \- to be able to use zone files for both \fBrbldnsd\fR and
+for DJB's rbldns). The following keywords, following a dollar sign,
+are recognized:
 
 .IP "\fB$SOA\fR \fIttl origindn persondn serial refresh retry expire minttl"
 Specifies SOA (Start Of Authority) record for all zones using this
@@ -346,14 +361,13 @@ but can not be increased.
 
 .IP "\fB$\fIn\fR \fItext\fR"
 (\fIn\fR is a single digit).
-Specifies a substitution variable for use as $\fIn\fR placeholders.
-Valid in dnset and ip4set datsets, ignored in generic dataset.
-See below for usage.
+Specifies a \fIsubstitution variable\fR for use as $\fIn\fR placeholders
+(the \fB$\fIn\fR entries are ignored in generic daaset).
+See section "Resulting A values and TXT templates" below for description
+and usage examples.
 
+.SS "ip4set Dataset"
 .PP
-The following dataset types are available:
-
-.IP \fBip4set\fR
 A set of IP addresses or CIDR address ranges, together with A and
 TXT resulting values.  IP addresses are specified one per line, by an IP
 address prefix (initial octets), complete IP address, CIDR range, or IP
@@ -383,14 +397,14 @@ ranges, if last boundary is only one octet (127.16\-31), it is treated
 as "suffix", as value of last \fIspecified\fR octet of the first boundary
 prefix (127.16.0\-31 is treated as 127.16.0.0\-127.16.31.255, i.e.
 127.16.0.0/19).
-.IP
+.PP
 After an IP address range, A and TXT values for a given entry may be specified.
 If none given, default values in current scope (see below) applies.  If a value
 starts with a colon, it is interpreted as a pair of A record and TXT template,
 delimited by colon (:127.0.0.2:This entry is listed).  If a value does not start
 with a colon, it is interpreted as TXT template only, with A record defaulting
 to the default A value in current scope.
-.IP
+.PP
 IP address range may be followed by a comment char (either hash character (#)
 or semicolon (;)), e.g.:
 .nf
@@ -398,7 +412,7 @@ or semicolon (;)), e.g.:
 .fi
 In this case all characters up to the end of line are ignored, and default A
 and TXT values will be used for this IP range.
-.IP
+.PP
 Every IP address that fits within any of specified ranges is "listed", and
 .B rbldnsd
 will respond to reverse queries against it within specified zone with
@@ -408,7 +422,7 @@ sign (!), this is an
 entry, i.e. corresponding address range is excluded from being listed
 (and any value for this record is ignored).  This may be used to specify
 large range except some individual addresses, in a compact form.
-.IP
+.PP
 If a line starts with a colon (:), this line specifies the default A value
 and TXT template to return (see below) for all subsequent entries up
 to end of current file.  If no default entry specified, and no value
@@ -419,7 +433,8 @@ record template is specified and contains occurences of of dollar sign
 so singe TXT template may be used to e.g. refer to a webpage for an
 additional information for a specific IP address.
 
-.IP \fBip4trie\fR
+.SS "ip4trie Dataset"
+.PP
 Set of IP4 CIDR ranges with corresponding (A, TXT) values.  Similar to
 ip4set, but uses different internal representation (implemented as a
 patricia trie), accepts CIDR ranges only (not a.b.c.d\-e.f.g.h), allows
@@ -430,7 +445,8 @@ it is ok to use it to store many possible wide CIDR ranges.
 Note: ip4trie dataset \fIcannot\fR be converted into master zone format
 (\fB\-d\fR option).
 
-.IP \fBip4tset\fR
+.SS "ip4tset Dataset"
+.PP
 "trivial" ip4set: a set of single IP addresses (one per line), with
 the same A+TXT template.  This dataset type is more efficient than
 ip4set (in both memory usage and access times), but have obvious
@@ -439,16 +455,16 @@ similar, where each entry uses the same default A+TXT template.
 This dataset uses only half a memory for the same list of IP
 addresses compared to \fBip4set\fR.
 
-.IP \fBdnset\fR
+.SS "dnset Dataset"
+.PP
 Set of (possible wildcarded) domain names with associated A and TXT values.
 Similar to \fBip4set\fR, but instead of IP addresses, data consists of
 domain names (\fInot\fR in reverse form).  One domain name per line,
 possible starting with wildcard (either with star\-dot (*.) or just a dot).
 Entry starting with exclamation sign is exclusion.  Default value for
 all subsequent lines may be specified by a line starting with a colon.
-.IP
+.PP
 Wildcards are interpreted as follows:
-.RS
 .IP example.com
 only example.com domain is listed, not subdomains thereof.  Not a wildcard
 entry.
@@ -459,13 +475,13 @@ all subdomains of example.com \fIand\fR example.com itself are listed.
 This is a shortcut: to list a domain name itself and all it's subdomains,
 one may either specify two lines (example.com and *.example.com), or
 one line (.example.com).
-.RE
-.IP
+.PP
 This dataset type may be used instead of \fBip4set\fR,
 provided all CIDR ranges are expanded and reversed (but in
 this case, TXT template will be expanded differently).
 
-.IP \fBgeneric\fR
+.SS "generic Dataset"
+.PP
 Generic type, simplified bind\-style format.  Every record
 should be on one line (line continuations are not supported),
 and should be specified completely (i.e. all domain names in
@@ -482,7 +498,8 @@ are recognized.  TTL value may be specified before record type.  Examples:
  about TXT "ex.com combined blocklist"
 .fi
 
-.IP \fBcombined\fR
+.SS "combined Dataset"
+.PP
 This is a special dataset that stores no data by itself but acts
 like a container for several other datasets of any type except of
 combined type itself.  The data file contains an optional common section,
@@ -501,12 +518,12 @@ part is optional).  Note that combined datasets cannot be nested.
 Every \fIsubzone\fR will always be relative to the base zone name
 specified on command line.  If \fIsubzone\fR specified as single
 character "@", dataset will be connected to the base zone itself.
-.IP
+.PP
 This dataset type aims to simplify subzone maintenance, in order to
 be able to include several subzones in one file for easy data transfer,
 atomic operations and to be able to modify list of subzones on remote
 secondary nameservers.
-.IP
+.PP
 Example of a complete dataset that contains subzone `proxies' with a
 list of open proxies, subzone `relays' with a list of open relays, subzone
 `multihop' with output IPs of multihop open relays, and the base zone
@@ -550,7 +567,7 @@ itself includes proxies and relays but not multihops:
   #  bl.ex.com A 127.0.0.8
   #  www.bl.ex.com 127.0.0.8
 .fi
-.IP
+.PP
 Note that $NS and $SOA values applies to the base zone \fIonly\fR,
 regardless of the placement in the file.  Unlike the $TTL values and
 $\fIn\fR substitutions, which may be both global and local for a
@@ -558,13 +575,13 @@ given (sub\-)dataset.
 
 .SS "Resulting A values and TXT templates"
 .PP
-In all zone file types except generic, record values are
+In all zone file types except generic, A values and TXT templates are
 specified as following:
 .nf
   :127.0.0.2:Blacklisted: http://example.com/bl?$
 .fi
 If a line starts with a colon, it specifies default A and TXT for all
-subsequent entries in this file.  Similar format is used to
+subsequent entries in this dataset.  Similar format is used to
 specify values for individual records, with the A value (enclosed by
 colons) being optional:
 .nf
@@ -579,10 +596,9 @@ or, without specific A value:
 Two parts of a line, delimited by second colon, specifies
 A and TXT record values.  Both are optional.  By default
 (either if no default line specified, or no IP address
-within that line),
-.B rbldnsd
-will return 127.0.0.2 as A record.  127.0.0 prefix may be
-omitted, so the above example may be simplified to:
+within that line), \fBrbldnsd\fR will return 127.0.0.2 as
+A record.  127.0.0 prefix for A value may be omitted, so
+the above example may be simplified to:
 .nf
   :2:Blacklisted: http://example.com/bl?$
 .fi
@@ -591,12 +607,36 @@ There is no default TXT value, so
 will not return anything for TXT queries it TXT isn't
 specified.
 .PP
-In a TXT template, some substitutions are available.  In particular,
-\fB$\fIn\fR sequence, where \fIn\fR is a single digit, is replaced
-by substitution variable $\fIn\fR defined for this dataset (see above
-for special dataset entries).  Single dollar sign ($) is replaced by
-a listed entry (IP address for ip4set dataset and domain name for
-dnset dataset).  To specify a dollar sign directly, double it.
+When A value is specified for a given entry, but TXT template
+is omitted, there may be two cases interpreted differently,
+namely, whenever there's a second semicolon (:) after the
+A value.  If there's no second semicolon, default TXT value
+for this scope will be used.  In contrast, when second
+semicolon is present, no TXT template will be generated
+at all.  All possible cases are outlined in the following
+example:
+.PP
+.nf
+  # default A value and TXT template
+  :127.0.0.2:IP address $ is listed
+  # 127.0.0.4 will use default A and TXT
+  127.0.0.4
+  # 127.0.0.5 will use specific A and default TXT
+  127.0.0.5 :5
+  # 127.0.0.6 will use specific a and \fIno\fR TXT
+  127.0.0.6 :6:
+  # 127.0.0.7 will use default A and specific TXT
+  127.0.0.7 IP address $ running an open relay
+.fi
+.PP
+In a TXT template, some references to substitution variables are
+replaced with values of that variables.  In particular,
+single dollar sign ($) is replaced by a listed entry (an IP address
+in question for IP\-based datasets and the domain name for domain\-based
+datasets).  \fB$\fIn\fR\-style constructs, where \fIn\fR is a single
+digit, are replaced by a substitution variable $\fIn\fR defined for
+this dataset in current scope (see section "Special Entries" above).
+To specify a dollar sign as\-is, use \fB$$\fR.
 .PP
 For example, the following lines:
 .nf
@@ -604,11 +644,13 @@ For example, the following lines:
   $2 for details
   127.0.0.2  $1/spammer/$ $2
   127.0.0.3  $1/relay/$ $2
+  127.0.0.4  This spammer wants some $$$$.  $1/$
 .fi
 will result in the following text to be generated:
 .nf
   See http://www.example.com/bl/spammer/127.0.0.2 for details
   See http://www.example.com/bl/relay/127.0.0.3 for details
+  This spammer wants some $$.  See http://www.example.com/bl/127.0.0.4
 .fi
 
 .SH SIGNALS

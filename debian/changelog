@@ -8,7 +8,10 @@ rbldnsd (0.993) unstable; urgency=low
     of a real IP address (when construct like ":127.0.0.2" is specified),
     introduced in 0.992
 
- -- Michael Tokarev <mjt@corpit.ru>  Thu,  1 Jul 2004 20:08:12 +0400
+  * manpage: described various :A:TXT cases; reformatted to use
+    .SS instead of .IP in some cases.
+
+ -- Michael Tokarev <mjt@corpit.ru>  Thu,  1 Jul 2004 20:10:56 +0400
 
 rbldnsd (0.993p2) unstable; urgency=low
 
