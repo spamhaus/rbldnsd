@@ -56,4 +56,5 @@ fi
 %_sbindir/rbldnsd
 %_mandir/man8/rbldnsd.8*
 %config(noreplace) /etc/sysconfig/rbldnsd
+/etc/init.d/rbldnsd
 %home

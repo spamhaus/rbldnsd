@@ -1,6 +1,10 @@
 #! /bin/sh
 # $Id$
 # rbldnsd	startup script.
+#
+# chkconfig:	345 80 30
+# description:	rbldnsd is a DNS daemon for DNSBLs.  Configure it in \
+#		/etc/default/rbldnsd or /etc/sysconfig/rbldnsd
 
 PATH=/sbin:/bin:/usr/sbin:/usr/bin
 NAME=rbldnsd
