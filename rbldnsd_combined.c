@@ -46,8 +46,11 @@ ds_combined_line(struct zonedataset UNUSED *unused_zds,
 static void ds_combined_finishlast(struct zonedataset *zds) {
   struct zonedataset *zdssub = zds->zds_subset;
   if (zdssub) {
+    const char *fname = zds->zds_fname;
+    zds->zds_fname = NULL;
     zdssub->zds_type->dst_finishfn(zdssub);
     zds->zds_subset = NULL;
+    zds->zds_fname = fname;
   }
 }
 
