@@ -140,7 +140,7 @@ int replypacket(struct dnspacket *p, unsigned qlen, const struct zone *zone) {
 
   /* initialize query */
   query.q_dnlen = (qlen -= zone->z_dnlen - 1);
-  query.q_dn[qlen] = '\0';
+  query.q_dn[qlen - 1] = '\0';
   query.q_rdn = query.q_rdn_b + zone->z_dnlen - 1;
   query.q_dnlab = (qlab -= zone->z_dnlab);
 
