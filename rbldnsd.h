@@ -171,7 +171,7 @@ struct zone {	/* zone, list of zones */
   unsigned z_dstflags;			/* flags of all datasets */
   struct zonedatalist *z_zdl;		/* list of datas */
   struct zonesoa z_zsoa;		/* SOA record */
-  const unsigned char *z_zns[10];	/* list of nameservers */
+  const unsigned char *z_zns[20];	/* list of nameservers */
   unsigned z_nns;			/* number of nameservers */
   struct zone *z_next;			/* next in list */
 };
