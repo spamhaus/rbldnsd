@@ -46,8 +46,8 @@ MISC = rbldnsd.8 qsort.c Makefile NEWS CHANGES WirehubDynablock2rbldnsd.pl
 SRCS = $(LIB_SRCS) $(RBLDNSD_SRCS) ip4rangetest.c
 HDRS = $(LIB_HDRS) $(RBLDNSD_HDRS)
 
-VERSION = 0.83
-VERSION_DATE = 2003-04-19
+VERSION = 0.84p1
+VERSION_DATE = 2003-04-20
 
 all: rbldnsd
 
