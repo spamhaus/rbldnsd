@@ -33,6 +33,7 @@ cp rbldnsd $RPM_BUILD_ROOT%_sbindir/
 cp -p rbldnsd.8 $RPM_BUILD_ROOT%_mandir/man8/
 cp -p debian/rbldnsd.default $RPM_BUILD_ROOT/etc/sysconfig/rbldnsd
 cp -p debian/rbldnsd.init $RPM_BUILD_ROOT/etc/init.d/rbldnsd
+chmod +x $RPM_BUILD_ROOT/etc/init.d/rbldnsd
 
 %clean
 rm -rf $RPM_BUILD_ROOT
