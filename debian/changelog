@@ -14,7 +14,7 @@ rbldnsd (0.992pre4) unstable; urgency=low
 
   * rework 2-process reload, add workarounds for lost signals
 
- -- Michael Tokarev <mjt@corpit.ru>  Mon,  1 Mar 2004 23:23:44 +0300
+ -- Michael Tokarev <mjt@corpit.ru>  Wed,  3 Mar 2004 17:43:38 +0300
 
 rbldnsd (0.992pre3) unstable; urgency=low
 
