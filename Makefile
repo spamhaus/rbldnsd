@@ -17,6 +17,8 @@ RANLIB = :
 #DEFS = -DNOMEMINFO
 # Disable printing zone (re)load time using utimes()
 #DEFS = -DNOTIMES
+# If your system lacks <stdint.h> header but uint32_t is in sys/types.h
+#DEFS = -DNOSTDINT_H
 
 SOCKET_LIBS = `[ -f /usr/lib/libsocket.so ] && echo -lsocket -lnsl || :`
 

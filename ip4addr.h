@@ -6,7 +6,11 @@
 #ifndef _IP4ADDR_H_INCLUDED
 #define _IP4ADDR_H_INCLUDED
 
-#include <stdint.h>
+#ifndef NOSTDINT_H /* some BSDs have no C98 stdint.h header */
+# include <stdint.h>
+#else
+# include <sys/types.h>
+#endif
 
 typedef uint32_t ip4addr_t; /* host byte order */
 
