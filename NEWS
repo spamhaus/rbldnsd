@@ -19,6 +19,16 @@ Never news are at top.
    logfiles.  Dunno whenever it will actually help,
    but it at least works on linux.
 
+ - old -s option (log reload times/memusage) is gone,
+   it is now turned on all the time, but produces slightly
+   less verbose output.
+
+ - new -s option: write short statistic summaries into
+   given file, to help obtaining data for tools like RRD.
+
+ - format of statistic logging changed slightly, it is
+   a bit less verbose now too (and less confusing)
+
 0.991 (30 Nov 2003)
 
  - in order to be able to overrite both SOA and NS records
