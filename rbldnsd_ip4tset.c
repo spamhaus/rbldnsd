@@ -94,7 +94,7 @@ static void ds_ip4tset_finish(struct dataset *ds) {
   }
 
   if (!dsd->def_rr) dsd->def_rr = def_rr;
-  dsloaded("count=%u", n);
+  dsloaded("cnt=%u", n);
 }
 
 static int
