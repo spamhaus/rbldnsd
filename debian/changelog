@@ -1,4 +1,4 @@
-rbldnsd (0.91pre) unstable; urgency=low
+rbldnsd (0.91) unstable; urgency=low
 
   * print version info at build time (Makefile)
   * made SIGNALLED_* names action-, not signal-dependant
@@ -18,7 +18,7 @@ rbldnsd (0.91pre) unstable; urgency=low
   * always use SOA's TTL when SOA is included in answer
   * added RPM .spec file
 
- -- Michael Tokarev <mjt@corpit.ru>  Thu, 15 May 2003 02:12:35 +0400
+ -- Michael Tokarev <mjt@corpit.ru>  Thu, 15 May 2003 02:35:35 +0400
 
 rbldnsd (0.90) unstable; urgency=low
 
