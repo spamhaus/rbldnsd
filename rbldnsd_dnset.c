@@ -9,8 +9,6 @@
 #include <stdlib.h>
 #include "rbldnsd.h"
 
-definedstype(dnset, 0, "set of (domain name, value) pairs");
-
 struct entry {
   unsigned char *ldn;	/* DN key, mp-allocated, length byte first */
   const char *rr;	/* A and TXT RRs */
@@ -35,6 +33,8 @@ struct dataset {
 /* indexes */
 #define EP 0			/* plain entry */
 #define EW 1			/* wildcard entry */
+
+definedstype(dnset, 0, "set of (domain name, value) pairs");
 
 static void ds_dnset_reset(struct dataset *ds) {
   if (ds->e[EP]) free(ds->e[EP]);
@@ -119,10 +119,6 @@ ds_dnset_parseline(struct zonedataset *zds, char *s, int lineno) {
   if (ds->minlab[idx] > dnlen) ds->minlab[idx] = dnlen;
 
   return 1;
-}
-
-static struct dataset *ds_dnset_alloc() {
-  return tzalloc(struct dataset);
 }
 
 static int ds_dnset_load(struct zonedataset *zds, FILE *f) {

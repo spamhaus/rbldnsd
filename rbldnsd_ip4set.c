@@ -9,8 +9,6 @@
 #include <stdlib.h>
 #include "rbldnsd.h"
 
-definedstype(ip4set, DSTF_IP4REV, "set of (ip4, value) pairs");
-
 struct entry {
   ip4addr_t addr;	/* key: IP address */
   const char *rr;	/* A and TXT RRs */
@@ -28,6 +26,8 @@ struct dataset {
 #define E24 1
 #define E16 2
 #define E08 3
+
+definedstype(ip4set, DSTF_IP4REV, "set of (ip4, value) pairs");
 
 static void ds_ip4set_reset(struct dataset *ds) {
   if (ds->e[E32]) free(ds->e[E32]);
@@ -146,10 +146,6 @@ ds_ip4set_parseline(struct zonedataset *zds, char *s, int lineno) {
 static int ds_ip4set_load(struct zonedataset *zds, FILE *f) {
   zds->zds_ds->def_rr = def_rr;
   return readdslines(f, zds, ds_ip4set_parseline);
-}
-
-static struct dataset *ds_ip4set_alloc() {
-  return tzalloc(struct dataset);
 }
 
 static int ds_ip4set_finish(struct dataset *ds) {

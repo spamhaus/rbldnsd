@@ -3,6 +3,8 @@ rbldnsd (0.95pre) unstable; urgency=low
   * Portability: #include <netinet/in.h> for sockaddr_in definition in
     rbldnsd_packet.c
 
+  * Allocate dataset to be part of zonedataset -> remove dataset's allocfn
+
  -- Michael Tokarev <mjt@corpit.ru>  Mon, 26 May 2003 18:19:16 +0400
 
 rbldnsd (0.94) unstable; urgency=low

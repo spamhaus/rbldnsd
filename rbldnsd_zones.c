@@ -106,17 +106,18 @@ static struct zonedataset *newzonedataset(char *spec) {
         strcmp(zds->zds_spec, f) == 0)
       return zds;
 
-  zds = tzalloc(struct zonedataset);
-  zds->zds_next = zonedatasets;
-  zonedatasets = zds;
-  zds->zds_spec = estrdup(f);
-
   dstp = dataset_types;
   while(strcmp(spec, (*dstp)->dst_name))
     if (!*++dstp)
       error(0, "unknown zone type `%.60s'", spec);
+  zds = (struct zonedataset*)ezalloc(sizeof(struct zonedataset) +
+                                     (*dstp)->dst_size);
   zds->zds_type = *dstp;
-  zds->zds_ds = zds->zds_type->dst_allocfn();
+  zds->zds_ds = (struct dataset*)(zds + 1);
+  zds->zds_spec = estrdup(f);
+
+  zds->zds_next = zonedatasets;
+  zonedatasets = zds;
 
   for(zfp = &zds->zds_zf, f = strtok(f, delims); f; f = strtok(NULL, delims)) {
     zf = tmalloc(struct zonefile);

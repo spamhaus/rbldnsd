@@ -9,8 +9,6 @@
 #include <sys/types.h>
 #include "rbldnsd.h"
 
-definedstype(generic, DSTF_ZERODN, "generic simplified bind-format");
-
 struct entry {
   const unsigned char *ldn;	/* DN, mp-allocated; first byte is length */
   unsigned dtyp;		/* data (query) type */
@@ -26,6 +24,8 @@ struct dataset {
   unsigned maxlab;	/* max level of labels */
   unsigned minlab;	/* min level of labels */
 };
+
+definedstype(generic, DSTF_ZERODN, "generic simplified bind-format");
 
 static void ds_generic_reset(struct dataset *ds) {
   if (ds->e) free(ds->e);
@@ -143,10 +143,6 @@ ds_generic_parseline(struct zonedataset *zds, char *s, int lineno) {
 
 static int ds_generic_load(struct zonedataset *zds, FILE *f) {
   return readdslines(f, zds, ds_generic_parseline);
-}
-
-static struct dataset *ds_generic_alloc() {
-  return tzalloc(struct dataset);
 }
 
 #define min(a,b) ((a)<(b)?(a):(b))

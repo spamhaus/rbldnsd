@@ -86,7 +86,6 @@ char *parse_dn(char *s, unsigned char *dn, unsigned *dnlenp);
  * readdslines() */
 int parse_a_txt(char *str, const char **rrp, const char def_a[4]);
 
-typedef struct dataset *ds_allocfn_t(void);
 typedef int ds_loadfn_t(struct zonedataset *zds, FILE *f);
 typedef int ds_finishfn_t(struct dataset *ds);
 typedef void ds_resetfn_t(struct dataset *ds);
@@ -107,8 +106,8 @@ typedef void ds_dumpfn_t(const struct zonedataset *zds, FILE *f);
 struct dataset_type {	/* dst */
   const char *dst_name;		/* name of the type */
   unsigned dst_flags;		/* how to pass arguments to queryfn */
+  unsigned dst_size;		/* size of struct dataset */
   ds_queryfn_t *dst_queryfn;	/* routine to perform query */
-  ds_allocfn_t *dst_allocfn;	/* allocation routine */
   ds_loadfn_t *dst_loadfn;	/* routine to load ds data */
   ds_finishfn_t *dst_finishfn;	/* finish loading */
   ds_resetfn_t *dst_resetfn;	/* routine to release ds internal data */
@@ -122,15 +121,14 @@ struct dataset_type {	/* dst */
 
 #define declaredstype(t) extern const struct dataset_type dataset_##t##_type
 #define definedstype(t, flags, descr) \
- static ds_allocfn_t ds_##t##_alloc; \
  static ds_queryfn_t ds_##t##_query; \
  static ds_loadfn_t ds_##t##_load; \
  static ds_finishfn_t ds_##t##_finish; \
  static ds_resetfn_t ds_##t##_reset; \
  static ds_dumpfn_t ds_##t##_dump; \
  const struct dataset_type dataset_##t##_type = { \
-   #t, /* name */ flags, \
-   ds_##t##_query, ds_##t##_alloc, ds_##t##_load, \
+   #t /* name */, flags, sizeof(struct dataset), \
+   ds_##t##_query, ds_##t##_load, \
    ds_##t##_finish, ds_##t##_reset, ds_##t##_dump, \
    descr }
 
