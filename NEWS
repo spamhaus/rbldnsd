@@ -3,7 +3,7 @@ $Id$
 This file describes user-visible changes in rbldnsd.
 Never news are at top.
 
-0.98pre (7 Aug 2003)
+0.98pre (10 Aug 2003)
 
  - feature, and incompatibility change in dnset DN interpretation.
    *.example.com is now NOT the same as .example.com.  Specify

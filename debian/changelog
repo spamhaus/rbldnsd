@@ -22,8 +22,9 @@ rbldnsd (0.98pre) unstable; urgency=low
   * TXT RR is 255 bytes max, not 254 (generic dataset)
   * wildcards in dnset: *.example.com and example.com works as before,
     but .example.com is now interpreted as BOTH *.example.com and example.com.
+  * clarifications in manpage: dataset vs zone
 
- -- Michael Tokarev <mjt@corpit.ru>  Sun, 10 Aug 2003 15:08:47 +0400
+ -- Michael Tokarev <mjt@corpit.ru>  Sun, 10 Aug 2003 15:33:56 +0400
 
 rbldnsd (0.97b) unstable; urgency=low
 
