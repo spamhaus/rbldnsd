@@ -28,6 +28,12 @@
 #include "dns.h"
 #include "mempool.h"
 
+struct ip4list {
+  ip4addr_t addr, mask;		/* NOTE: _NETWORK_ byte order! */
+  int value;
+  struct ip4list *next;
+};
+
 char *progname; /* limited to 32 chars */
 int logto;
 
@@ -54,6 +60,8 @@ static int recheck = 60;	/* interval between checks for reload */
 static int accept_in_cidr;	/* accept 127.0.0.1/8-style CIDRs */
 static int initialized;		/* 1 when initialized */
 static char *logfile;		/* log file name */
+static struct ip4list *logfilt;	/* log filter: IPs/nets to log */
+static struct ip4list *qryfilt;	/* which IPs/nets will be serviced */
 static int logmemtms;		/* print memory usage and (re)load time info */
 
 static int satoi(const char *s) {
@@ -128,13 +136,87 @@ static void NORETURN usage(int exitcode) {
 " -n - do not become a daemon\n"
 " -l logfile - log queries and answers to this file\n"
 "  (relative to chroot directory)\n"
+" -L netlist - only log queries from IPs matching netlist\n"
+" -a netlist - only answer queries from IPs matching netlist\n"
 " -s - print memory usage and (re)load time info on zone reloads\n"
 "each zone specified using `name:type:file,file...'\n"
 "syntax, repeated names constitute the same zone.\n"
 "Available zone types:\n"
 , progname, progname);
   printzonetypes(stdout);
+  printf(
+"netlist is a comma-separated list of CIDR network ranges or hosts,\n"
+"possible negated, 127.0.0.1,!127/8 (0/0 added implicitly)\n"
+	);
   exit(exitcode);
+}
+
+static struct ip4list *
+ip4list_new(ip4addr_t addr, ip4addr_t mask, int value) {
+   struct ip4list *e = (struct ip4list *)emalloc(sizeof(*e));
+   e->addr = addr & mask;
+   e->mask = mask;
+   e->value = value;
+   return e;
+}
+
+static int ip4list_match(const struct ip4list *list, ip4addr_t addr) {
+  while (list)
+    if ((addr & list->mask) == list->addr)
+      return list->value;
+    else
+      list = list->next;
+  return 0;
+}
+
+static struct ip4list *
+parsenetlist(char *list) {
+  static const char *const sep = ",; ";
+  char *e;
+  struct ip4list *iplist = NULL, **lp = &iplist;
+  int accept = 1;
+  ip4addr_t addr, mask;
+  list = estrdup(list);
+  for(e = strtok(list, sep); e; e = strtok(NULL, sep)) {
+    if (*e != '!') accept = 1;
+    else ++e, accept = 0;
+    if (strspn(e, "0123456789./") == strlen(e)) { /* ip address */
+      mask = ip4cidr(e, &addr, NULL);
+      if (!mask)
+	error(0, "invalid network range `%s'", e);
+      mask = ip4mask(mask);
+      *lp = ip4list_new(htonl(addr), htonl(mask), accept);
+      lp = &((*lp)->next);
+    }
+    else {
+      struct hostent *he;
+      char **addrp;
+      char *m = strchr(e, '/');
+      if (m) {
+        int b;
+        *m++ = '\0';
+        if ((b = atoi(m)) < 1 || b > 32)
+          error(0, "invalid mask `/%s'", m);
+        mask = ip4mask(b);
+	mask = htonl(mask);
+      }
+      else
+        mask = 0xffffffffu;
+      he = gethostbyname(e);
+      if (!he || he->h_addrtype != AF_INET || he->h_length != 4)
+        error(0, "unknown host/net `%s'", e);
+      for(addrp = he->h_addr_list; *addrp; ++addrp) {
+        memcpy(&addr, *addrp, 4);
+        *lp = ip4list_new(addr, mask, accept);
+        lp = &((*lp)->next);
+      }
+      endhostent();
+    }
+  }
+  free(list);
+  *lp = ip4list_new(0, 0, !accept);
+  (*lp)->next = NULL;
+  return iplist;
 }
 
 static int init(int argc, char **argv, struct zone **zonep) {
@@ -157,7 +239,7 @@ static int init(int argc, char **argv, struct zone **zonep) {
 
   if (argc <= 1) usage(1);
 
-  while((c = getopt(argc, argv, "u:r:b:w:t:c:p:nel:sh")) != EOF)
+  while((c = getopt(argc, argv, "u:r:b:w:t:c:p:nel:L:a:sh")) != EOF)
     switch(c) {
     case 'u': user = optarg; break;
     case 'r': rootdir = optarg; break;
@@ -177,6 +259,8 @@ static int init(int argc, char **argv, struct zone **zonep) {
     case 'n': nodaemon = 1; break;
     case 'e': accept_in_cidr = 1; break;
     case 'l': logfile = optarg; break;
+    case 'L': logfilt = parsenetlist(optarg); break;
+    case 'a': qryfilt = parsenetlist(optarg); break;
     case 's': logmemtms = 1; break;
     case 'h': usage(0);
     default: error(0, "type `%.50s -h' for help", progname);
@@ -383,6 +467,11 @@ int main(int argc, char **argv) {
   struct zone *zonelist;
   struct dnsstats stats;
   FILE *flog;
+  int q, r;
+  struct sockaddr_in sin;
+  socklen_t sinl;
+  struct dnspacket pkt;
+
   fd = init(argc, argv, &zonelist);
   flog = logfile ? fopen(logfile, "a") : NULL;
   setup_signals();
@@ -417,7 +506,42 @@ int main(int argc, char **argv) {
       sigprocmask(SIG_SETMASK, &ssorig, NULL);
     }
 
-    udp_request(fd, zonelist, &stats, flog);
+    sinl = sizeof(sin);
+    q = recvfrom(fd, pkt.p, sizeof(pkt.p), 0, (struct sockaddr *)&sin, &sinl);
+    if (q <= 0)			/* interrupted? */
+      continue;
+    if (qryfilt && !ip4list_match(qryfilt, sin.sin_addr.s_addr))
+      continue;			/* ignore requests from unauth nets */
+
+    r = replypacket(&pkt, q, zonelist);
+    if (!r) {
+#ifndef NOSTATS
+      stats.nbad += 1;
+      stats.ibad += q;
+#endif
+      continue;
+    }
+    if (flog && (!logfilt || ip4list_match(logfilt, sin.sin_addr.s_addr)))
+      logreply(&pkt, ip4atos(ntohl(sin.sin_addr.s_addr)), flog);
+#ifndef NOSTATS
+    switch(pkt.p[3]) {
+    case DNS_C_NOERROR:
+      stats.nrep += 1; stats.irep += q; stats.orep += r;
+      stats.arep += pkt.nans;
+      break;
+    case DNS_C_NXDOMAIN:
+      stats.nnxd += 1; stats.inxd += q; stats.onxd += r;
+      break;
+    default:
+      stats.nerr += 1; stats.ierr += q; stats.oerr += r;
+      break;
+    }
+#endif
+
+    /* finally, send a reply */
+    while(sendto(fd, pkt.p, r, 0, (struct sockaddr *)&sin, sizeof(sin)) < 0)
+      if (errno != EINTR) break;
+
   }
 }
 

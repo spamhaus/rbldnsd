@@ -95,6 +95,19 @@ Zone files will be read from this directory.
 a wildcard address, and \fIport\fR which defaults to 53 (standard DNS
 port).
 
+.IP "\fB\-a\fR \fInetlist\fR"
+access control list: answer queries that orginate from IP addresses
+matching \fInetlist\fR only.  Queries originated from other IPs will
+be silently ignored.  By default, all IPs are allowed.  \fInetlist\fR
+consists of comma-separated list of CIDR ranges or hostnames, optionally
+negated by exclamation mark, like 127.0.0.1,!127/8.  Implicit all-matching
+entry are always added at the end of the list, to allow access to the
+rest of IPs if last entry was negative and to disallow access if it was
+positive (so this example allows access from 127.0.0.1, disallows from
+all other IPs in loopback range, and allows to everyone else).  By default,
+\fBrbldnsd\fR allows access from any IP address.  Note that hostnames
+may be used in \fInetlist\fR too, like localhost/8.
+
 .IP "\fB\-t\fR \fIttl\fR"
 Set answer time-to-live value to be \fIttl\fR secounds.  All answers will
 contain \fIttl\fR as a value of time-to-live field.  Default is 2048.
@@ -129,6 +142,12 @@ large, esp. on busy sites (\fBrbldnsd\fR will log \fIevery\fR recognized
 request if this option is specified).  This option is mainly intended for
 debugging purposes.  Upon receiption of SIGHUP signal, \fBrbldnsd\fR
 reopens it's logfile.
+
+.IP "\fB\-L\fR \fInetlist\fR"
+Only log requests that come from IPs matching \fInetlist\fR (which is
+treated the same way as for \fB\-a\fR option above).  By default (if
+\fB\-l\fR option is given), \fBrbldnsd\fR will log all requests coming
+from allowed networks.
 
 .IP \fB\-n\fR
 Do not become a daemon.  Normally, \fBrbldnsd\fR will fork and go to the

@@ -4,7 +4,9 @@
 
 #include <stdarg.h>
 #include <sys/types.h>
+#include <stdio.h>
 #include "ip4addr.h"
+#include "dns.h"
 
 #if !defined(__GNUC__) && !defined(__attribute__)
 # define __attribute__(x)
@@ -30,7 +32,25 @@ extern unsigned defttl;
 struct zone;
 struct zonetype;
 struct zonedata;
-struct dnspacket;
+
+struct dnspacket {		/* private structure */
+  unsigned char p[DNS_MAXPACKET]; /* packet buffer */
+  unsigned char *c;		/* current pointer */
+  unsigned char *sans;		/* start of answers */
+  unsigned nans;		/* number of answers */
+};
+
+/* parse query and construct a reply to it, return len of answer or 0 */
+int replypacket(struct dnspacket *p, int len, const struct zone *zone);
+/* log a reply */
+void logreply(const struct dnspacket *pkt, const char *ip, FILE *flog);
+
+/* details of DNS packet structure are in rbldnsd_packet.c */
+int addrec_a(struct dnspacket *p, ip4addr_t aip);
+int addrec_txt(struct dnspacket *p, const char *txt, const char *subst);
+int addrec_any(struct dnspacket *p, unsigned dtp,
+               const void *data, unsigned dsz);
+
 
 struct dnsstats {
   time_t stime;			/* start time */
@@ -47,8 +67,6 @@ struct dnsstats {
 struct zone *addzone(struct zone *zlist, const char *spec);
 int reloadzones(struct zone *zl);
 void printzonetypes(FILE *f);
-int udp_request(int fd, const struct zone *zonelist,
-                struct dnsstats *stats, FILE *flog);
 
 void PRINTFLIKE(3,4) zlog(int level, int lineno, const char *fmt, ...);
 void PRINTFLIKE(2,3) zwarn(int lineno, const char *fmt, ...);
@@ -106,13 +124,6 @@ int
 readzlines(FILE *f, struct zonedata *z,
            int (*zlpfn)(struct zonedata *z,
                         char *line, int lineno, int llines));
-
-/* see details of DNS packet structure in rbldnsd.c */
-
-int addrec_a(struct dnspacket *p, ip4addr_t aip);
-int addrec_txt(struct dnspacket *p, const char *txt, const char *subst);
-int addrec_any(struct dnspacket *p, unsigned dtp,
-               const void *data, unsigned dsz);
 
 ip4addr_t dntoip4addr(const unsigned char *q);
 

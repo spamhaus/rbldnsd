@@ -1,5 +1,14 @@
 rbldnsd (0.83p1) unstable; urgency=low
 
+  * added minimal access control (-a netlist option)
+
+  * added query log filter (-L netlist option), and added logging of
+    timestamps.
+
+  * moved packet receiving/replying stuff into rbldnsd.c
+
+  * one-by-off bug - retrying interrupted replies was wrong
+
   * use inline version of qsort in order to be able to use inline
     comparision routine.  Speed up loading significantly.
 

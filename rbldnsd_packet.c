@@ -3,10 +3,8 @@
  */
 
 #include <string.h>
+#include <time.h>
 #include <stdio.h>
-#include <errno.h>
-#include <unistd.h>
-#include <sys/socket.h>
 #include <netinet/in.h>
 #include "rbldnsd.h"
 #include "rbldnsd_zones.h"
@@ -31,22 +29,14 @@
  * 10:11 arcount (numadditional)
  */
 
-struct dnspacket {
-  unsigned char *c; /* current pointer */
-  unsigned char *sans; /* start of answers */
-  unsigned nans; /* number of answers */
-  unsigned char *p; /* packet, where it begin */
-  unsigned char *e; /* pointer to end-of-packet */
-};
-
-static unsigned processpacket(struct dnspacket *p, const struct zone *zone) {
+int replypacket(struct dnspacket *p, int len, const struct zone *zone) {
   unsigned char *q, *x;
   unsigned qlen, qcls, qtyp;
   unsigned char query[DNS_MAXDN+1];
   int nm, nf;
 
   q = p->p + 12;
-  x = p->c;
+  x = p->p + len;
   if (q >= x) return 0; /* short packet */
   if (p->p[2] & 0x80) return 0; /* response?! */
   if (p->p[4] || p->p[5] != 1) return 0; /* qdcount != 1 */
@@ -129,111 +119,6 @@ static unsigned processpacket(struct dnspacket *p, const struct zone *zone) {
     return refuse(p, DNS_C_REFUSED); /* refused */
 }
 
-/* this routine should log to a file instead of syslog */
-
-static void
-loganswer(FILE *flog,
-	  const struct dnspacket *pkt, const struct sockaddr_in *sin) {
-  char logbuf[DNS_MAXPACKET*3];
-  char *s;
-  unsigned char *p = pkt->p + 12;
-  unsigned q;
-  char *v;
-
-  s = logbuf + sprintf(logbuf, "%s ", ip4atos(ntohl(sin->sin_addr.s_addr)));
-#ifdef MJT
-/* yes, there should be an ability to suppress some logging! */
-  if (memcmp(logbuf, "217.23.134.", 11) == 0 ||
-      memcmp(logbuf, "127.", 4) == 0 ||
-      memcmp(logbuf, "192.168.", 6) == 0
-      ) return;
-#endif
-  s += dns_dntop(p, s, logbuf + sizeof(logbuf) - s - 100);
-  *s++ = ' ';
-  p += dns_dnlen(p);
-
-  q = ((unsigned)p[0]<<8)|p[1];
-  switch(q) {
-  case DNS_T_A:   v = "A"; break;
-  case DNS_T_TXT: v = "TXT"; break;
-  case DNS_T_NS:  v = "NS"; break;
-  case DNS_T_SOA: v = "SOA"; break;
-  case DNS_T_MX:  v = "MX"; break;
-  case DNS_T_ANY: v = "ANY"; break;
-  default: s += sprintf(s, "type0x%x", q); v = NULL;
-  }
-  if (v) s += sprintf(s, "%s", v);
-  *s++ = ' ';
-
-  q = ((unsigned)p[2]<<8)|p[3];
-  switch(q) {
-  case DNS_C_IN: v = "IN"; break;
-  case DNS_C_ANY: v = "ANY"; break;
-  default: s += sprintf(s, "cls0x%x", q); v = NULL;
-  }
-  if (v) s += sprintf(s, "%s", v);
-  *s++ = ':';
-  *s++ = ' ';
-
-  p = pkt->p;
-  q = p[3];
-  switch(q) {
-  case DNS_C_NOERROR:  v = "NOERROR";  break;
-  case DNS_C_FORMERR:  v = "FORMERR";  break;
-  case DNS_C_SERVFAIL: v = "SERVFAIL"; break;
-  case DNS_C_NXDOMAIN: v = "NXDOMAIN"; break;
-  case DNS_C_NOTIMPL:  v = "NOTIMPL";  break;
-  case DNS_C_REFUSED:  v = "REFUSED";  break;
-  default: s += sprintf(s, "code%u", q); v = NULL;
-  }
-  if (v) s += sprintf(s, "%s", v);
-  s += sprintf(s, "/%u/%d", pkt->nans, pkt->c - pkt->p);
-
-  *s++ = '\n';
-  write(fileno(flog), logbuf, s - logbuf);
-}
-
-int udp_request(int fd, const struct zone *zonelist,
-                struct dnsstats UNUSED *stats, FILE *flog) {
-  struct dnspacket p;
-  unsigned char buf[DNS_MAXPACKET+1];
-  int r, n;
-  struct sockaddr_in sin;
-  socklen_t sinl = sizeof(sin);
-
-  p.p = buf;
-  p.e = buf + sizeof(buf);
-
-  n = recvfrom(fd, buf, sizeof(buf), 0, (struct sockaddr *)&sin, &sinl);
-  if (n < 0)
-    return 0;
-  p.c = buf + n;
-  if (!(r = processpacket(&p, zonelist))) {
-    stats->nbad += 1;
-    stats->ibad += n;
-    return 0;
-  }
-  if (flog)
-    loganswer(flog, &p, &sin);
-#ifndef NOSTATS
-  switch(buf[3]) {
-  case DNS_C_NOERROR:
-    stats->nrep += 1; stats->irep += n; stats->orep += r;
-    stats->arep += p.nans;
-    break;
-  case DNS_C_NXDOMAIN:
-    stats->nnxd += 1; stats->inxd += n; stats->onxd += r;
-    break;
-  default:
-    stats->nerr += 1; stats->ierr += n; stats->oerr += r;
-    break;
-  }
-#endif
-  while((r = sendto(fd, buf, r, 0, (struct sockaddr *)&sin, sizeof(sin))) < 0)
-    if (errno != EINTR) break;
-  return r < 0 ? 0 : 1;
-}
-
 static int aexists(const struct dnspacket *p, unsigned typ,
                    const void *val, unsigned vlen) {
   const unsigned char *c, *e;
@@ -247,7 +132,7 @@ static int aexists(const struct dnspacket *p, unsigned typ,
 
 int addrec_any(struct dnspacket *p, unsigned dtp,
                const void *data, unsigned dsz) {
-  if (p->c + 12 + dsz >= p->e) return 0;
+  if (p->c + 12 + dsz >= p->p + sizeof(p->p)) return 0;
   if (aexists(p, dtp, data, dsz)) return 0;
   p->nans++;
   *p->c++ = 192; *p->c++ = 12; /* jump after header */
@@ -273,7 +158,7 @@ addrec_txt(struct dnspacket *p, const char *txt, const char *subst) {
   char sb[256];
   char *lp, *s, *const e = sb + 254;
   if (!txt) return 0;
-  if (p->c + 13 >= p->e) return 0;
+  if (p->c + 13 >= p->p + sizeof(p->p)) return 0;
   lp = sb + 1;
   if (!subst) subst = "$";
   while(lp < e) {
@@ -295,4 +180,53 @@ addrec_txt(struct dnspacket *p, const char *txt, const char *subst) {
   sl = lp - sb;
   sb[0] = sl - 1;
   return addrec_any(p, DNS_T_TXT, sb, sl);
+}
+
+void logreply(const struct dnspacket *pkt, const char *ip, FILE *flog) {
+  char domain[DNS_MAXDOMAIN+1];
+  const unsigned char *p;
+  unsigned q;
+  char *v;
+  time_t now;
+
+  now = time(NULL);
+  p = pkt->p + 12;
+  dns_dntop(p, domain, sizeof(domain));
+  p += dns_dnlen(p);
+  fprintf(flog, "%.19s %s %s ", ctime(&now), ip, domain);
+
+  q = ((unsigned)p[0]<<8)|p[1];
+  switch(q) {
+  case DNS_T_A:   v = "A"; break;
+  case DNS_T_TXT: v = "TXT"; break;
+  case DNS_T_NS:  v = "NS"; break;
+  case DNS_T_SOA: v = "SOA"; break;
+  case DNS_T_MX:  v = "MX"; break;
+  case DNS_T_ANY: v = "ANY"; break;
+  default: fprintf(flog, "type0x%x ", q); v = NULL;
+  }
+  if (v) fprintf(flog, "%s ", v);
+
+  q = ((unsigned)p[2]<<8)|p[3];
+  switch(q) {
+  case DNS_C_IN: v = "IN"; break;
+  case DNS_C_ANY: v = "ANY"; break;
+  default: fprintf(flog, "cls0x%x: ", q); v = NULL;
+  }
+  if (v) fprintf(flog, "%s: ", v);
+
+  p = pkt->p;
+  q = p[3];
+  switch(q) {
+  case DNS_C_NOERROR:  v = "NOERROR";  break;
+  case DNS_C_FORMERR:  v = "FORMERR";  break;
+  case DNS_C_SERVFAIL: v = "SERVFAIL"; break;
+  case DNS_C_NXDOMAIN: v = "NXDOMAIN"; break;
+  case DNS_C_NOTIMPL:  v = "NOTIMPL";  break;
+  case DNS_C_REFUSED:  v = "REFUSED";  break;
+  default: fprintf(flog, "code%u", q); v = NULL;
+  }
+  if (v) fprintf(flog, "%s", v);
+  fprintf(flog, "/%u/%d\n", pkt->nans, pkt->c - pkt->p);
+  fflush(flog);
 }

@@ -5,6 +5,8 @@ Never news are at top.
 
 0.83
 
+ - access control and filtering logging by IP
+
  - inlined qsort routine, speed up loading significantly.
 
  - removed some cruft from the code
