@@ -19,6 +19,7 @@
 #include <signal.h>
 #include <syslog.h>
 #include <time.h>
+#include <sys/time.h>	/* some systems can't include time.h and sys/time.h */
 #include <fcntl.h>
 #include <setjmp.h>
 #include <sys/wait.h>
