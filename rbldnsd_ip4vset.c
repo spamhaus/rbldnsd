@@ -34,17 +34,6 @@ struct zonedata {
 #define E16 2
 #define E08 3
 
-static void ip4vset_free(struct zonedata *z) {
-  if (z) {
-    mp_free(&z->mp);
-    if (z->e[E32]) free(z->e[E32]);
-    if (z->e[E24]) free(z->e[E24]);
-    if (z->e[E16]) free(z->e[E16]);
-    if (z->e[E08]) free(z->e[E08]);
-    free(z);
-  }
-}
-
 static int
 ip4vset_addent(struct zonedata *z, unsigned idx, ip4addr_t a, unsigned count,
                ip4addr_t r_a, const char *r_txt) {
@@ -137,17 +126,36 @@ ip4vset_parseline(struct zonedata *z, char *line, int lineno, int llines) {
 
 }
 
+static struct zonedata *ip4vset_free(struct zonedata *z) {
+#ifdef REUSEMEM
+  if (z) {
+    mp_free(&z->mp);
+    z->n[E32] = z->n[E24] = z->n[E16] = z->n[E08] = 0;
+  }
+  return z;
+#else
+  if (z) {
+    mp_free(&z->mp);
+    if (z->e[E32]) free(z->e[E32]);
+    if (z->e[E24]) free(z->e[E24]);
+    if (z->e[E16]) free(z->e[E16]);
+    if (z->e[E08]) free(z->e[E08]);
+    free(z);
+  }
+  return NULL;
+#endif
+}
+
+static struct zonedata *ip4vset_alloc(struct zonedata *z) {
+  if (!z && (z = (struct zonedata *)emalloc(sizeof(*z))) != NULL)
+    memset(z, 0, sizeof(*z));
+  return z;
+}
+
 static int ip4vset_load(struct zonedata *z, FILE *f) {
   z->r_a = R_A_DEFAULT;
   z->r_txt = NULL;
   return readzlines(f, z, ip4vset_parseline);
-}
-
-static struct zonedata *ip4vset_alloc() {
-  struct zonedata *z = (struct zonedata *)emalloc(sizeof(*z));
-  if (z)
-    memset(z, 0, sizeof(*z));
-  return z;
 }
 
 static int ip4vset_cmpent(const struct entry *a, const struct entry *b) {
@@ -166,9 +174,7 @@ static int ip4vset_finish(struct zonedata *z) {
           (int(*)(const void*, const void*))ip4vset_cmpent);
 #define eeq(a,b) a.addr == b.addr && rrs_equal(a,b)
     removedups(z->e[r], z->n[r], struct entry, eeq);
-    if (z->a[r] != z->n[r])
-      z->e[r] = (struct entry*)
-	realloc(z->e[r], z->n[r] * sizeof(struct entry));
+    shrinkarray(z->e[r], z->a[r], z->n[r], struct entry);
   }
   zloaded("e32/24/16/8=%u/%u/%u/%u",
           z->n[E32], z->n[E24], z->n[E16], z->n[E08]);

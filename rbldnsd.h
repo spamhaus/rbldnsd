@@ -56,10 +56,10 @@ void PRINTFLIKE(1,2) zloaded(const char *fmt, ...);
 
 #define R_A_DEFAULT ((ip4addr_t)0x7f000002)
 
-typedef struct zonedata *z_allocfn();
+typedef struct zonedata *z_allocfn(struct zonedata *z);
 typedef int z_loadfn(struct zonedata *z, FILE *f);
 typedef int z_finishfn(struct zonedata *z);
-typedef void z_freefn(struct zonedata *zone);
+typedef struct zonedata *z_freefn(struct zonedata *z);
 typedef int
 z_queryfn(const struct zonedata *const zone, struct dnspacket *p,
           const unsigned char *const query, unsigned qtyp);
@@ -133,6 +133,13 @@ const char *mp_edstrdup(struct mempool *mp, const char *str);
 
 int vssprintf(char *buf, int bufsz, const char *fmt, va_list ap);
 int PRINTFLIKE(3, 4) ssprintf(char *buf, int bufsz, const char *fmt, ...);
+
+/* a helper to shrink an array */
+#define shrinkarray(arr, allocated, needed, type) \
+  if ((allocated) > (needed)) { \
+     (arr) = (type*)realloc((arr), (needed) * sizeof(type)); \
+     (allocated) = (needed); \
+  }
 
 /* a helper macro to remove dups from a sorted array */
 

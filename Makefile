@@ -21,6 +21,8 @@ RANLIB = :
 #DEFS = -DNOMEMINFO
 # Print zone load time using utimes()
 #DEFS = -DPRINT_TIMES
+# Don't free but reuse memory allocated for arrays on zone reloads
+#DEFS = -DREUSEMEM
 
 SOCKET_LIBS = `[ -f /usr/lib/libsocket.so ] && echo -lsocket -lnsl || :`
 

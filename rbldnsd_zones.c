@@ -206,12 +206,9 @@ static int loadzonedata(struct zonedataset *z) {
   time_t stamp = 0;
   FILE *f;
 
-  if (z->data)
-    z->type->freefn(z->data);
-
-  z->data = z->type->allocfn();
-  if (!z->data)
+  if (!(z->data = z->type->allocfn(z->data)))
     return 0;
+
   for(zf = z->file; zf; zf = zf->next) {
     curloading.fname = zf->name;
     f = fopen(zf->name, "r");
@@ -285,10 +282,8 @@ int reloadzones(struct zone *zl) {
       ++errors;
       for (zf = zd->file; zf; zf = zf->next)
         zf->stamp = 0;
-      if (zd->data) {
-        zd->type->freefn(zd->data);
-        zd->data = NULL;
-      }
+      if (zd->data)
+        zd->data = zd->type->freefn(zd->data);
       zd->stamp = 0;
     }
 

@@ -111,7 +111,7 @@ static unsigned processpacket(struct dnspacket *p, const struct zone *zone) {
     for(zdl = zone->dlist; zdl; zdl = zdl->next)
       if (zdl->set->qfilter & qtyp) {
         nm = 1;
-        if (zdl->set && zdl->set->queryfn(zdl->set->data, p, query, qtyp))
+        if (zdl->set->queryfn(zdl->set->data, p, query, qtyp))
           nf = 1;
       }
 

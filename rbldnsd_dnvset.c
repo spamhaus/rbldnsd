@@ -38,15 +38,6 @@ struct zonedata {
 #define EP 0
 #define EW 1
 
-static void dnvset_free(struct zonedata *z) {
-  if (z) {
-    mp_free(&z->mp);
-    if (z->e[EP]) free(z->e[EP]);
-    if (z->e[EW]) free(z->e[EW]);
-    free(z);
-  }
-}
-
 static int
 dnvset_parseline(struct zonedata *z, char *line, int lineno, int llines) {
   char *p;
@@ -117,10 +108,31 @@ dnvset_parseline(struct zonedata *z, char *line, int lineno, int llines) {
   return 1;
 }
 
-static struct zonedata *dnvset_alloc() {
-  struct zonedata *z = (struct zonedata *)emalloc(sizeof(*z));
+static struct zonedata *dnvset_free(struct zonedata *z) {
+#ifdef REUSEMEM
   if (z) {
+    mp_free(&z->mp);
+    z->n[EP] = z->n[EW] = 0;
+  }
+  return z;
+#else
+  if (z) {
+    mp_free(&z->mp);
+    if (z->e[EP]) free(z->e[EP]);
+    if (z->e[EW]) free(z->e[EW]);
+    free(z);
+  }
+  return NULL;
+#endif
+}
+
+static struct zonedata *dnvset_alloc(struct zonedata *z) {
+  if (!z && (z = (struct zonedata *)emalloc(sizeof(*z))) != NULL)
     memset(z, 0, sizeof(*z));
+  if (z) {
+#ifndef REUSEMEM
+    z->maxlab[EP] = z->maxlab[EW] = 0;
+#endif
     z->minlab[EP] = z->minlab[EW] = 255;
   }
   return z;
@@ -155,9 +167,7 @@ static int dnvset_finish(struct zonedata *z) {
     }
 #define eeq(a,b) a.dn == b.dn && rrs_equal(a,b)
     removedups(z->e[r], z->n[r], struct entry, eeq);
-    if (z->a[r] != z->n[r])
-      z->e[r] = (struct entry *)
-        realloc(z->e[r], z->n[r] * sizeof(struct entry));
+    shrinkarray(z->e[r], z->a[r], z->n[r], struct entry);
   }
   zloaded("e/w=%u/%u", z->n[EP], z->n[EW]);
   return 1;

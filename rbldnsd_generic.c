@@ -40,14 +40,6 @@ struct zonedata {
   struct mempool mp;	/* mempool for domain names and RR data */
 };
 
-static void generic_free(struct zonedata *z) {
-  if (z) {
-    mp_free(&z->mp);
-    if (z->e) free(z->e);
-    free(z);
-  }
-}
-
 #define skipsp(s) while(*s == ' ' || *s == '\t') ++s
 #define endword(s,err) \
  while(*s && *s != ' ' && *s != '\t') ++s; \
@@ -189,16 +181,23 @@ generic_parseline(struct zonedata *z, char *line,
     return 1;
 }
 
-static int generic_load(struct zonedata *z, FILE *f) {
-  return readzlines(f, z, generic_parseline);
+static struct zonedata *generic_free(struct zonedata *z) {
+  if (z) {
+    mp_free(&z->mp);
+    if (z->e) free(z->e);
+    free(z);
+  }
+  return NULL;
 }
 
-static struct zonedata *generic_alloc() {
-  struct zonedata *z = (struct zonedata *)emalloc(sizeof(*z));
-  if (z) {
+static struct zonedata *generic_alloc(struct zonedata *z) {
+  if (!z && (z = (struct zonedata *)emalloc(sizeof(*z))) != NULL)
     memset(z, 0, sizeof(*z));
-  }
   return z;
+}
+
+static int generic_load(struct zonedata *z, FILE *f) {
+  return readzlines(f, z, generic_parseline);
 }
 
 static int generic_cmpent(const struct entry *a, const struct entry *b) {
@@ -212,15 +211,13 @@ static int generic_cmpent(const struct entry *a, const struct entry *b) {
 static int generic_finish(struct zonedata *z) {
   struct entry *e, *t;
   if (z->n) {
-    if (z->a != z->n)
-      z->e = (struct entry *)
-        realloc(z->e, z->n * sizeof(struct entry));
     qsort(z->e, z->n, sizeof(struct entry),
           (int(*)(const void*, const void*))generic_cmpent);
     /* collect all equal DNs to point to the same place */
     for(e = z->e, t = z->e + z->n - 1; e < t; ++e)
       if (e[0].dn != e[1].dn && strcmp(e[0].dn, e[1].dn) == 0)
         e[1].dn = e[0].dn;
+    shrinkarray(z->e, z->a, z->n, struct entry);
   }
   zloaded("e=%u", z->n);
   return 1;
