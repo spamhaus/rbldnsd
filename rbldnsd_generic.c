@@ -176,7 +176,8 @@ static int generic_parseany(struct zonedata *z, char *line) {
 }
 
 static int
-generic_parseline(struct zonedata *z, char *line, int lineno, int llines) {
+generic_parseline(struct zonedata *z, char *line,
+                  int lineno, int UNUSED unused_llines) {
   int r = generic_parseany(z, line);
   if (r < 0) {
     zwarn(lineno, "invalid/unrecognized entry");

@@ -12,6 +12,13 @@
 #  define PRINTFLIKE(fmtp, ap)
 # endif
 #endif
+#ifndef UNUSED
+# if __GNUC__
+#  define UNUSED __attribute__((unused))
+# else
+#  define UNUSED
+# endif
+#endif
 
 extern char *progname; /* limited to 32 chars */
 extern int logto;
