@@ -243,19 +243,14 @@ int replypacket(struct dnspacket *pkt, unsigned qlen, const struct zone *zone) {
   if (!zone->z_stamp)	/* do not answer if not loaded */
     return refuse(DNS_R_SERVFAIL);
 
-  /* search the datasets */
-  found = 0;
-  for(dsl = zone->z_dsl; dsl; dsl = dsl->dsl_next)
-    if (dsl->dsl_queryfn(dsl->dsl_ds, &qi, pkt))
-      found = 1;	/* positive answer */
-
-  if (qi.qi_dnlab == 0) {	/* query to base zone: SOA and NS only */
+  if (qi.qi_dnlab == 0) {	/* query to base zone: SOA and NS */
 
     found = 1;
 
-    if (found && (qi.qi_tflag & NSQUERY_SOA) && !addrr_soa(pkt, zone, 0))
+    if ((qi.qi_tflag & NSQUERY_SOA) && !addrr_soa(pkt, zone, 0))
       found = 0;
-    if (found && (qi.qi_tflag & NSQUERY_NS) && !addrr_ns(pkt, zone, 0))
+    else
+    if ((qi.qi_tflag & NSQUERY_NS) && !addrr_ns(pkt, zone, 0))
       found = 0;
     if (!found) {
       pkt->p_cur = pkt->p_sans;
@@ -264,7 +259,15 @@ int replypacket(struct dnspacket *pkt, unsigned qlen, const struct zone *zone) {
     }
 
   }
+  else /* not to zone base DN */
+    found = 0;
 
+  /* search the datasets */
+  for(dsl = zone->z_dsl; dsl; dsl = dsl->dsl_next)
+    if (dsl->dsl_queryfn(dsl->dsl_ds, &qi, pkt))
+      found = 1;	/* positive answer */
+
+  /* now complete the reply: add AUTH etc sections */
   if (!found) {			/* negative result */
     addrr_soa(pkt, zone, 1);	/* add SOA if any to AUTHORITY */
     h[p_f2] = DNS_R_NXDOMAIN;
