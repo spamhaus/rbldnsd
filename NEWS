@@ -3,6 +3,22 @@ $Id$
 This file describes user-visible changes in rbldnsd.
 Never news are at top.
 
+0.992 (?? ??? ????)
+
+ - feature: allow easy turning on/off individual NS
+   records in $NS line, by prefixing unused nameservers
+   with minus sign (-)
+
+ - bugfix: fix -d (master-format dump) for generic dataset
+
+ - bugfix: remove usage of NI_WITHSCOPEID (it was used for
+   unknown reason anyway and broke on latest solaris)
+
+ - #define _LARGEFILE64_SOURCE and use O_LARGEFILE if
+   defined in rbldnsd.c to be able to write larger
+   logfiles.  Dunno whenever it will actually help,
+   but it at least works on linux.
+
 0.991 (30 Nov 2003)
 
  - in order to be able to overrite both SOA and NS records
