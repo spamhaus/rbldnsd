@@ -8,6 +8,8 @@
 # This is the debhelper compatibility version to use.
 export DH_COMPAT=3
 
+DEFS =
+CFLAGS = -O2 -pipe -Wall -W
 ifneq (,$(findstring debug,$(DEB_BUILD_OPTIONS)))
 	CFLAGS += -g
 endif
@@ -15,7 +17,7 @@ endif
 build: build-stamp
 build-stamp:
 	dh_testdir
-	$(MAKE) CFLAGS="$(CFLAGS) -Wall -W"
+	$(MAKE) CFLAGS="$(CFLAGS)" DEFS="$(DEFS)"
 	touch $@
 
 clean:
@@ -25,7 +27,7 @@ clean:
 	dh_clean
 
 install: install-stamp
-install-stamp: build
+install-stamp: build-stamp
 	dh_testdir
 	dh_testroot
 	dh_clean
@@ -41,9 +43,11 @@ install-stamp: build
 	dh_compress
 	dh_fixperms
 
+	touch $@
+
 binary-indep:
 
-binary-arch: build install
+binary-arch: install-stamp
 	dh_testdir
 	dh_testroot
 	dh_installdeb
