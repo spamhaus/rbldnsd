@@ -2,11 +2,9 @@
  * generic dataset, simplified bind format.
  */
 
-#include <errno.h>
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
-#include <sys/types.h>
 #include "rbldnsd.h"
 
 struct entry {
