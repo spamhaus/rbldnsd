@@ -186,7 +186,11 @@ request if this option is specified).  This option is mainly intended for
 debugging purposes.  Upon receiption of SIGHUP signal, \fBrbldnsd\fR
 reopens its logfile.  If \fIlogfile\fR prefixed with a plus sign (+),
 logging will not be buffered (i.e. each line will be flushed to disk);
-by default, logging is buffered to reduce system load.
+by default, logging is buffered to reduce system load.  Specify a single
+hyphen (\-) as a filename to log to standard output (filedescriptor 1),
+either buffered by default, or line-buffered if specified as `+\-'
+(standard output will not be "reopened" upon receiving SIGHUP signal,
+but will be flushed in case logging is buffered).
 
 .IP \fB\-n\fR
 Do not become a daemon.  Normally, \fBrbldnsd\fR will fork and go to the
