@@ -21,6 +21,9 @@ rbldnsd (0.99.00pre1) unstable; urgency=low
 
   * disallow zero TTL in command line
 
+  * reworked duplicate RR detection and choosing of minTTL.
+    Fix TTL even when we have exactly the same RR in packet already.
+
  -- Michael Tokarev <mjt@corpit.ru>  Sun, 30 Nov 2003 14:41:25 +0300
 
 rbldnsd (0.990pre0) unstable; urgency=low

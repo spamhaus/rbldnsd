@@ -612,52 +612,71 @@ static int addrr_ns(struct dnspacket *pkt, const struct zone *zone, int auth) {
   return 1;
 }
 
-/* add a new record into answer, check for dups.
- * We just ignore any data that exceeds packet size */
-void addrr_any(struct dnspacket *pkt, unsigned dtp,
-               const void *data, unsigned dsz,
-               unsigned ttl) {
-  register unsigned char *c, *e, *f;
+static unsigned
+checkrr_present(register unsigned char *c, register unsigned char *e,
+                unsigned dtp, const void *data, unsigned dsz, unsigned ttl) {
+  /* check whenever we already have this (type of) RR in reply,
+   * ensure that all RRs of the same type has the same TTL */
 
-  c = pkt->p_sans; e = pkt->p_cur;
+  const unsigned char dtp1 = dtp >> 8, dtp2 = dtp & 255;
+  unsigned t;
+
 #define nextRR(c) ((c) + 12 + (c)[11])
 #define hasRR(c,e) ((c) < (e))
-#define sameRRT(c,dtp) ((c)[2] == ((dtp)>>8) && (c)[3] == ((dtp)&255))
-#define sameDATA(c,dsz,data) ((c)[11] == (dsz) && memcmp((c)+12, (data), (dsz)) == 0)
+#define sameRRT(c,dtp1,dtp2) ((c)[2] == (dtp1) && (c)[3] == (dtp2))
+#define sameDATA(c,dsz,data) \
+   ((c)[11] == (dsz) && memcmp((c)+12, (data), (dsz)) == 0)
 #define rrTTL(c) ((c)+6)
 
-  /* check whenever we already have this (type of) RR in reply */
-  while(hasRR(c,e)) {
-    unsigned t;
-    if (!sameRRT(c,dtp)) { c = nextRR(c); continue; } /* skip different type */
-    if (sameDATA(c,dsz,data)) return; /* first RR has this data - nothing to do */
-    f = c; /* remember first RR of this type */
-    /* see whenever we have other RRs of the same type and with the same data */
+  for(;;) {
+    if (!hasRR(c,e))
+      return ttl;
+    if (sameRRT(c,dtp1,dtp2))
+      break;
+    c = nextRR(c);
+  }
+
+  /* found at least one RR with the same type as new */
+
+  if (ttl >= (t = unpack32(rrTTL(c)))) {
+    /* new ttl is either larger or the same as ttl of one of existing RRs */
+    /* if we already have the same record, do nothing */
+    if (sameDATA(c,dsz,data))
+      return 0;
+    /* check other records too */
     for(c = nextRR(c); hasRR(c,e); c = nextRR(c))
-      if (sameRRT(c,dtp) && sameDATA(c,dsz,data))
-        return;
-    /* the same RR was not found, so we're going to insert new RR */
-    /* check whenever we should fix TTL.
-     * If new RR has the same TTL as existing ones, nothing to do.
-     * If new RR has larger TTL, use existing (smaller) TTL instead.
-     * If new TTL is smaller, made all other TTLs this small too.
-     */
-    if (ttl >= (t = unpack32(rrTTL(f))))
-      ttl = t; /* use existing, smaller TTL for new RR */
-    else { /* change TTLs of existing RRs to new */
-      unsigned char *ttlnb = rrTTL(f);
-      PACK32(ttlnb, ttl);
-      for(f = nextRR(f); hasRR(f,e); f = nextRR(f))
-        if (sameRRT(f,dtp))
-          memcpy(rrTTL(f), ttlnb, 4);
-    }
-    break;
+      if (sameRRT(c,dtp1,dtp2) && sameDATA(c,dsz,data))
+        /* already has exactly the same data */
+        return 0;
+    return t; /* use existing, smaller TTL for new RR */
+  }
+  else { /* change TTLs of existing RRs to new, smaller one */
+    int same = sameDATA(c,dsz,data);
+    unsigned char *ttlnb = rrTTL(c);
+    PACK32(ttlnb, ttl);
+    for(c = nextRR(c); hasRR(c,e); c = nextRR(c))
+      if (sameRRT(c,dtp1,dtp2)) {
+        memcpy(rrTTL(c), ttlnb, 4);
+        if (sameDATA(c,dsz,data))
+          same = 1;
+      }
+    return same ? 0 : ttl;
   }
 #undef nextRR
 #undef hasRR
 #undef sameRRT
 #undef sameDATA
 #undef rrTTL
+}
+
+/* add a new record into answer, check for dups.
+ * We just ignore any data that exceeds packet size */
+void addrr_any(struct dnspacket *pkt, unsigned dtp,
+               const void *data, unsigned dsz,
+               unsigned ttl) {
+  register unsigned char *c = pkt->p_cur;
+  ttl = checkrr_present(pkt->p_sans, c, dtp, data, dsz, ttl);
+  if (!ttl) return; /* if RR is already present, do nothing */
 
   if (!fit(pkt, c, 12 + dsz)) {
     setnonauth(pkt->p_buf); /* non-auth answer as we can't fit the record */
@@ -778,7 +797,7 @@ dump_a_txt(const char *name, const unsigned char *rr,
 
 void logreply(const struct dnspacket *pkt,
               const struct sockaddr *peeraddr,
-	      int UNUSED peeraddrlen,
+              int UNUSED peeraddrlen,
               FILE *flog, int flushlog) {
 #ifndef NOIPv6
 # ifndef NI_MAXHOST
