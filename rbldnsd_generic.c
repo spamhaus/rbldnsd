@@ -106,10 +106,10 @@ static int ds_generic_parseany(struct dataset *ds, char *s) {
   else if (strcmp(t, "mx") == 0) {
     dtyp = NSQUERY_MX | DNS_T_MX;
     if (!(s = parse_uint32_nb(s, dp)) || dp[0] || dp[1]) return -1;
-    dp[0] = dp[2]; dp[1] = dp[3];
+    dp[1] = dp[2]; dp[2] = dp[3];
     if (!(s = parse_dn(s, dp + 3, &dsiz))) return 0;
     if (*s) return 0;
-    dp[2] = (unsigned char)dsiz;
+    dp[0] = (unsigned char)dsiz;
     dsiz += 3;
   }
 
@@ -211,7 +211,7 @@ ds_generic_query(const struct dataset *ds, const struct dnsqinfo *qi,
       addrr_any(pkt, DNS_T_TXT, d + 4, (unsigned)(d[4]) + 1, d);
       break;
     case DNS_T_MX:
-      addrr_mx(pkt, d + 4, d + 7, d[4], d);
+      addrr_any(pkt, DNS_T_MX, d + 5, (unsigned)(d[4]) + 2, d);
       break;
     }
   } while(++e < t && e->ldn == dn);

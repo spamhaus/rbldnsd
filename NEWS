@@ -3,6 +3,16 @@ $Id$
 This file describes user-visible changes in rbldnsd.
 Never news are at top.
 
+0.96
+
+ - pre-compress SOA and NS records for faster access
+
+ - return NS records in AUTHORITY section of positive answers if
+   available and there's a room for them.
+
+ - restore broken MX record functionality.  Note that MX domain names
+   aren't compressed anymore
+
 0.95 (27 May 2003)
 
  - new dataset: combined: a container for other datasets.

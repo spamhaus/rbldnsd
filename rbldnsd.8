@@ -599,8 +599,7 @@ dataset usage example above).
 For nameserver records, it is highly recommended to list
 nameservers for a zone to be in different zone (e.g. in parent
 zone), not controlled by \fBrbldnsd\fR.  \fBrbldnsd\fR does not
-insert addresses of nameservers into ADDITIONAL section of an
-answer when asked for NS records for a zone, see BUGS section below.
+fill ADDITIONAL answer section with addresses of nameservers.
 
 .SH BUGS
 
@@ -628,20 +627,11 @@ to descide whenever a given entry is "listed" or not.
 isn't a full\-featured nameserver, after all.
 
 .PP
-Unlike BIND,
 .B rbldnsd
-does not add NS records to AUTH section of every answer, even
-if such records are specified (in `generic' dataset).  This way,
-answer size is much likely to fit in a single UDP packet.
-This may be result in delays of propagation of the changed
-nameserver lists to various caches querying a DNSBL: when
-new NS records are included in every answer, caches will pick
-them up immediately instead of waiting for the old cached
-records to expire.  This is a tradeoff between efficient
-operations in normal cases and fast nameserver records
-propagation.  This may change in the future, however (probably
-controlled by an option) \- \fBrbldnsd\fR may start adding
-NS records when there's a room for them in answer packet.
+will not always return list of nameserver records in AUTHORITY
+section of every positive answer: NS records will be provided
+(if given) only if there's a room for them in single UDP packet.
+If records does not fit, AUTHORITY section will be empty.
 
 .PP
 Also, \fBrbldnsd\fR does not add A records into ADDITIONAL

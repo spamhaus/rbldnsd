@@ -35,23 +35,10 @@ struct zone;
 struct dataset;
 struct dsdata;
 
-struct dnsdnptr {	/* used for DN name compression */
-  const unsigned char *dnp;	/* DN pointer */
-  unsigned dnlen;		/* length of dnp */
-  unsigned qpos;		/* position in query */
-};
-
-struct dnsdncompr {	/* dn compression structure */
-  struct dnsdnptr ptr[DNS_MAXLABELS];	/* array of pointers */
-  struct dnsdnptr *cptr;		/* current (last) pointer */
-};
-
 struct dnspacket {		/* private structure */
   unsigned char p_buf[DNS_MAXPACKET]; /* packet buffer */
   unsigned char *p_cur;		/* current pointer */
   unsigned char *p_sans;	/* start of answers */
-  struct dnsdncompr p_dncompr;	/* DN compression state */
-  unsigned p_bdnpos;		/* base DN position */
 };
 
 struct dnsquery {	/* q */
@@ -207,8 +194,13 @@ struct dslist {	/* dsl */
   struct dslist *dsl_next;
 };
 
+struct zonesoa;
+struct zonens;
+
+#define MAX_NS 20
+
 struct zone {	/* zone, list of zones */
-  time_t z_stamp;			/* timestamp, 0 if not loaded */
+  unsigned z_stamp;			/* timestamp, 0 if not loaded */
   unsigned char z_dn[DNS_MAXDN+1];	/* zone domain name */
   unsigned z_dnlen;			/* length of z_dn */
   unsigned z_dnlab;			/* number of dn labels */
@@ -217,11 +209,16 @@ struct zone {	/* zone, list of zones */
   struct dslist **z_dslp;		/* last z_dsl in list */
   /* SOA record */
   const struct dssoa *z_dssoa;		/* original SOA from a dataset */
-  unsigned char z_soa_n[20];		/* serial,refresh,retry,expire,minttl*/
-  const struct dsns *z_dsnsa[20];	/* array of nameservers */
-  unsigned z_nns;			/* number of nameservers */
+  struct zonesoa *z_zsoa;		/* pre-packed SOA record */
+  const struct dsns *z_dsnsa[MAX_NS];	/* array of nameservers */
+  unsigned z_nns;			/* number of NSes in z_dsnsa[] */
+  unsigned z_cns;			/* current NS in rotation */
+  struct zonens *z_zns;			/* pre-packed NS records */
   struct zone *z_next;			/* next in list */
 };
+
+int update_zonesoa(struct zone *zone, const struct dssoa *dssoa);
+int update_zonens(struct zone *zone, const struct dsns **dsnsa, unsigned nns);
 
 /* parse query and construct a reply to it, return len of answer or 0 */
 int replypacket(struct dnspacket *p, unsigned qlen, const struct zone *zone);
@@ -245,10 +242,6 @@ void addrr_a_txt(struct dnspacket *pkt, unsigned qtflag,
 void addrr_any(struct dnspacket *pkt, unsigned dtp,
                const void *data, unsigned dsz,
                const unsigned char ttl[4]);
-void addrr_mx(struct dnspacket *pkt,
-              const unsigned char pri[2],
-              const unsigned char *mxdn, unsigned mxdnlen,
-              const unsigned char ttl[4]);
 void dump_a_txt(const char *name, const unsigned char *rr,
                 const char *subst, const struct dataset *ds, FILE *f);
 

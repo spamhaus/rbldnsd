@@ -9,6 +9,7 @@
 #include <unistd.h>
 #include <netinet/in.h>
 #include <netdb.h>
+#include <stdlib.h>
 #include "rbldnsd.h"
 
 #ifndef NI_WITHSCOPEID
@@ -186,6 +187,7 @@ int replypacket(struct dnspacket *pkt, unsigned qlen, const struct zone *zone) {
   case DNS_T_TXT: qi.qi_tflag = NSQUERY_TXT; break;
   case DNS_T_NS:  qi.qi_tflag = NSQUERY_NS;  break;
   case DNS_T_SOA: qi.qi_tflag = NSQUERY_SOA; break;
+  case DNS_T_MX:  qi.qi_tflag = NSQUERY_MX;  break;
   default:
     if (qry.q_type >= DNS_T_TSIG)
       return refuse(DNS_R_NOTIMPL);
@@ -202,22 +204,6 @@ int replypacket(struct dnspacket *pkt, unsigned qlen, const struct zone *zone) {
 
   if (!zone->z_stamp)	/* do not answer if not loaded */
     return refuse(DNS_R_SERVFAIL);
-
-  { /* initialize DN compression */
-    struct dnsdnptr *ptr = pkt->p_dncompr.ptr;
-    const unsigned char *dn = qry.q_dn;
-    unsigned qpos = p_hdrsize;
-    unsigned llen;
-    qlen = qry.q_dnlen;
-    while((llen = *dn)) {
-      ptr->dnp = dn; dn += ++llen;
-      ptr->dnlen = qlen; qlen -= llen;
-      ptr->qpos = qpos; qpos += llen;
-      ++ptr;
-    }
-    pkt->p_dncompr.cptr = ptr;
-  }
-  pkt->p_bdnpos = p_hdrsize + qi.qi_dnlen0;
 
   /* search the datasets */
   found = 0;
@@ -240,6 +226,8 @@ int replypacket(struct dnspacket *pkt, unsigned qlen, const struct zone *zone) {
     }
 
   }
+  else if (found && zone->z_nns)
+    addrr_ns(pkt, zone, 1); /* add nameserver records to positive answer */
 
   if (!found) {			/* negative result */
     addrr_soa(pkt, zone, 1);	/* add SOA if any to AUTHORITY */
@@ -255,144 +243,245 @@ int replypacket(struct dnspacket *pkt, unsigned qlen, const struct zone *zone) {
 
 #define fit(p, c, bytes) ((c) + (bytes) <= (p)->p_buf + DNS_MAXPACKET)
 
-/* adds 8 bytes */
-#define addrr_rrstart(c,type,ttl)		\
-    *(c)++ = type>>8; *(c)++ = type;		\
-    *(c)++ = DNS_C_IN>>8; *(c)++ = DNS_C_IN;	\
-    memcpy((c), ttl, 4); (c) += 4
+struct dnjump {
+  unsigned char *pos;
+  int off;
+};
 
-/* adds 10 bytes */
-#define addrr_dnstart(c,type,ttl)					\
-    *(c)++ = 192; *(c)++ = p_hdrsize; /* jump after header: query DN */	\
-    addrr_rrstart((c),type,ttl)
+struct dnptr {
+  const unsigned char *dn;
+  unsigned dnlen;
+  int off;
+};
 
-#define addrr_bdnstart(pkt,c,type,ttl)		\
-    *(c)++ = 192; *(c)++ = pkt->p_bdnpos;	\
-    addrr_rrstart((c),type,ttl)
+struct dncompr {
+  struct dnptr *cptr;
+  struct dnptr ptr[256];
+  unsigned char *buf;
+  unsigned char *bend;
+  struct dnjump *jump;
+};
 
 static unsigned char *
-add_dn(struct dnspacket *pkt, register unsigned char *c,
-       const unsigned char *dn, unsigned dnlen) {
-  struct dnsdnptr *ptr;
-  struct dnsdncompr *compr = &pkt->p_dncompr;
-
+dnc_init(struct dncompr *compr,
+         unsigned char *buf, unsigned bufsize, struct dnjump *jump,
+         const unsigned char *dn, unsigned dnlen) {
+  struct dnptr *ptr = compr->ptr;
+  unsigned char *cpos = buf - dnlen - 4;
+  compr->buf = buf;
+  compr->bend = buf + bufsize;
+  compr->jump = jump;
   while(*dn) {
-    for(ptr = compr->ptr; ptr < compr->cptr; ++ptr) {
-      if (ptr->dnlen != dnlen || memcmp(ptr->dnp, dn, dnlen) != 0)
-        continue;
-      if (!fit(pkt, c, 2)) return NULL;
-      dnlen = 0xc000 + ptr->qpos;
-      PACK16(c, dnlen);
-      return c + 2;
-    }
-    if (!fit(pkt, c, *dn + 1))
-      return NULL;
-    if (ptr < compr->ptr + DNS_MAXLABELS) {
-      ptr->dnp = dn;
-      ptr->dnlen = dnlen;
-      ptr->qpos = c - pkt->p_buf;
-      ++compr->cptr;
-    }
-    memcpy(c, dn, *dn + 1);
-    c += *dn + 1;
+    ptr->dn = dn;
+    ptr->dnlen = dnlen;
+    ptr->off = cpos - buf;
+    ++ptr;
+    cpos += *dn + 1;
     dnlen -= *dn + 1;
     dn += *dn + 1;
   }
-  if (!fit(pkt, c, 1)) return NULL;
-  *c++ = '\0';
-  return c;
+  compr->cptr = ptr;
+  return cpos + 5;
+}
+
+static unsigned char *
+dnc_add(struct dncompr *compr, unsigned char *cpos,
+        const unsigned char *dn, unsigned dnlen) {
+  struct dnptr *ptr;
+
+  while(*dn) {
+    for(ptr = compr->ptr; ptr < compr->cptr; ++ptr) {
+      if (ptr->dnlen != dnlen || memcmp(ptr->dn, dn, dnlen) != 0)
+        continue;
+      if (cpos + 2 >= compr->bend) return NULL;
+      compr->jump->pos = cpos;
+      compr->jump->off = ptr->off;
+      ++compr->jump;
+      return cpos + 2;
+    }
+    if (cpos + *dn + 1 >= compr->bend) return NULL;
+    if (ptr < compr->ptr + sizeof(compr->ptr) / sizeof(compr->ptr[0])) {
+      ptr->dn = dn;
+      ptr->dnlen = dnlen;
+      ptr->off = cpos - compr->buf;
+      ++compr->cptr;
+    }
+    memcpy(cpos, dn, *dn + 1);
+    cpos += *dn + 1;
+    dnlen -= *dn + 1;
+    dn += *dn + 1;
+  }
+  if (cpos + 1 >= compr->bend) return NULL;
+  *cpos++ = '\0';
+  return cpos;
+}
+
+static void dnc_finish(struct dncompr *compr, unsigned char *cptr,
+                       unsigned *sizep, struct dnjump **jendp) {
+   *sizep = cptr - compr->buf;
+   *jendp = compr->jump;
+}
+
+static int
+dnc_final(struct dnspacket *pkt,
+          const unsigned char *data, unsigned dsize,
+          const struct dnjump *jump,
+          const struct dnjump *jend) {
+  const unsigned qoff = (pkt->p_sans - pkt->p_buf) + 0xc000;
+  const unsigned coff = (pkt->p_cur - pkt->p_buf) + 0xc000;
+  unsigned pos;
+  if (!fit(pkt, pkt->p_cur, dsize))
+    return 0;
+  while(jump < jend) {
+    if (jump->pos) {
+      pos = jump->off + (jump->off < 0 ? qoff : coff);
+      PACK16(jump->pos, pos);
+    }
+    ++jump;
+  }
+  memcpy(pkt->p_cur, data, dsize);
+  pkt->p_cur += dsize;
+  return 1;
+}
+
+struct zonesoa {
+  unsigned zsoa_size;
+  unsigned zsoa_ttloff;
+  const unsigned char *zsoa_minttl;
+  struct dnjump zsoa_jump[3], *zsoa_jend;
+  unsigned char zsoa_data[DNS_MAXPACKET];
+};
+
+int update_zonesoa(struct zone *zone, const struct dssoa *dssoa) {
+   struct zonesoa *zsoa;
+   unsigned char *cpos;
+   struct dncompr compr;
+   unsigned size;
+   unsigned char *sizep;
+
+   if (!(zone->z_dssoa = dssoa)) return 1;
+   if (!zone->z_zsoa && !(zone->z_zsoa = tmalloc(struct zonesoa)))
+     return 0;
+   zsoa = zone->z_zsoa;
+   zsoa->zsoa_size = 0;
+
+   cpos = dnc_init(&compr, zsoa->zsoa_data, sizeof(zsoa->zsoa_data),
+                   zsoa->zsoa_jump, zone->z_dn, zone->z_dnlen);
+
+   /* SOA record */
+   /* SOA always fit in buffer */
+   cpos = dnc_add(&compr, cpos, zone->z_dn, zone->z_dnlen);
+   *cpos++ = DNS_T_SOA>>8; *cpos++ = DNS_T_SOA;
+   *cpos++ = DNS_C_IN >>8; *cpos++ = DNS_C_IN;
+   zsoa->zsoa_ttloff = cpos - compr.buf;
+   memcpy(cpos, dssoa->dssoa_ttl, 4); cpos += 4;
+   sizep = cpos;
+   cpos += 2;
+   cpos = dnc_add(&compr, cpos, dssoa->dssoa_odn, dssoa->dssoa_odnlen);
+   cpos = dnc_add(&compr, cpos, dssoa->dssoa_pdn, dssoa->dssoa_pdnlen);
+   if (dssoa->dssoa_serial)
+     PACK32(cpos, dssoa->dssoa_serial);
+   else
+     PACK32(cpos, zone->z_stamp);
+   cpos += 4;
+   memcpy(cpos, dssoa->dssoa_n, 16); cpos += 16;
+   zsoa->zsoa_minttl = cpos - 4;
+   size = cpos - sizep - 2;
+   PACK16(sizep, size);
+   dnc_finish(&compr, cpos, &zsoa->zsoa_size, &zsoa->zsoa_jend);
+
+   return 1;
 }
 
 static int addrr_soa(struct dnspacket *pkt, const struct zone *zone, int auth) {
-  register unsigned char *c;
-  unsigned char *rstart;
-  unsigned dsz;
-  const struct dssoa *dssoa = zone->z_dssoa;
-  if (!dssoa) {
+  const struct zonesoa *zsoa = zone->z_zsoa;
+  unsigned char *c = pkt->p_cur;
+  if (!zone->z_dssoa || !zsoa->zsoa_size) {
+    if (!auth)
+      setnonauth(pkt->p_buf);
+    return 0;
+  }
+  if (!dnc_final(pkt, zsoa->zsoa_data, zsoa->zsoa_size,
+                 zsoa->zsoa_jump, zsoa->zsoa_jend)) {
     if (!auth)
       setnonauth(pkt->p_buf); /* non-auth answer as we can't fit the record */
     return 0;
   }
-  c = pkt->p_cur;
-  /* since SOA always comes last, no need to save dncompr state */
-  if (fit(pkt, c, 10 + 2)) {
-    addrr_bdnstart(pkt, c, DNS_T_SOA,
-                   auth ? dssoa->dssoa_n + 12 : dssoa->dssoa_ttl);
-    rstart = c; c += 2;
-    if ((c = add_dn(pkt, c, dssoa->dssoa_odn, dssoa->dssoa_odnlen)) &&
-        (c = add_dn(pkt, c, dssoa->dssoa_pdn, dssoa->dssoa_pdnlen)) &&
-        fit(pkt, c, 20)) {
-      memcpy(c, zone->z_soa_n, 20);
-      c += 20;
-      dsz = (c - rstart) - 2;
-      PACK16(rstart, dsz);
-      pkt->p_buf[auth ? p_nscnt : p_ancnt]++;
-      pkt->p_cur = c;
-      return 1;
-    }
-  }
-  setnonauth(pkt->p_buf); /* non-auth answer as we can't fit the record */
-  return 0;
-}
-
-static int addrr_ns(struct dnspacket *pkt, const struct zone *zone, int auth) {
-  register unsigned char *c = pkt->p_cur;
-  const struct dsns **dsnsp = zone->z_dsnsa;
-  const struct dsns **dsnse = dsnsp + zone->z_nns;
-  const struct dsns *dsns;
-  unsigned char *cur = c;
-  struct dnsdnptr *cptr = pkt->p_dncompr.cptr;
-  if (dsnsp == dsnse) return 0;
-  do {
-    if (fit(pkt, c, 10 + 2)) {
-      dsns = *dsnsp;
-      addrr_bdnstart(pkt, c, DNS_T_NS, dsns->dsns_ttl); /* 10 bytes */
-      c[0] = 0;
-      if ((c = add_dn(pkt, c + 2, dsns->dsns_dn, dsns->dsns_dnlen))) {
-        pkt->p_cur[11] = c - pkt->p_cur - 12;
-        pkt->p_cur = c;
-        continue;
-      }
-    }
-    /* restore */
-    pkt->p_cur = cur;
-    pkt->p_dncompr.cptr = cptr;
-    return 0;
-  } while(++dsnsp < dsnse);
-  pkt->p_buf[auth ? p_nscnt : p_ancnt] += zone->z_nns;
-  if (zone->z_nns > 1) {	/* rotate nameservers */
-    /* this is somewhat hackish: zone should not be modified here,
-     * it's constant pointer for a reason.  But it's so easy to
-     * spot errors elsewhere if an attempt will be made to modify
-     * any data in this structure inside query handling routines...
-     * After all, semantics (from nameserver point of view) does
-     * not change. */
-    const struct dsns **dsnsa = ((struct zone *)zone)->z_dsnsa;
-    dsns = dsnsa[0];
-    memcpy(dsnsa, dsnsa + 1, (zone->z_nns - 1) * sizeof(*dsnsa));
-    dsnsa[zone->z_nns - 1] = dsns;
-  }
+  if (auth) memcpy(c + zsoa->zsoa_ttloff, zsoa->zsoa_minttl, 4);
+  pkt->p_buf[auth ? p_nscnt : p_ancnt]++;
   return 1;
 }
 
-void addrr_mx(struct dnspacket *pkt,
-              const unsigned char pri[2],
-              const unsigned char *mxdn, unsigned mxdnlen,
-              const unsigned char ttl[4]) {
-  register unsigned char *c = pkt->p_cur;
-  if (fit(pkt, c, 10 + 2 + 2)) {
-    addrr_dnstart(c, DNS_T_MX, ttl);
-    c += 2;
-    *c++ = pri[0]; *c++ = pri[1];
-    if ((c = add_dn(pkt, c, mxdn, mxdnlen))) {
-      mxdnlen = c - pkt->p_cur - 12;
-      PACK16(pkt->p_cur + 10, mxdnlen);
-      pkt->p_cur = c;
-      pkt->p_buf[p_ancnt] += 1;
-      return;
+struct zonens {
+  unsigned zns_size;
+  struct dnjump zns_jump[MAX_NS*2], *zns_jend;
+  unsigned char zns_data[DNS_MAXPACKET];
+};
+
+int update_zonens(struct zone *zone, const struct dsns **dsnsa, unsigned nns) {
+  struct zonens *zns;
+  unsigned char *cpos, *sizep;
+  struct dncompr compr;
+  unsigned size, i, ns;
+  const struct dsns *dsns;
+
+  zone->z_nns = 0;
+  if (!nns)
+    return 1;
+  memcpy(zone->z_dsnsa, dsnsa, sizeof(zone->z_dsnsa));
+  if (zone->z_zns)
+    free(zone->z_zns);
+  zns = zone->z_zns = (struct zonens *)emalloc(sizeof(struct zonens) * nns);
+  if (!zns)
+    return 0;
+
+  ns = 0;
+  for(;;) {
+    cpos = dnc_init(&compr, zns->zns_data, sizeof(zns->zns_data),
+                    zns->zns_jump, zone->z_dn, zone->z_dnlen);
+
+    for(i = 0; i < nns; ++i) {
+      cpos = dnc_add(&compr, cpos, zone->z_dn, zone->z_dnlen);
+      if (!cpos || cpos + 10 > compr.bend) return 0;
+      *cpos++ = DNS_T_NS>>8; *cpos++ = DNS_T_NS;
+      *cpos++ = DNS_C_IN>>8; *cpos++ = DNS_C_IN;
+      memcpy(cpos, dsnsa[i]->dsns_ttl, 4); cpos += 4;
+      sizep = cpos; cpos += 2;
+      cpos = dnc_add(&compr, cpos, dsnsa[i]->dsns_dn, dsnsa[i]->dsns_dnlen);
+      if (!cpos) return 0;
+      size = cpos - sizep - 2;
+      PACK16(sizep, size);
     }
+
+    dnc_finish(&compr, cpos, &zns->zns_size, &zns->zns_jend);
+
+    if (++ns >= nns) break;
+
+    dsns = dsnsa[0];
+    memcpy(dsnsa, dsnsa + 1, (nns - 1) * sizeof(*dsnsa));
+    dsnsa[nns - 1] = dsns;
+    ++zns;
+
   }
-  setnonauth(pkt->p_buf);
+  zone->z_nns = nns;
+
+  return 1;
+}
+
+static int addrr_ns(struct dnspacket *pkt, const struct zone *zone, int auth) {
+  unsigned cns = zone->z_cns;
+  const struct zonens *zns = zone->z_zns + cns;
+  if (!zone->z_nns)
+    return 0;
+  if (!dnc_final(pkt, zns->zns_data, zns->zns_size,
+                 zns->zns_jump, zns->zns_jend))
+    return 0;
+  pkt->p_buf[auth ? p_nscnt : p_ancnt] += zone->z_nns;
+  ++cns;
+  if (cns >= zone->z_nns)
+    cns = 0;
+  ((struct zone *)zone)->z_cns = cns;
+  return 1;
 }
 
 /* check whenever a given RR is already in the packet
@@ -420,7 +509,10 @@ void addrr_any(struct dnspacket *pkt, unsigned dtp,
     setnonauth(pkt->p_buf); /* non-auth answer as we can't fit the record */
     return;
   }
-  addrr_dnstart(c, dtp, ttl);	/* 10 bytes */
+  *c++ = 192; *c++ = p_hdrsize;	/* jump after header: query DN */
+  *c++ = dtp>>8; *c++ = dtp;
+  *c++ = DNS_C_IN>>8; *c++ = DNS_C_IN;
+  memcpy(c, ttl, 4); c += 4;
   PACK16(c, dsz); c += 2;	/* dsize */
   memcpy(c, data, dsz);
   pkt->p_cur = c + dsz;

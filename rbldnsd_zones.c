@@ -94,6 +94,20 @@ void dsloaded(const char *fmt, ...) {
   va_end(ap);
 }
 
+void zlog(const struct zone *z, int level, const char *fmt, ...) {
+  char name[DNS_MAXDOMAIN+1];
+  unsigned len = dns_dntop(z->z_dn, name, sizeof(name));
+  char buf[512];
+  va_list ap;
+  if (len > 80) {
+    name[70] = name[71] = name[72] = '.'; name[73] = '\0';
+  }
+  va_start(ap, fmt);
+  vssprintf(buf, sizeof(buf), fmt, ap);
+  va_end(ap);
+  dslog(level, 0, "zone %s: %s", name, buf);
+}
+
 static struct dataset *newdataset(char *spec) {
   /* type:file,file,file... */
   struct dataset *ds;
@@ -388,11 +402,11 @@ static int updatezone(struct zone *zone) {
   time_t stamp = 0;
   const struct dssoa *dssoa = NULL;
   const struct dsns *dsns;
-  const struct dsns **dsnsa = zone->z_dsnsa;
-  unsigned n;
+  const struct dsns *dsnsa[MAX_NS];
+  unsigned n, nns;
   struct dslist *dsl;
 
-  zone->z_nns = 0;
+  nns = 0;
 
   for(dsl = zone->z_dsl; dsl; dsl = dsl->dsl_next) {
     const struct dataset *ds = dsl->dsl_ds;
@@ -404,9 +418,9 @@ static int updatezone(struct zone *zone) {
       dssoa = ds->ds_dssoa;
     for(dsns = ds->ds_dsns; dsns; dsns = dsns->dsns_next) {
       for(n = 0; ; ++n) {
-        if (n == zone->z_nns) {
-          if (n < sizeof(zone->z_dsnsa) / sizeof(zone->z_dsnsa[0]))
-            dsnsa[zone->z_nns++] = dsns;
+        if (n == nns) {
+          if (n < MAX_NS)
+            dsnsa[nns++] = dsns;
           break;
         }
         if (dsnsa[n]->dsns_dnlen == dsns->dsns_dnlen &&
@@ -416,13 +430,10 @@ static int updatezone(struct zone *zone) {
     }
   }
   zone->z_stamp = stamp;
-  if ((zone->z_dssoa = dssoa) != NULL) {
-    if (dssoa->dssoa_serial)
-      PACK32(zone->z_soa_n, dssoa->dssoa_serial);
-    else
-      PACK32(zone->z_soa_n, stamp);
-    memcpy(zone->z_soa_n + 4, dssoa->dssoa_n, 16);
-  }
+  if (!update_zonesoa(zone, dssoa))
+    zlog(zone, LOG_WARNING, "unable to initialize SOA structure");
+  if (!update_zonens(zone, dsnsa, nns))
+    zlog(zone, LOG_WARNING, "unable to initialize NS structure");
 
   return 1;
 }
@@ -473,10 +484,8 @@ int reloadzones(struct zone *zonelist) {
 
     for(; zonelist; zonelist = zonelist->z_next) {
       if (!updatezone(zonelist)) {
-        char name[DNS_MAXDOMAIN+1];
-	dns_dntop(zonelist->z_dn, name, sizeof(name));
-        dslog(LOG_WARNING, 0,
-              "partially loaded zone %.60s will not be serviced", name);
+        zlog(zonelist, LOG_WARNING,
+             "partially loaded zone will not be serviced");
         zonelist->z_stamp = 0;
       }
     }
@@ -491,22 +500,23 @@ void dumpzone(const struct zone *z, FILE *f) {
   { /* zone header */
     char name[DNS_MAXDOMAIN+1];
     const struct dsns **dsnsa = z->z_dsnsa;
+    const struct dssoa *dssoa = z->z_dssoa;
     unsigned nns = z->z_nns;
     unsigned n;
     dns_dntop(z->z_dn, name, sizeof(name));
     fprintf(f, "$ORIGIN\t%s.\n", name);
     if (z->z_dssoa) {
-      fprintf(f, "@\t%u\tSOA", unpack32(z->z_dssoa->dssoa_ttl));
-      dns_dntop(z->z_dssoa->dssoa_odn, name, sizeof(name));
+      fprintf(f, "@\t%u\tSOA", unpack32(dssoa->dssoa_ttl));
+      dns_dntop(dssoa->dssoa_odn, name, sizeof(name));
       fprintf(f, "\t%s.", name);
-      dns_dntop(z->z_dssoa->dssoa_pdn, name, sizeof(name));
+      dns_dntop(dssoa->dssoa_pdn, name, sizeof(name));
       fprintf(f, "\t%s.", name);
       fprintf(f, "\t(%u %u %u %u %u)\n",
-          unpack32(z->z_soa_n+0),
-          unpack32(z->z_soa_n+4),
-          unpack32(z->z_soa_n+8),
-          unpack32(z->z_soa_n+12),
-          unpack32(z->z_soa_n+16));
+          dssoa->dssoa_serial ? dssoa->dssoa_serial : z->z_stamp,
+          unpack32(dssoa->dssoa_n+0),
+          unpack32(dssoa->dssoa_n+4),
+          unpack32(dssoa->dssoa_n+8),
+          unpack32(dssoa->dssoa_n+12));
     }
     for(n = 0; n < nns; ++n) {
       dns_dntop(dsnsa[n]->dsns_dn, name, sizeof(name));

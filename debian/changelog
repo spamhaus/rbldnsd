@@ -19,6 +19,15 @@ rbldnsd (0.96pre) unstable; urgency=low
   * always assume that SOA and NS refers to zone's base DN -
     less work for DN compression routines
 
+  * precompute SOA and NS records (pack various fields, pre-compress
+    domain names) for faster response time
+
+  * return NS records if available in AUTHORITY section of positive
+    replies
+
+  * restore MX functionality that was broken for quite some time.
+    Note that currently, MX records aren't compressed
+
  -- Michael Tokarev <mjt@corpit.ru>  Tue, 27 May 2003 22:18:20 +0400
 
 rbldnsd (0.95) unstable; urgency=low
