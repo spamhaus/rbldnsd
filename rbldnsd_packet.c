@@ -455,7 +455,7 @@ void logreply(const struct dnspacket *pkt,
 
   cp += sprintf(cp, "%lu ", (unsigned long)time(NULL));
   if (getnameinfo(peeraddr, peeraddrlen,
-                  cp, sizeof(NI_MAXHOST), NULL, 0,
+                  cp, NI_MAXHOST, NULL, 0,
                   NI_NUMERICHOST|NI_WITHSCOPEID) == 0)
     cp += strlen(cp);
   else

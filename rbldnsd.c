@@ -306,7 +306,7 @@ static int init(int argc, char **argv, struct zone **zonep) {
     *zonep = addzone(*zonep, argv[c]);
 
 #define logstarted() \
-  dslog(LOG_INFO, 0, "version %s started (listening on [%s]:%s", \
+  dslog(LOG_INFO, 0, "version %s started (listening on [%s]:%s)", \
         version, host, serv)
   if (quickstart)
     signalled = SIGNALLED_ALRM;	/* zones will be (re)loaded after fork */
