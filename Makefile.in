@@ -61,7 +61,7 @@ RBLDNSD_HDRS = rbldnsd.h rbldnsd_hooks.h
 RBLDNSD_OBJS = $(RBLDNSD_SRCS:.c=.o) lib$(NAME).a
 
 MISC = configure $(NAME).8 qsort.c Makefile.in dns_maketab.awk $(NAME).spec \
-  NEWS TODO CHANGES-0.81
+  NEWS TODO CHANGES-0.81 README.user
 DEBFILES  = debian/changelog debian/copyright debian/rules debian/control \
   debian/postinst debian/$(NAME).default debian/$(NAME).init
 
