@@ -5,6 +5,7 @@
 #include <string.h>
 #include <time.h>
 #include <stdio.h>
+#include <sys/types.h>
 #include <netinet/in.h>
 #include "rbldnsd.h"
 #include "rbldnsd_zones.h"
