@@ -179,6 +179,7 @@ struct zone *newzone(struct zone **zonelist,
       zone->z_dnlen = dnlen;
       zone->z_dnlab = dns_dnlabels(dn);
       zone->z_dslp = &zone->z_dsl;
+      init_zone_caches(zone);
       break;
     }
     else if (zone->z_dnlen == dnlen && memcmp(zone->z_dn, dn, dnlen) == 0)
@@ -424,15 +425,15 @@ static int updatezone(struct zone *zone) {
           break;
         }
         if (dsnsa[n]->dsns_dnlen == dsns->dsns_dnlen &&
-            memcmp(dsnsa[n]->dsns_dn, dsns->dsns_dn, dsns->dsns_dnlen) == 0)
+            dns_dnequ(dsnsa[n]->dsns_dn, dsns->dsns_dn))
           break;
       }
     }
   }
   zone->z_stamp = stamp;
-  if (!update_zonesoa(zone, dssoa))
+  if (!update_zone_soa(zone, dssoa))
     zlog(zone, LOG_WARNING, "unable to initialize SOA structure");
-  if (!update_zonens(zone, dsnsa, nns))
+  if (!update_zone_ns(zone, dsnsa, nns))
     zlog(zone, LOG_WARNING, "unable to initialize NS structure");
 
   return 1;

@@ -13,6 +13,8 @@ Never news are at top.
  - restore broken MX record functionality.  Note that MX domain names
    aren't compressed anymore
 
+ - do not lowercase domain names specified in NS, SOA and MX records
+
 0.95 (27 May 2003)
 
  - new dataset: combined: a container for other datasets.

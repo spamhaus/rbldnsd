@@ -85,7 +85,6 @@ char *parse_dn(char *s, unsigned char *dn, unsigned *dnlenp) {
   if (!*s) return NULL;
   if ((l = dns_ptodn(s, dn, DNS_MAXDN)) == 0)
     return NULL;
-  dns_dntol(dn, dn);
   if (dnlenp) *dnlenp = l;
   SKIPSPACE(n);
   return n;

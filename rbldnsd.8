@@ -613,9 +613,9 @@ always.
 
 .PP
 .B rbldnsd
-lowercases all the domain names in all data files when loading,
-to speed up some operations.  This isn't a problem in almost
-all cases.
+lowercases some domain names (the ones that are lookup keys,
+e.g. in `generic' and `dnset' datasets) when loading, to speed
+up lookup operations.  This isn't a problem in most cases.
 
 .PP
 There is no TCP mode.  If a resource record does not fit UDP

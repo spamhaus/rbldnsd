@@ -61,6 +61,8 @@ static int ds_generic_parseany(struct dataset *ds, char *s) {
   }
   else if (!(s = parse_dn(s, data + 1, &dsiz)) || dsiz == 1)
     return -1;
+  else
+    dns_dntol(data + 1, data + 1);
   dnlab = dns_dnlabels(data + 1);
   data[0] = (unsigned char)(dsiz - 1);
   if (!(e->ldn = mp_dmemdup(ds->ds_mp, data, dsiz)))

@@ -118,6 +118,7 @@ unsigned dns_dntol(const unsigned char *srcdn, unsigned char *dstdn);
 unsigned dns_dnlen(const unsigned char *dn);
 unsigned dns_dnlabels(const unsigned char *dn);
 /* return number of labels in a dn */
+int dns_dnequ(const unsigned char *dn1, const unsigned char *dn2);
 unsigned dns_dnreverse(const unsigned char *dn, unsigned char *rdn,
                        unsigned len);
 /* reverse order of labels in a dn; len, if non-zero, should be length

@@ -9,7 +9,6 @@
 #include <unistd.h>
 #include <netinet/in.h>
 #include <netdb.h>
-#include <stdlib.h>
 #include "rbldnsd.h"
 
 #ifndef NI_WITHSCOPEID
@@ -291,7 +290,7 @@ dnc_add(struct dncompr *compr, unsigned char *cpos,
 
   while(*dn) {
     for(ptr = compr->ptr; ptr < compr->cptr; ++ptr) {
-      if (ptr->dnlen != dnlen || memcmp(ptr->dn, dn, dnlen) != 0)
+      if (ptr->dnlen != dnlen || !dns_dnequ(ptr->dn, dn))
         continue;
       if (cpos + 2 >= compr->bend) return NULL;
       compr->jump->pos = cpos;
@@ -344,26 +343,38 @@ dnc_final(struct dnspacket *pkt,
   return 1;
 }
 
+#define CACHEBUF_SIZE (DNS_MAXPACKET-p_hdrsize-4)
+/* maxpacket minus header minus (class+type) */
+
 struct zonesoa {
   unsigned zsoa_size;
   unsigned zsoa_ttloff;
   const unsigned char *zsoa_minttl;
   struct dnjump zsoa_jump[3], *zsoa_jend;
-  unsigned char zsoa_data[DNS_MAXPACKET];
+  unsigned char zsoa_data[CACHEBUF_SIZE];
 };
 
-int update_zonesoa(struct zone *zone, const struct dssoa *dssoa) {
+struct zonens {
+  unsigned zns_size;
+  struct dnjump zns_jump[MAX_NS*2], *zns_jend;
+  unsigned char zns_data[CACHEBUF_SIZE];
+};
+
+void init_zone_caches(struct zone *zone) {
+  zone->z_zsoa = tmalloc(struct zonesoa);
+  zone->z_zns = (struct zonens *)emalloc(sizeof(struct zonens) * MAX_NS);
+}
+
+int update_zone_soa(struct zone *zone, const struct dssoa *dssoa) {
    struct zonesoa *zsoa;
    unsigned char *cpos;
    struct dncompr compr;
    unsigned size;
    unsigned char *sizep;
 
-   if (!(zone->z_dssoa = dssoa)) return 1;
-   if (!zone->z_zsoa && !(zone->z_zsoa = tmalloc(struct zonesoa)))
-     return 0;
    zsoa = zone->z_zsoa;
    zsoa->zsoa_size = 0;
+   if (!(zone->z_dssoa = dssoa)) return 1;
 
    cpos = dnc_init(&compr, zsoa->zsoa_data, sizeof(zsoa->zsoa_data),
                    zsoa->zsoa_jump, zone->z_dn, zone->z_dnlen);
@@ -412,13 +423,7 @@ static int addrr_soa(struct dnspacket *pkt, const struct zone *zone, int auth) {
   return 1;
 }
 
-struct zonens {
-  unsigned zns_size;
-  struct dnjump zns_jump[MAX_NS*2], *zns_jend;
-  unsigned char zns_data[DNS_MAXPACKET];
-};
-
-int update_zonens(struct zone *zone, const struct dsns **dsnsa, unsigned nns) {
+int update_zone_ns(struct zone *zone, const struct dsns **dsnsa, unsigned nns) {
   struct zonens *zns;
   unsigned char *cpos, *sizep;
   struct dncompr compr;
@@ -426,14 +431,10 @@ int update_zonens(struct zone *zone, const struct dsns **dsnsa, unsigned nns) {
   const struct dsns *dsns;
 
   zone->z_nns = 0;
+  zns = zone->z_zns;
   if (!nns)
     return 1;
   memcpy(zone->z_dsnsa, dsnsa, sizeof(zone->z_dsnsa));
-  if (zone->z_zns)
-    free(zone->z_zns);
-  zns = zone->z_zns = (struct zonens *)emalloc(sizeof(struct zonens) * nns);
-  if (!zns)
-    return 0;
 
   ns = 0;
   for(;;) {

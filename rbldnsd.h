@@ -217,8 +217,9 @@ struct zone {	/* zone, list of zones */
   struct zone *z_next;			/* next in list */
 };
 
-int update_zonesoa(struct zone *zone, const struct dssoa *dssoa);
-int update_zonens(struct zone *zone, const struct dsns **dsnsa, unsigned nns);
+void init_zone_caches(struct zone *zone);
+int update_zone_soa(struct zone *zone, const struct dssoa *dssoa);
+int update_zone_ns(struct zone *zone, const struct dsns **dsnsa, unsigned nns);
 
 /* parse query and construct a reply to it, return len of answer or 0 */
 int replypacket(struct dnspacket *p, unsigned qlen, const struct zone *zone);

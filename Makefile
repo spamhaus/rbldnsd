@@ -30,7 +30,7 @@ AWK = awk
 SOCKET_LIBS = `[ -f /usr/lib/libsocket.so ] && echo -lsocket -lnsl || :`
 
 LIBDNS_SRCS = dns_ptodn.c dns_dntop.c dns_dntol.c dns_dnlen.c dns_dnlabels.c \
- dns_dnreverse.c dns_findname.c
+ dns_dnequ.c dns_dnreverse.c dns_findname.c
 LIBDNS_GSRC = dns_nametab.c
 LIBDNS_HDRS = dns.h
 LIBDNS_OBJS = $(LIBDNS_SRCS:.c=.o) $(LIBDNS_GSRC:.c=.o)
@@ -127,6 +127,7 @@ dns_dntop.o: dns_dntop.c dns.h
 dns_dntol.o: dns_dntol.c dns.h
 dns_dnlen.o: dns_dnlen.c dns.h
 dns_dnlabels.o: dns_dnlabels.c dns.h
+dns_dnequ.o: dns_dnequ.c dns.h
 dns_dnreverse.o: dns_dnreverse.c dns.h
 dns_findname.o: dns_findname.c dns.h
 ip4parse.o: ip4parse.c ip4addr.h
