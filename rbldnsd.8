@@ -202,17 +202,21 @@ Specifies a file where \fBrbldnsd\fR will write a line with short statistic
 summary of queries made per zone, every check (\fB\-c\fR) interval.
 Format of each line is:
 .nf
-  \fItimestamp\fR \fIzone\fR:\fIq\fR:\fIin\fR:\fIout\fR \fIzone\fR:...
+  \fItimestamp\fR \fIzone\fR:\fIqtot\fR:\fIqok\fR:\fIqnxd\fR:\fIbin\fR:\fIbout\fR \fIzone\fR:...
 .fi
-where \fItimestamp\fR is unix time (secounds since epoch),
-\fIzone\fR is the name of the base zone, \fIq\fR is the total number
-of queries made, \fIin\fR is the total number of bytes read
-from network (excluding IP/UDP overhead and dropped packets),
-\fIout\fR is the total number of bytes written to network.
+where
+\fItimestamp\fR is unix time (secounds since epoch),
+\fIzone\fR is the name of the base zone,
+\fIqtot\fR is the total number of queries received,
+\fIqok\fR \- number of positive replies,
+\fIqnxd\fR \- number of NXDOMAIN replies,
+\fIbin\fR is the total number of bytes read from network
+(excluding IP/UDP overhead and dropped packets),
+\fIbout\fR is the total number of bytes written to network.
 Ther are as many such tuples as there are zones, and one extra, total
 typle at the end, with \fIzone\fR being "*", like:
 .nf
-  1234 bl1.ex:10:311:432 bl2.ex:24:248:375 *:98:820:987
+  1234 bl1.ex:10:5:4:311:432 bl2.ex:24:13:7:248:375 *:98:35:12:820:987
 .fi
 Note the total values may be larger than the sum of per-zone values,
 due to queries made against unlisted zones, or bad/broken packets.
