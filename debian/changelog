@@ -1,28 +1,19 @@
 rbldnsd (0.83p1) unstable; urgency=low
 
   * added minimal access control (-a netlist option)
-
   * added query log filter (-L netlist option), and added logging of
     timestamps.
-
   * moved packet receiving/replying stuff into rbldnsd.c
-
   * one-by-off bug - retrying interrupted replies was wrong
-
   * use inline version of qsort in order to be able to use inline
     comparision routine.  Speed up loading significantly.
-
   * allow to run as non-root; little cleanups
-
   * removed -DNOREMOVEDUPS, -DNOIP4RANGES, -DPRINT_TIMES => -DNOTIMES
-
   * added statistic counters (SIGUSR1/USR2/exit) - disable with -DNOSTATS
-
   * added meminfo logging via mallinfo (-m option) - disable with -DNOMEMINFO
-
   * fixed invocation w/o -b (bind address): rbldnsd wasn't work w/o -b at all
 
- -- Michael Tokarev <mjt@corpit.ru>  Fri, 11 Apr 2003 05:18:27 +0400
+ -- Michael Tokarev <mjt@corpit.ru>  Thu, 17 Apr 2003 04:30:27 +0400
 
 rbldnsd (0.82) unstable; urgency=low
 

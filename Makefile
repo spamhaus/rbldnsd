@@ -44,7 +44,7 @@ SRCS = $(LIB_SRCS) $(RBLDNSD_SRCS) ip4rangetest.c
 HDRS = $(LIB_HDRS) $(RBLDNSD_HDRS)
 
 VERSION = 0.83p1
-VERSION_DATE = 2003-04-06
+VERSION_DATE = 2003-04-17
 
 all: rbldnsd
 
@@ -101,8 +101,8 @@ mempool.o: mempool.c mempool.h
 rbldnsd.o: rbldnsd.c rbldnsd.h ip4addr.h dns.h mempool.h
 rbldnsd_zones.o: rbldnsd_zones.c dns.h rbldnsd.h ip4addr.h \
  rbldnsd_zones.h
-rbldnsd_packet.o: rbldnsd_packet.c rbldnsd.h ip4addr.h rbldnsd_zones.h \
- dns.h
+rbldnsd_packet.o: rbldnsd_packet.c rbldnsd.h ip4addr.h dns.h \
+ rbldnsd_zones.h
 rbldnsd_generic.o: rbldnsd_generic.c rbldnsd.h ip4addr.h dns.h \
  mempool.h qsort.c
 rbldnsd_ip4set.o: rbldnsd_ip4set.c rbldnsd.h ip4addr.h dns.h qsort.c
@@ -112,5 +112,5 @@ rbldnsd_dnset.o: rbldnsd_dnset.c rbldnsd.h ip4addr.h dns.h mempool.h \
  qsort.c
 rbldnsd_dnvset.o: rbldnsd_dnvset.c rbldnsd.h ip4addr.h dns.h mempool.h \
  qsort.c
-rbldnsd_util.o: rbldnsd_util.c rbldnsd.h ip4addr.h mempool.h
-ip4rangetest.o: ip4rangetest.c ip4addr.h rbldnsd.h
+rbldnsd_util.o: rbldnsd_util.c rbldnsd.h ip4addr.h dns.h mempool.h
+ip4rangetest.o: ip4rangetest.c ip4addr.h rbldnsd.h dns.h
