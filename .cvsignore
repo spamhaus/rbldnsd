@@ -1,3 +1,6 @@
 rbldnsd
 ip4rangetest
 rbldnsd-*.tar.gz
+dns_classes.c
+dns_rcodes.c
+dns_types.c

@@ -99,21 +99,24 @@ int replypacket(struct dnspacket *p, unsigned qlen, const struct zone *zone) {
   q[10] = q[11] = 0; /* arcount */
 
   if (qcls != DNS_C_IN && qcls != DNS_C_ANY)
-    return refuse(DNS_C_FORMERR);
+    return refuse(DNS_R_FORMERR);
   if (q[2] & 126)
-    return refuse(DNS_C_NOTIMPL);
+    return refuse(DNS_R_NOTIMPL);
   switch(qtyp) {
   case DNS_T_ANY: qtyp = NSQUERY_ANY; break;
   case DNS_T_A:   qtyp = NSQUERY_A; break;
   case DNS_T_TXT: qtyp = NSQUERY_TXT; break;
   case DNS_T_NS:  qtyp = NSQUERY_NS; break;
   case DNS_T_SOA: qtyp = NSQUERY_SOA; break;
-  default: return refuse(DNS_C_REFUSED);
+  case DNS_T_AAAA:  qtyp = NSQUERY_OTHER; break;
+  case DNS_T_PTR:   qtyp = NSQUERY_OTHER; break;
+  case DNS_T_CNAME: qtyp = NSQUERY_OTHER; break;
+  default: return refuse(DNS_R_REFUSED);
   }
 
   q[2] = 0x80; /* 0x81?! */
   if (qcls == DNS_C_IN) q[2] |= 0x04; /* AA */
-  q[3] = DNS_C_NOERROR;
+  q[3] = DNS_R_NOERROR;
 
   nmatch = nfound = 0;
 
@@ -127,8 +130,8 @@ int replypacket(struct dnspacket *p, unsigned qlen, const struct zone *zone) {
     if (memcmp(zone->dn, x, zone->dnlen) != 0) continue;
 
     *x = 0;	/* terminate dn to end at zone base dn */
-    for(zdl = zone->dlist; zdl; zdl = zdl->next)
-      if (zdl->set->qfilter & qtyp) {
+    for(zdl = zone->dlist; zdl; zdl = zdl->next) {
+      //if (zdl->set->qfilter & qtyp) {
         nmatch = 1;	/* at least one zone with this data types */
         if (zdl->set->queryfn(zdl->set->data, p, qdn, qtyp))
           nfound = 1;	/* positive answer */
@@ -142,11 +145,11 @@ int replypacket(struct dnspacket *p, unsigned qlen, const struct zone *zone) {
     return p->c - q;
   }
   else if (nmatch) {
-    q[2] = 0x84; q[3] = DNS_C_NXDOMAIN;
+    q[2] = 0x84; q[3] = DNS_R_NXDOMAIN;
     return p->sans - q;
   }
   else
-    return refuse(DNS_C_REFUSED);
+    return refuse(DNS_R_REFUSED);
 }
 
 static int aexists(const struct dnspacket *p, unsigned typ,
@@ -212,52 +215,30 @@ addrec_txt(struct dnspacket *p, const char *txt, const char *subst) {
   return addrec_any(p, DNS_T_TXT, sb, sl);
 }
 
+static const char *
+codename(const struct dns_codetab tab, unsigned c, const char *name, char *buf)
+{
+  const struct dns_nameval *nv = dns_findcode(tab, c);
+  if (nv)
+    return nv->name;
+  sprintf(buf, "%s%d", name, c);
+  return buf;
+}
+
 void logreply(const struct dnspacket *pkt, const char *ip, FILE *flog) {
-  char domain[DNS_MAXDOMAIN+1];
+  char cbuf[DNS_MAXDOMAIN+1];
   const unsigned char *p;
-  unsigned q;
-  char *v;
 
   p = pkt->p + 12;
-  dns_dntop(p, domain, sizeof(domain));
+  dns_dntop(p, cbuf, sizeof(cbuf));
   p += dns_dnlen(p);
-  fprintf(flog, "%lu %s %s ", (unsigned long)time(NULL), ip, domain);
+  fprintf(flog, "%lu %s %s ", (unsigned long)time(NULL), ip, cbuf);
+  fprintf(flog, "%s ",
+          codename(dns_types, ((unsigned)p[0]<<8)|p[1], "type", cbuf));
+  fprintf(flog, "%s: ",
+          codename(dns_classes, ((unsigned)p[2]<<8)|p[3], "class", cbuf));
+  fprintf(flog, "%s/%u/%d\n",
+          codename(dns_rcodes, pkt->p[3], "rcode", cbuf),
+          pkt->nans, pkt->c - pkt->p);
 
-  q = ((unsigned)p[0]<<8)|p[1];
-  switch(q) {
-  case DNS_T_A:     v = "A"; break;
-  case DNS_T_TXT:   v = "TXT"; break;
-  case DNS_T_NS:    v = "NS"; break;
-  case DNS_T_SOA:   v = "SOA"; break;
-  case DNS_T_MX:    v = "MX"; break;
-  case DNS_T_AAAA:  v = "AAAA"; break;
-  case DNS_T_CNAME: v = "CNAME"; break;
-  case DNS_T_PTR:   v = "PTR"; break;
-  case DNS_T_ANY:   v = "ANY"; break;
-  default: fprintf(flog, "type0x%x ", q); v = NULL;
-  }
-  if (v) fprintf(flog, "%s ", v);
-
-  q = ((unsigned)p[2]<<8)|p[3];
-  switch(q) {
-  case DNS_C_IN: v = "IN"; break;
-  case DNS_C_ANY: v = "ANY"; break;
-  default: fprintf(flog, "cls0x%x: ", q); v = NULL;
-  }
-  if (v) fprintf(flog, "%s: ", v);
-
-  p = pkt->p;
-  q = p[3];
-  switch(q) {
-  case DNS_C_NOERROR:  v = "NOERROR";  break;
-  case DNS_C_FORMERR:  v = "FORMERR";  break;
-  case DNS_C_SERVFAIL: v = "SERVFAIL"; break;
-  case DNS_C_NXDOMAIN: v = "NXDOMAIN"; break;
-  case DNS_C_NOTIMPL:  v = "NOTIMPL";  break;
-  case DNS_C_REFUSED:  v = "REFUSED";  break;
-  default: fprintf(flog, "code%u", q); v = NULL;
-  }
-  if (v) fprintf(flog, "%s", v);
-  fprintf(flog, "/%u/%d\n", pkt->nans, pkt->c - pkt->p);
-  fflush(flog);
 }

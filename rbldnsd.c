@@ -526,11 +526,11 @@ int main(int argc, char **argv) {
       logreply(&pkt, ip4atos(ntohl(sin.sin_addr.s_addr)), flog);
 #ifndef NOSTATS
     switch(pkt.p[3]) {
-    case DNS_C_NOERROR:
+    case DNS_R_NOERROR:
       stats.nrep += 1; stats.irep += q; stats.orep += r;
       stats.arep += pkt.nans;
       break;
-    case DNS_C_NXDOMAIN:
+    case DNS_R_NXDOMAIN:
       stats.nnxd += 1; stats.inxd += q; stats.onxd += r;
       break;
     default:

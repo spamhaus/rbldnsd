@@ -87,6 +87,7 @@ z_queryfn(const struct zonedata *const zone, struct dnspacket *p,
 #define NSQUERY_A	(1u<< 9)
 #define NSQUERY_NS	(1u<<10)
 #define NSQUERY_SOA	(1u<<11)
+#define NSQUERY_OTHER	(1u<<12)
 
 #define NSQUERY_A_TXT	(NSQUERY_A|NSQUERY_TXT)
 #define NSQUERY_ANY	0xff00u
