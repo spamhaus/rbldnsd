@@ -86,7 +86,8 @@ char *parse_dn(char *s, unsigned char *dn, unsigned *dnlenp);
  * readdslines() */
 int parse_a_txt(char *str, const char **rrp, const char def_a[4]);
 
-typedef int ds_loadfn_t(struct zonedataset *zds, FILE *f);
+typedef void ds_startfn_t(struct dataset *ds);
+typedef int ds_linefn_t(struct zonedataset *zds, char *line, int lineno);
 typedef int ds_finishfn_t(struct dataset *ds);
 typedef void ds_resetfn_t(struct dataset *ds);
 typedef int
@@ -107,10 +108,11 @@ struct dataset_type {	/* dst */
   const char *dst_name;		/* name of the type */
   unsigned dst_flags;		/* how to pass arguments to queryfn */
   unsigned dst_size;		/* size of struct dataset */
-  ds_queryfn_t *dst_queryfn;	/* routine to perform query */
-  ds_loadfn_t *dst_loadfn;	/* routine to load ds data */
-  ds_finishfn_t *dst_finishfn;	/* finish loading */
   ds_resetfn_t *dst_resetfn;	/* routine to release ds internal data */
+  ds_startfn_t *dst_startfn;	/* routine called at start of every file */
+  ds_linefn_t *dst_linefn;	/* routine to parse input line */
+  ds_finishfn_t *dst_finishfn;	/* finish loading */
+  ds_queryfn_t *dst_queryfn;	/* routine to perform query */
   ds_dumpfn_t *dst_dumpfn;	/* dump zone in BIND format */
   const char *dst_descr;    	/* short description of a ds type */
 };
@@ -121,15 +123,16 @@ struct dataset_type {	/* dst */
 
 #define declaredstype(t) extern const struct dataset_type dataset_##t##_type
 #define definedstype(t, flags, descr) \
- static ds_queryfn_t ds_##t##_query; \
- static ds_loadfn_t ds_##t##_load; \
- static ds_finishfn_t ds_##t##_finish; \
  static ds_resetfn_t ds_##t##_reset; \
+ static ds_startfn_t ds_##t##_start; \
+ static ds_linefn_t ds_##t##_line; \
+ static ds_finishfn_t ds_##t##_finish; \
+ static ds_queryfn_t ds_##t##_query; \
  static ds_dumpfn_t ds_##t##_dump; \
  const struct dataset_type dataset_##t##_type = { \
    #t /* name */, flags, sizeof(struct dataset), \
-   ds_##t##_query, ds_##t##_load, \
-   ds_##t##_finish, ds_##t##_reset, ds_##t##_dump, \
+   ds_##t##_reset, ds_##t##_start, ds_##t##_line, ds_##t##_finish, \
+   ds_##t##_query, ds_##t##_dump, \
    descr }
 
 declaredstype(ip4set);
@@ -180,6 +183,7 @@ struct zonedataset {	/* zds */
   unsigned char zds_ttl[4];		/* default ttl for a dataset */
   char *zds_subst[10];			/* substitution variables */
   struct mempool zds_mp;		/* memory pool for all data */
+  ds_linefn_t *zds_linefn;		/* parse line routine */
   struct zonedataset *zds_next;		/* next in global list */
 };
 
@@ -248,9 +252,7 @@ void PRINTFLIKE(3,4) dslog(int level, int lineno, const char *fmt, ...);
 void PRINTFLIKE(2,3) dswarn(int lineno, const char *fmt, ...);
 void PRINTFLIKE(1,2) dsloaded(const char *fmt, ...);
 
-int
-readdslines(FILE *f, struct zonedataset *zds,
-            int (*dslpfn)(struct zonedataset *zds, char *line, int lineno));
+int readdslines(FILE *f, struct zonedataset *zds);
 /* parse $SPECIAL */
 int zds_special(struct zonedataset *zds, char *line);
 

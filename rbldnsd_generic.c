@@ -33,6 +33,9 @@ static void ds_generic_reset(struct dataset *ds) {
   ds->minlab = DNS_MAXDN;
 }
 
+static void ds_generic_start(struct dataset UNUSED *unused_ds) {
+}
+
 static int ds_generic_parseany(struct zonedataset *zds, char *s) {
   struct dataset *ds = zds->zds_ds;
   struct entry *e;
@@ -129,7 +132,7 @@ static int ds_generic_parseany(struct zonedataset *zds, char *s) {
 }
 
 static int
-ds_generic_parseline(struct zonedataset *zds, char *s, int lineno) {
+ds_generic_line(struct zonedataset *zds, char *s, int lineno) {
   int r = ds_generic_parseany(zds, s);
   if (r < 0) {
     dswarn(lineno, "invalid/unrecognized entry");
@@ -139,10 +142,6 @@ ds_generic_parseline(struct zonedataset *zds, char *s, int lineno) {
     return 0;
   else
     return 1;
-}
-
-static int ds_generic_load(struct zonedataset *zds, FILE *f) {
-  return readdslines(f, zds, ds_generic_parseline);
 }
 
 #define min(a,b) ((a)<(b)?(a):(b))

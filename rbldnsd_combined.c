@@ -20,14 +20,13 @@ static void ds_combined_reset(struct dataset *ds) {
   memset(ds, 0, sizeof(*ds));
 }
 
-static int
-ds_combined_parseline(struct zonedataset *zds, char *s, int lineno) {
-  dswarn(lineno, "invalid/unrecognized entry");
-  return 1;
+static void ds_combined_start(struct dataset *ds) {
 }
 
-static int ds_combined_load(struct zonedataset *zds, FILE *f) {
-  return readdslines(f, zds, ds_combined_parseline);
+static int
+ds_combined_line(struct zonedataset *zds, char *s, int lineno) {
+  dswarn(lineno, "invalid/unrecognized entry");
+  return 1;
 }
 
 static int ds_combined_finish(struct dataset *ds) {

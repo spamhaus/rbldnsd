@@ -91,9 +91,7 @@ char *parse_dn(char *s, unsigned char *dn, unsigned *dnlenp) {
   return n;
 }
 
-int
-readdslines(FILE *f, struct zonedataset *zds,
-            int (*dslpfn)(struct zonedataset *zds, char *line, int lineno)) {
+int readdslines(FILE *f, struct zonedataset *zds) {
 #define bufsiz 512
   char _buf[bufsiz+4], *line, *eol;
 #define buf (_buf+4)  /* keep room for 4 IP octets in addrtxt() */
@@ -131,7 +129,7 @@ readdslines(FILE *f, struct zonedataset *zds,
       continue;
     }
     if (line[0] && !ISCOMMENT(line[0]))
-      if (!dslpfn(zds, line, lineno))
+      if (!zds->zds_linefn(zds, line, lineno))
         return 0;
   }
   return 1;

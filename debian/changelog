@@ -7,6 +7,10 @@ rbldnsd (0.95pre) unstable; urgency=low
 
   * Added `combined' dummy dataset
 
+  * Change loading routines: ds_loadfn become ds_startfn and ds_linefn,
+    ds_linefn is now passed via zonedataset to readdslines.  Preparations
+    for combined dataset.
+
  -- Michael Tokarev <mjt@corpit.ru>  Mon, 26 May 2003 18:19:16 +0400
 
 rbldnsd (0.94) unstable; urgency=low

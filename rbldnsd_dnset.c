@@ -43,8 +43,12 @@ static void ds_dnset_reset(struct dataset *ds) {
   ds->minlab[EP] = ds->minlab[EW] = DNS_MAXDN;
 }
 
+static void ds_dnset_start(struct dataset *ds) {
+  ds->def_rr = def_rr;
+}
+
 static int
-ds_dnset_parseline(struct zonedataset *zds, char *s, int lineno) {
+ds_dnset_line(struct zonedataset *zds, char *s, int lineno) {
   struct dataset *ds = zds->zds_ds;
   unsigned char dn[DNS_MAXDN];
   struct entry *e;
@@ -119,11 +123,6 @@ ds_dnset_parseline(struct zonedataset *zds, char *s, int lineno) {
   if (ds->minlab[idx] > dnlen) ds->minlab[idx] = dnlen;
 
   return 1;
-}
-
-static int ds_dnset_load(struct zonedataset *zds, FILE *f) {
-  zds->zds_ds->def_rr = def_rr;
-  return readdslines(f, zds, ds_dnset_parseline);
 }
 
 #define min(a,b) ((a)<(b)?(a):(b))

@@ -63,8 +63,12 @@ ds_ip4set_addent(struct dataset *ds, unsigned idx,
   return 1;
 }
 
+static void ds_ip4set_start(struct dataset *ds) {
+  ds->def_rr = def_rr;
+}
+
 static int
-ds_ip4set_parseline(struct zonedataset *zds, char *s, int lineno) {
+ds_ip4set_line(struct zonedataset *zds, char *s, int lineno) {
   struct dataset *ds = zds->zds_ds;
   ip4addr_t a, b;
   const char *rr;
@@ -141,11 +145,6 @@ ds_ip4set_parseline(struct zonedataset *zds, char *s, int lineno) {
   ip4range_expand_octet(16);
   return fn(3, a << 24, b - a + 1);
 
-}
-
-static int ds_ip4set_load(struct zonedataset *zds, FILE *f) {
-  zds->zds_ds->def_rr = def_rr;
-  return readdslines(f, zds, ds_ip4set_parseline);
 }
 
 static int ds_ip4set_finish(struct dataset *ds) {

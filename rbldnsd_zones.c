@@ -309,7 +309,9 @@ static int loadzonedataset(struct zonedataset *zds) {
       dslog(LOG_ERR, 0, "unable to open file: %s", strerror(errno));
       return 0;
     }
-    if (!zds->zds_type->dst_loadfn(zds, f)) {
+    zds->zds_linefn = zds->zds_type->dst_linefn;
+    zds->zds_type->dst_startfn(zds->zds_ds);
+    if (!readdslines(f, zds)) {
       fclose(f);
       return 0;
     }
