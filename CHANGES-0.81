@@ -1,0 +1,167 @@
+2003-04-03 0.81pre2
+
+ - -v option gone, logging is now done with -l logfile option
+
+ - reorganized source: moved various parts into separate files,
+   cleanups
+
+ - ip4addr library modified: new and improved/completed "parsers"
+   (ip4addr, ip4range, ip4prefix, ip4cidr - ip4parse.c)
+
+ - preparations to handle net ranges.  Feature is implemented but
+   not yet tested well.  NOT compiled in by default (specify
+   DEFS=-DIP4RANGES if you want to try this out).  To test what
+   it looks like, make ip4rangetest and execute it with netranges
+   in command line.  Famous ip4range_expand macro in rbldnsd.h...
+
+2003-04-03 0.81pre1
+
+ - revisited default A/TXT values handling when reading multiple files.
+   Now, ip4set and dnset will get A/TXT from the FIRST file, :A:TXT in
+   subsequent files will be ignored; ip4vset and dnvset will not assign
+   A/TXT from previous file if a given file has no :A:TXT line.
+
+ - corrected a typo in ip4cidr.c: reversed error return.  Does not
+   affect rbldnsd (happened only when ip4cidr was called with zero
+   last argument)
+
+ - added code to remove duplicates from zones.  Enabled by default,
+   may be disabled by adding DEFS=-DNOREMOVEDUPS when compiling (maybe
+   made this runtime-configurable? But not per-zone, please!..;).
+   Tested on concatenation of list.dsbl.org (192796 entries) and
+   unconfirmed.dsbl.org (209198 entries, list.dsbl.org is completely
+   included into unconfirmed): On PII-233 machine, using ip4vset,
+   load time is
+     0m5.910s when not removing dups, and
+     0m6.030s when removing dups
+   so the difference is almost unnotiseable.
+
+2003-04-02 0.80
+
+ - many changes.  Reworked zone handling code significantly.
+   See NEWS file for details.
+
+2003-04-01 0.74pre4
+
+ - reorganized zone loading to allow loading from several files
+   (split xx_load into xx_alloc, xx_load and xx_finish).
+
+ - new zonetype: generic, simplified bind-alike format.
+
+2003-03-31 0.74pre3
+
+ - not change but a note:
+   0.74pre1 change introduced a question.  What dns server should return
+   in case of e.g. TXT query for listed IP but no TXT value is available?
+   Two choices: return NXDOMAIN, or return no RRs at all.  Pre-0.74
+   rbldnsd returned NXDOMAIN, now it returns zero RRs in this case.
+   DJB's rbldns always adds fake, zero-length TXT in this case.  BIND
+   returns no records.  For now, I'll follow BIND's behaviour, i.e.
+   no records in successeful answer will be returned.
+
+ - use one mempool for dnvset again.
+
+ - reviewed logging, should be ok for buffer-overflow things.
+   Also, prevent log flooding in case input file contains many
+   errors (only first 5 is logged)
+
+ - some more source reorganizations and simplifications.
+
+2003-03-30 0.74pre2
+
+ - removed sstr completely, in flavour of mempool.  For *different*
+   data (like in wirehub.net's permblockIP.txt - many number of
+   *different* strings), sstr is very inefficient.  Switch to
+   (enhanced) mempool allows much faster loads of non-repeated
+   values, but uses much more memory on _randomized_ relays.osirusoft.com
+   zone (but it is still good on original relays.osirus zone, where
+   equal entries follows each other most of the time)
+
+ - modified mempool (and added strpool: "subclass" of mempool).  Much
+   faster, uses larger chunksize (64K vs 8K), and moves chunks with
+   only a few free space (less than average data size) to "full" chunk
+   list.
+
+ - little optimization in dn[v]set: add lower number of dn labels limit,
+   do not try to search DNs with less labels than minlab.
+
+ - stop searching zone list at first applicable zone.  For now.  Should
+   add sorting of zones (longer first), or else, if relays.osirusoft.com
+   specified before dialups.relays.osirusoft.com, first will catch all
+   queries to the second and second will never be considered.  Currently,
+   order is the same as was in command line.  Hmm... but user may know
+   better which zones will be accessed more frequently.  Probably should
+   document this instead.
+
+ - fixed another bug introduced in 0.74pre1 - uninitialized A RR for
+   dnvset zone files
+
+2003-03-29 0.74pre1
+
+ - added exclusions to ip4vset and dnvset zones - entry starting with
+   an exclamation sign `!' treated as _excluded_ from a set.  Useful to
+   include large networks but exclude some hosts.
+ 
+ - fixed potential memory leak when memory is unsufficient to extend an
+   array of entries (may this even happen?), where erealloc() routine is
+   used
+
+ - added pidfile (-p) writing option.  Thanks to Bruce Gingery @gtcs.com.
+
+ - reorganized source
+
+ - use common routine to read zone data files, and handle long lines
+   in zones more accurately
+
+ - allow first line of zonedata to start with a comment, so default
+   RR values may be specified in first _non-comment_ line.
+
+2003-02-12 0.73
+
+ - bugfix: ip4vset, when no A RR was given for a particular IP,
+   returned strange A RR instead of default one.  Noticied by
+   Karl A. Krueger @whoi.edu.
+ 
+ - bugfix: rbldnsd segfaulted when given A/TXT RR in a (incorrect)
+   form
+     :Some text
+   instead of
+     :1.2.3.4:Some text
+
+2003-01-09 0.72
+
+ - yet another bug in ip4vset: not all records where returned
+   for listings >= /24.  Thanks Furio Ercolessi for finding this.
+
+2003-01-08 0.71
+
+ - fixed a bug: in ip4vset, rbldnsd returned only one TXT record
+   when several entries are present
+
+ - fixed a bug with incorrect sorting of dnset record (resulted
+   in returning NXDOMAIN for almost every query to such zones)
+
+ - archive now unpacks to rbldnsd-NN.NN directory
+
+2002-12-05 0.7
+
+ - added an initial manual page
+
+2002-11-30 0.6
+
+ - speed up significantly (about 3 times) zone loading
+   by reorganizing sstr pool to be a hash table.  Restrict
+   length of text records to 254 bytes.
+ - implemented proper signal blocking during zone reloads
+ - cleaned up signal handling (use POSIX signal primitives)
+ - added some comments to the code
+ - do not use *log() routines with user-controllable data,
+   changed logging and added length checks for command-line
+   parameters - all to avoid possible buffer overruns after
+   user (not network!)-supplied data
+
+2002-11-28 0.5
+
+ - fixed a bug with incorrect formatting of IP address
+ - allow last digit of 127.0.0.x A result in lists to save space
+ - first release with a few changes (too much changes was before)

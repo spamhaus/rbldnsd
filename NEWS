@@ -1,0 +1,91 @@
+This file describes user-visible changes in rbldnsd.
+Never news are at top.
+
+0.80 (released 2003-04-02)
+
+ Incompatible changes:
+
+ - command-line zone syntax has changed.  Consult the manpage
+   for examples.  Basically, instead of
+
+      type:file-zone-name
+
+   rbldnsd now expects
+
+      zone-name:type:file-name
+
+   thus eliminating requiriment that zone name should be in
+   file named after zone.  Also, a LIST (comma-separated) of
+   filenames may be specified instead of a single file.  Note
+   that all 3 fields are required.  Resulting command line
+   may look somewhat ugly (and it may be long), but the effect
+   is much improved flexibility.
+
+ - logging has changed.  Data set may be reused for several
+   zones, so "zone xxx loaded" message is now replaced by
+   "dataset loaded", without any reference to zone(s) which
+   uses that data set.
+
+ - rbldnsd will abort it's startup if it will encounter any
+   error during initial zone loading (missing file, out of
+   memory etc).  After initialization, all errors are not
+   fatal, but partially loaded zones will NOT be serviced
+   (rbldnsd will return REFUSED in this case, as if it does
+   not service this zone at all).  If, on subsequent reload,
+   problematic zone will be back available, it will be included
+   in servicing list automatically.
+
+ Other changes:
+
+ - rbldnsd now recognizes and answers to NS and SOA records.
+   For this to work, one need to specify such records, and
+   for this, new data type was introduced, named `generic'
+   (simplified bind-style format, see manpage for more info).
+   If no `generic' type dataset is specified for a domain,
+   rbldnsd will refuse NS and SOA queries as before.
+
+ - due to changed command line format, it is now possible to
+   construct one zone from several data sets (by repeating
+   the same zone name with different data sets), and to
+   construct one data set from several files (of the same
+   type).  Either way and any combinations works (see NOTES
+   section in the manpage for examples).
+
+ - logging of queries is implemented.  Give -v option to turn
+   it on, but expect large amount of data to be logged on a
+   busy site (every query will be logged via syslog).  This
+   feature is mainly for debugging purposes, and later may
+   be replaced with more advanced logging to a file.
+
+0.74 (newer released)
+
+ Incompatible changes over 0.73:
+
+ - In ip4vset and most notable in dnvset types, it is now possible
+   to specify exclusion of an entry (useful to specify large block
+   and exclude a single entry from it).  This is done by prefixing
+   an entry with an exclamation sign (!).  So, exclamation sign at
+   start of line is now treated specially (it wasn't valid for
+   ip4vset, but it was treated as a part of domain name in dnvset).
+
+ - If no TXT record is available for an entry, rbldnsd will now not
+   return NXDOMAIN but will return zero-entry successeful answer.
+   This is how BIND works.  Something like "valid name but now data
+   of requested type".
+
+ Other changes in 0.74:
+
+ - reorganized storage for TXT records, to speed up loading of zones
+   with non-repeatable TXT values.  With this change, relays.osirusoft
+   zones now requires somewhat more memory (since no hard work for TXT
+   duplication elimination is now taking place), but overall case (where
+   TXTs aren't repeated frequently) is now much faster, in particular,
+   Wirehub's permblockIP.txt now loads in an acceptable time.  Rbldnsd
+   still recognizes and packs adjanced duplicates.  Worst case will be
+   with randomized osirusoft data (it has very many dups, but most are
+   adjanced to each other).
+
+ - reviewed logging, should be ok for buffer-overflow things.
+   Also, prevent log flooding in case input file contains many
+   errors (only first 5 is logged)
+       

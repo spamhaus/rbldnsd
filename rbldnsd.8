@@ -1,0 +1,356 @@
+.\" $Id$
+.\" rbldnsd manpage
+.\"
+.TH rbldnsd 9 "Dec 2002"
+.SH NAME
+rbldnsd \- DNS daemon sutable for running DNS-based blocklists
+.SH SYNOPSYS
+.B rbldnsd
+[options]
+.IR zonespec ...
+
+.SH DESCRIPTION
+.PP
+.B rbldnsd
+is a small DNS-protocol daemon which is designed to handle
+queries to DNS-based IP-listing or NAME-listing services.
+Such services are a simple way to share/publish a list of
+IP addresses or (domain) names which are "listed" for for
+some reason, for example in order to be able to refuse a
+service to a client which is "listed" in some blocklist.
+
+.PP
+.B rbldnsd
+is not a general\-purpose nameserver.  It will answer to
+A and TXT queries, and has limited ability to answer to
+NS and SOA queries.
+
+.PP
+.B rbldnsd
+will answer queries to DNS zones specified on the command
+line as a set of zone specifications,
+.IR zonezpec s.
+Each zone specification consists of zone basename, file data
+type and comma-separated list of files in form
+.IR zone : type : file , file ,...
+.I Type
+specifies format of subsequent files to load as content of
+a given
+.IR zone .
+
+.PP
+Several zones may be specified in command line, so that
+.B rbldnsd
+will answer to queries for any of them.  Also, a single
+zone may be specified several times with different types
+and files, so it is possible to form a zone from a combination
+of several different zone files.
+
+.PP
+There are several zone file formats available, each is sutable
+and optimized (in terms of memory, speed and easy use of files)
+for a specific task.  Available zone formats may be grouped into
+3 categories:
+.IP
+lists of IP addresses.  When query is done to a zone with such
+data, query is interpreted as an IP address in a reverse form
+(similar to in-addr.arpa zone).  If an address in question is
+found in zone data,
+.B rbldnsd
+will return A and TXT records specified in data for that IP.
+This is a classical IP\-based blocklist.
+.IP
+lists of domain names.  Similar to list of IP addresses, but
+with generic domain names instead of IPs (wildcards allowed).
+This type of data may be used to form a blocklist of e.g.
+sender domain names.
+.IP
+generic list of various types of records, as an auxilary data
+to form complete nameserver.  This format is similar to bind-style
+datafiles, but very simplified.  One may specify A, TXT, NS and SOA
+records here.
+
+.SH OPTIONS
+
+.PP
+The following options may be specified:
+
+.IP "\fB\-u\fR \fIuser\fR[:\fIgroup\fR]"
+\fBrbldnsd\fR will change it's userid to the specified \fIuser\fR, which
+defaults to \fBrbldnsd\fR, and \fIgroup\fR, which by default is the
+primary group of a \fIuser\fR. \fBrbldnsd\fR will refuse to run as root
+user, since this is insecure.
+
+.IP "\fB\-r\fR \fIrootdir\fR"
+\fBrbldnsd\fR will chroot to \fIrootdir\fR if specified.  Zone files
+should be available inside \fIrootdir\fR.
+
+.IP "\fB\-w\fR \fIworkdir\fR"
+\fBrbldnsd\fR will change it's working directory to \fIworkdir\fR
+(after chrooting to \fIrootdir\fR if \fB\-r\fR option is also specified).
+Zone files will be read from this directory.
+
+.IP "\fB\-b\fR [\fIaddress\fR][:\fIport\fR]"
+\fBrbldnsd\fR will bind to specified \fIaddress\fR which defaults to
+a wildcard address, and \fIport\fR which defaults to 53 (standard DNS
+port).
+
+.IP "\fB\-t\fR \fIttl\fR"
+Set answer time-to-live value to be \fIttl\fR secounds.  All answers will
+contain \fIttl\fR as a value of time-to-live field.  Default is 2048.
+
+.IP "\fB\-c\fR \fIcheck\fR"
+Set interval between checking for zone file changes to be \fIcheck\fR
+secounds, default is 60 (one minute).  \fBrbldnsd\fR will check zone
+file's last modification time every so often, and if it detects a change,
+zone will be automatically reloaded.  Setting this value to 0 disables
+automatic zone change detection.  This procedure may also be triggered
+by sending SIGHUP signal to \fBrbldnsd\fR.
+
+.IP "\fB\-p\fR \fIpidfile\fR"
+Write rbldnsd's pid to the specified \fIpidfile\fR, so it will be easily
+findable.
+
+.IP \fB\-n\fR
+Do not become a daemon.  Normally, \fBrbldnsd\fR will fork and go to the
+background after successeful initialization.  This option disables this
+behaviour.
+
+.SH "ZONE FILE TYPES"
+
+.PP
+Zone files are text files which are interpreted depending on
+type specified in command line.  Empty lines and lines starting
+with hash character (#) are ignored.  A list of files is interpreted
+as if all files there in one single file.  The following zone file
+types are available:
+
+.IP \fBip4set\fR
+A set of IP addresses or CIDR address ranges, with common A and TXT
+values.  IP addresses are specified one per line, by an IP address
+prefix (1, 2, 3 or 4 octets) optionally followed by a slash and
+number of bits in network part.  127.0.0 and 127.0.0.0/24 and 127/24
+are all the same.  Every IP address that fits within any of specified
+ranges is "listed", and
+.B rbldnsd
+will respond to reverse queries against it within specified zone with
+positive results.
+.IP
+First non-comment line of a file, if started with a colon (:),
+specifies A value and TXT template to return (see below).  If none
+specified,
+.B rbldnsd
+will return 127.0.0.2 for matching A queries and no record for
+matching TXT queries.  If TXT record template is specified and
+contains occurences of of dollar sign ($), every such occurence
+is replaced with an IP address in question, so singe TXT template
+may be used to e.g. refer to a webpage for an additional information
+for a specific IP address.
+.IP
+Any additional text after IP address or range is
+ignored by
+.BR rbldnsd .
+.IP
+This is the most compact effective type: queries are very
+fast and memory requiriments are less than of other types.
+
+.IP \fBip4vset\fR
+A set of IP addresses or CIDR ranges, similar to \fBi4set\fR, with
+ability to specify individual A values and TXT templates for every
+entry (in additional to defaults).  Every line contains an IP address
+or CIDR range, optionally followed by A value and TXT template
+in the same form as default values specified in first line that
+starts with colon sign (see below).
+.IP
+If an entry starts with an exclamation sign (!), this is
+.I exclusion
+entry, i.e. corresponding address range is excluded from
+being listed.  This may be used to specify large range
+except some individual addresses, in a compact form.
+.IP
+This zone type may be used in place of \fBip4set\fR, but memory
+requiriments are at least 3 times more than of \fBip4set\fR.
+
+.IP \fBdnset\fR
+Set of domain names.  Similar to \fBip4set\fR, but instead of
+IP addresses, data consists of domain names (\fInot\fR in reverse
+form).  One domain name per line, possible starting with wildcard
+(either with star-dot (*.) or just a dot).  Again, if first
+non-comment line starts with colon, it is interpreted as
+default A value and TXT template.  In TXT template, every
+occurence of dollar sign is replaced with domain name in
+question.  For example, given query a.b.bl.example.com for
+zone bl.example.com and TXT template http://example.com/$,
+resulting TXT will be http://example.com/a.b if domain name
+a.b is listed.
+.IP
+This zone type may be used instead of \fBip4set\fR,
+provided all CIDR ranges are expanded and reversed (but in
+this case, TXT template will be expanded differently).
+Any text in line after domain name is ignored.
+
+.IP \fBdnvset\fR
+Set of domain names similar to \fBdnset\fR, with an ability to
+specify A and TXT values for every record line in \fBip4vset\fR,
+and to specify exceptions by starting domain name with an
+exclamation sign.  Requires more memory than \fBdnset\fR.
+
+.IP \fBgeneric\fR
+Generic type, simplified bind-style format.  Every record
+should be on one line (line continuations are not supported),
+and should be specified completely (i.e. all domain names in
+values should be fully-qualified, entry name may not be omitted).
+No wildcards are accepted.  Only A, TXT, NS and SOA records
+are recognized.  Examples:
+.IP
+.nf
+ # bl.ex.com
+ # specify some values for current zone
+ @ NS ns1.ex.com
+ @ NS ns2.ex.com
+ # SOA: original nameserver, contact email,
+ #  serial, refresh, retry, expire, negative ttl
+ @ SOA ns1.ex.com adm.ex.com 1 600 300 86400 300
+ www A 127.0.0.1
+ about TXT "ex.com combined blocklist"
+ about.spammers TXT "ex.com spammers list"
+ spammers NS ns1.ex.com
+ spammers NS ns2.ex.com
+ about.dialups TXT ex.com dialups list
+ dialups NS ns1.ex.com
+ dialups NS ns2.ex.com
+.nf
+
+.SS "Resulting A values and TXT templates"
+.PP
+In all zone file types except generic, record values are
+specified as following:
+.nf
+  :127.0.0.2:Blacklisted: http://example.com/bl?$
+.fi
+If first non-comment line starts with a colon, it specifies
+default A and TXT for all entries in this file (which does
+not have specific values for zone formats that allows to
+specify individual values).  Similar format is used to
+specify values for individual records, e.g. for \fBip4vset\fR
+type:
+.nf
+  127.0.0.2 :127.0.0.2:Blacklisted: http://example.com/bl?$
+.fi
+or, without specific A value:
+.nf
+  127.0.0.2 Blacklisted: http://example.com/bl?$
+.fi
+
+.PP
+Two parts of a line, delimited by second colon, specifies
+A and TXT record values.  Both are optional.  By default
+(either if no default line specified, or no IP address
+within that line),
+.B rbldnsd
+will return 127.0.0.2 as A record.  127.0.0 prefix may be
+omitted, so the above example may be simplified to:
+.nf
+  :2:Blacklisted: http://example.com/bl?$
+.fi
+There is no default TXT value, so
+.B rbldnsd
+will not return anything for TXT queries it TXT isn't
+specified.
+
+.PP
+In TXT template, any occurence of dollar sign is replaced
+with original query string (or IP address) when formatting
+resulting TXT record.
+
+.SH NOTES
+
+.PP
+Several zones may be served by
+.BR rbldnsd ,
+every zone may consist of several filesets.  There are numerous
+ways to combine several data files into several zones.  For
+example, suppose you have a list of dialup ranges in file
+named `dialups', and a list of spammer's ip addresses in file
+named `spammers', and want to serve 3 zones with
+.BR rbldnsd :
+dialups.bl.ex.com, spam.bl.ex.com and bl.ex.com which is a
+combination of the two.  There are two ways to do this:
+.PP
+.nf
+ rbldnsd \fIoptions...\fR \\
+   dialups.bl.ex.com:ip4vset:dialups \\
+   spam.bl.ex.com:ip4vset:spammers \\
+   bl.ex.com:ip4vset:dialups,spammers
+.fi
+.PP
+or:
+.PP
+.nf
+ rbldnsd \fIoptions...\fR \\
+   dialups.bl.ex.com:ip4vset:dialups \\
+   spam.bl.ex.com:ip4vset:spammers \\
+   bl.ex.com:ip4vset:dialups \\
+   bl.ex.com:ip4vset:spammers
+.fi
+.PP
+In the first form, there will be 3 independant data
+sets, and every record will be stored 2 times in
+memory, but only one lookup will be needed to resolve
+queries for combined bl.ex.com.  In second form,
+there will be only 2 data sets, every record will be
+stored only once (both datasets will be reused), but
+2 lookups will be needed to resolve queries against
+combined bl.ex.com zone.
+
+.PP
+When combining several data files with \fBip4set\fR
+or \fBdnset\fR file types, A and TXT values will be
+the same for \fIall\fR records from \fIall\fR data
+files, and that will be from \fIfirst\fR data file
+(so specifying defaults in all but first file has
+no effect).  This may be considered a bug, but that's
+a tradeoff between an optimal storage and flexibility.
+If you really need to have different A and TXT values
+and data from several files, either use \fBip4vset\fR
+(or \fBdnvset\fR) types or use more than one data
+set for one zone (in both cases result will be the
+same: default values will be assigned from the same
+file where this record was initially located, and if
+there was no defaults in a file and no A/TXT value
+for an entry, it will not have one, regardless of
+how many files has been read before this one).
+
+.PP
+.B generic
+zone type is very rudimentary.  It's purpose is to
+complement all the other type to form complete nameserver
+that may answer to NS and SOA queries.  Note that
+.B rbldnsd
+will not compress any DNs returned, so e.g. a list
+of nameservers may easily overflow DNS packet.
+
+.PP
+.B rbldnsd
+will query \fIall\fR matching zones (i.e. zones
+where base domain is the same as the start of DN
+in query).  One instance of \fBgeneric\fR zonetype
+may be sufficient to provide NS records for several
+zones, like in examples above (see \fBgeneric\fR
+zone file type example), or one generic fileset may
+be reused for several zones.
+
+.SH VERSION
+
+This manpage corresponds to
+.B rbldnsd
+version
+.BR 0.8 .
+
+.SH AUTHOR
+
+The \fBrbldnsd\fR daemon written by Michael Tokarev <mjt@corpit.ru>,
+based on ideas by Dan Bernstein and his djbdns package.
+
+.SH LICENCE
+GPL.
