@@ -89,7 +89,7 @@ static int satoi(const char *s) {
 }
 
 #ifndef NOMEMINFO
-static void logmemusage() {
+static void logmemusage(void) {
   if (logmemtms) {
     struct mallinfo mi = mallinfo();
     dslog(LOG_INFO, 0,
@@ -180,8 +180,8 @@ static volatile int signalled;
 static int init(int argc, char **argv, struct zone **zonep) {
   int c;
   char *p;
-  char *user = NULL, *bindaddr = NULL, *port = "domain";
-  char *rootdir = NULL, *workdir = NULL, *pidfile = NULL;
+  const char *user = NULL, *bindaddr = NULL, *port = "domain";
+  const char *rootdir = NULL, *workdir = NULL, *pidfile = NULL;
   FILE *fpid = NULL;
   uid_t uid = 0;
   gid_t gid = 0;
@@ -443,7 +443,7 @@ static void sighandler(int sig) {
 
 static sigset_t ssblock; /* signals to block during zone reload */
 
-static void setup_signals() {
+static void setup_signals(void) {
   struct sigaction sa;
   memset(&sa, 0, sizeof(sa));
   sa.sa_handler = sighandler;
@@ -655,7 +655,7 @@ int ip4parse_range(const char *s, ip4addr_t *a1p, ip4addr_t *a2p, char **np) {
   return 1;
 }
 
-void oom() {
+void oom(void) {
   if (initialized)
     dslog(LOG_ERR, 0, "out of memory loading dataset");
   else

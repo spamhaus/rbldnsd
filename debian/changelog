@@ -9,12 +9,16 @@ rbldnsd (0.97c) unstable; urgency=low
     to init().  Fixes a memory leak in combined dataset (caches
     was allocated but never used/freed).
   * properly (but still ugly) fix stats counting
+  * some "ugliness": use more const's and explicitly declare routines
+    wich does not accept any arguments as such to be foo(void)
+    (Marco D'Itri @both.it)
 
- -- Michael Tokarev <mjt@corpit.ru>  Thu,  7 Aug 2003 21:10:13 +0400
+ -- Michael Tokarev <mjt@corpit.ru>  Thu,  7 Aug 2003 21:14:38 +0400
 
 rbldnsd (0.97b) unstable; urgency=low
 
-  * fixed security bug in per-zone statistic counting
+  * fixed security bug in per-zone statistic counting.
+    Thanks Marco D'Itri @both.it for pointing this out to me.
 
  -- Michael Tokarev <mjt@corpit.ru>  Wed,  6 Aug 2003 03:20:36 +0400
 

@@ -291,7 +291,7 @@ extern const char def_rr[5];
 unsigned ip4parse_cidr(const char *s, ip4addr_t *ap, char **np);
 int ip4parse_range(const char *s, ip4addr_t *a1p, ip4addr_t *a2p, char **np);
 
-void oom();
+void oom(void);
 char *emalloc(unsigned size);
 char *ezalloc(unsigned size); /* zero-fill */
 char *erealloc(void *ptr, unsigned size);
