@@ -3,6 +3,16 @@ $Id$
 This file describes user-visible changes in rbldnsd.
 Never news are at top.
 
+0.990
+
+ - when the query matches several RRs with different TTLs
+   (e.g. from different datasets), rbldnsd now sets smallest
+   TTL in ALL RRs of this type.
+
+ - when several RRs of the same type exists in generic dataset,
+   we now trying to return them in "random" order.  The
+   "randomization" is very dumb for now.
+
 0.99 (16 Sep 2003)
 
  - autoconf-style configuration.  Run ./configure before make.
