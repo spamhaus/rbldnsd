@@ -2,6 +2,15 @@ $Id$
 
 TODO list for rbldnsd, in no particular order.
 
+ * AAAA, CNAME, PTR and other types of records, and NS and SOA
+   revisited.  It seems rbldnsd should return some definitive
+   answer to ALL query tyes (maybe except of AXFR or the like),
+   and should "propagate" NS/SOA from zone.example.com to all
+   2.0.0.127.zone.example.com.  At least BIND does that.  Hmm.
+   Either way, it shouldn't return NXDOMAIN for zone.example.com
+   NS or SOA query even if there's no generic records for that.
+   SOA should be returned with every answer it seems.
+
  * maybe multi-children environment.  Seems to be unnecessary.
 
  * review all names to be consistent

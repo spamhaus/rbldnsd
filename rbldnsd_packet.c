@@ -108,6 +108,9 @@ int replypacket(struct dnspacket *p, unsigned qlen, const struct zone *zone) {
   case DNS_T_TXT: qtyp = NSQUERY_TXT; break;
   case DNS_T_NS:  qtyp = NSQUERY_NS; break;
   case DNS_T_SOA: qtyp = NSQUERY_SOA; break;
+  /* XXX this is an ugly hack, for now.
+   * The real question is what to do with other query types,
+   * esp. NS and SOA. */
   case DNS_T_AAAA:  qtyp = NSQUERY_OTHER; break;
   case DNS_T_PTR:   qtyp = NSQUERY_OTHER; break;
   case DNS_T_CNAME: qtyp = NSQUERY_OTHER; break;
@@ -131,7 +134,9 @@ int replypacket(struct dnspacket *p, unsigned qlen, const struct zone *zone) {
 
     *x = 0;	/* terminate dn to end at zone base dn */
     for(zdl = zone->dlist; zdl; zdl = zdl->next) {
-      //if (zdl->set->qfilter & qtyp) {
+      /* XXX the same hack as above, so we'll return positive
+       * answer with zero records in answer section
+      if (zdl->set->qfilter & qtyp) { */
         nmatch = 1;	/* at least one zone with this data types */
         if (zdl->set->queryfn(zdl->set->data, p, qdn, qlab - zone->dnlab, qtyp))
           nfound = 1;	/* positive answer */

@@ -5,6 +5,10 @@ Never news are at top.
 
 0.84 (not yet released):
 
+ - return positive result with zero records to AAAA, PTR and CNAME
+   queries.  Hack for now, but this way rbldnsd may finally be used
+   together with sendmail and bind...
+
  - rewrote query parsing routine to be much more accurate and a bit faster.
 
 0.83 (released 2003-04-19)
