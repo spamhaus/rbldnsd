@@ -218,53 +218,54 @@ static int aexists(const struct dnspacket *p, unsigned typ,
   return 0;
 }
 
-#define fit(p, bytes) ((p)->c + (bytes) <= (p)->p + sizeof(DNS_MAXPACKET))
+#define fit(p, c, bytes) ((c) + (bytes) <= (p)->p + DNS_MAXPACKET)
 
 /* adds 8 bytes */
-#define addrr_rrstart(p,type,ttl)			\
-    *p->c++ = type>>8; *p->c++ = type;			\
-    *p->c++ = DNS_C_IN>>8; *p->c++ = DNS_C_IN;		\
-    memcpy(p->c, ttl, 4); p->c += 4
+#define addrr_rrstart(c,type,ttl)		\
+    *(c)++ = type>>8; *(c)++ = type;		\
+    *(c)++ = DNS_C_IN>>8; *(c)++ = DNS_C_IN;	\
+    memcpy((c), ttl, 4); (c) += 4
 
 /* adds 10 bytes */
-#define addrr_start(p,type,ttl)					\
-    *p->c++ = 192; *p->c++ = 12; /* jump after header */	\
-    addrr_rrstart(p,type,ttl)
+#define addrr_start(c,type,ttl)				\
+    *(c)++ = 192; *(c)++ = 12; /* jump after header */	\
+    addrr_rrstart((c),type,ttl)
 
-static int
-add_dn(struct dnspacket *p, const unsigned char *dn, unsigned dnlen) {
+static unsigned char *
+add_dn(struct dnspacket *p, register unsigned char *c,
+       const unsigned char *dn, unsigned dnlen) {
   struct dnsdnptr *ptr;
   while(*dn) {
     for(ptr = p->compr.ptr; ptr < p->compr.cptr; ++ptr) {
       if (ptr->dnlen != dnlen || memcmp(ptr->dnp, dn, dnlen) != 0)
         continue;
-      if (!fit(p, 2)) return 0;
+      if (!fit(p, c, 2)) return NULL;
       dnlen = 0xc000 + ptr->qpos;
-      *p->c++ = dnlen >> 8; *p->c++ = dnlen;
-      return 1;
+      *c++ = dnlen >> 8; *c++ = dnlen;
+      return c;
     }
-    if (!fit(p, *dn + 1))
-      return 0;
+    if (!fit(p, c, *dn + 1))
+      return NULL;
     if (dnlen < 128 &&
         p->compr.cdnp + dnlen <= p->compr.dnbuf + sizeof(p->compr.dnbuf) &&
         ptr < p->compr.ptr + DNS_MAXDN/2) {
       ptr->dnp = p->compr.cdnp; p->compr.cdnp += dnlen;
       ptr->dnlen = dnlen;
-      ptr->qpos = p->c - p->p;
+      ptr->qpos = c - p->p;
       ++p->compr.cptr;
     }
-    memcpy(p->c, dn, *dn + 1);
-    p->c += *dn + 1;
+    memcpy(c, dn, *dn + 1);
+    c += *dn + 1;
     dnlen -= *dn + 1;
     dn += *dn + 1;
   }
-  if (!fit(p, 1)) return 0;
-  *p->c++ = '\0';
-  return 1;
+  if (!fit(p, c, 1)) return NULL;
+  *c++ = '\0';
+  return c;
 }
 
 static int add_soa(struct dnspacket *p, const struct zone *zone, int auth) {
-  unsigned char *c;
+  register unsigned char *c;
   unsigned char *rstart;
   unsigned dsz;
   struct dnsdnptr *cdnptr;
@@ -273,45 +274,45 @@ static int add_soa(struct dnspacket *p, const struct zone *zone, int auth) {
       setnonauth(p->p); /* non-auth answer as we can't fit the record */
     return 0;
   }
-  c = p->c; /* save curpos in case RR will not fit */
-  cdnptr = p->compr.cptr; /* ditto for compression pointer */
-  if (add_dn(p, zone->z_dn, zone->z_dnlen) && fit(p, 8 + 2)) {
+  c = p->c;
+  cdnptr = p->compr.cptr; /* save current compression pointer */
+  if ((c = add_dn(p, c, zone->z_dn, zone->z_dnlen)) && fit(p, c, 8 + 2)) {
     /* 8 bytes */
-    addrr_rrstart(p, DNS_T_SOA,
+    addrr_rrstart(c, DNS_T_SOA,
             (auth ? zone->z_zsoa.zsoa_n + 16 : (unsigned char*)&defttl_nbo));
-    rstart = p->c;
-    p->c += 2;
-    if (add_dn(p, zone->z_zsoa.zsoa_odn + 1, zone->z_zsoa.zsoa_odn[0]) &&
-        add_dn(p, zone->z_zsoa.zsoa_pdn + 1, zone->z_zsoa.zsoa_pdn[0]) &&
-        fit(p, 20)) {
-      memcpy(p->c, &zone->z_zsoa.zsoa_n, 20);
-      p->c += 20;
-      dsz = (p->c - rstart) - 2;
+    rstart = c;
+    c += 2;
+    if ((c = add_dn(p, c, zone->z_zsoa.zsoa_odn+1, zone->z_zsoa.zsoa_odn[0])) &&
+        (c = add_dn(p, c, zone->z_zsoa.zsoa_pdn+1, zone->z_zsoa.zsoa_pdn[0])) &&
+        fit(p, c, 20)) {
+      memcpy(c, &zone->z_zsoa.zsoa_n, 20);
+      c += 20;
+      dsz = (c - rstart) - 2;
       rstart[0] = dsz >> 8; rstart[1] = dsz;
       p->p[auth ? 9 : 7]++;
+      p->c = c;
       return 1;
     }
   }
-  p->c = c; /* restore */
-  p->compr.cptr = cdnptr;
+  p->compr.cptr = cdnptr; /* probably unnecessary: SOA is last RR */
   setnonauth(p->p); /* non-auth answer as we can't fit the record */
   return 0;
 }
 
 int addrec_ns(struct dnspacket *p, 
               const unsigned char *nsdn, unsigned nsdnlen) {
-  unsigned char *c = p->c;
-  if (fit(p, 10 + 2)) {
-    addrr_start(p, DNS_T_NS, &defttl_nbo); /* 10 bytes */
-    p->c += 2;
-    if (add_dn(p, nsdn, nsdnlen)) {
-      nsdnlen = (p->c - c) - 12;
-      c[10] = nsdnlen>>8; c[11] = nsdnlen;
+  register unsigned char *c = p->c;
+  if (fit(p, c, 10 + 2)) {
+    addrr_start(c, DNS_T_NS, &defttl_nbo); /* 10 bytes */
+    c += 2;
+    if ((c = add_dn(p, c, nsdn, nsdnlen))) {
+      nsdnlen = (c - p->c) - 12;
+      p->c[10] = nsdnlen>>8; p->c[11] = nsdnlen;
+      p->c = c;
       p->p[7] += 1;
       return 1;
     }
   }
-  p->c = c;
   setnonauth(p->p); /* non-auth answer as we can't fit the record */
   return 0;
 }
@@ -319,21 +320,19 @@ int addrec_ns(struct dnspacket *p,
 int addrec_mx(struct dnspacket *p, 
               const unsigned char prio[2],
               const unsigned char *mxdn, unsigned mxdnlen) {
-  unsigned char *c = p->c;
-  unsigned char *rstart;
-  if (fit(p, 10 + 2 + 2)) {
-    addrr_start(p, DNS_T_MX, &defttl_nbo); /* 10 bytes */
-    rstart = p->c;
-    p->c += 2;
-    *p->c++ = prio[0]; *p->c++ = prio[1];
-    if (add_dn(p, mxdn, mxdnlen) && fit(p, 2)) {
-      mxdnlen = (p->c - rstart) - 2;
-      rstart[0] = mxdnlen>>8; rstart[1] = mxdnlen;
+  register unsigned char *c = p->c;
+  if (fit(p, c, 10 + 2 + 2)) {
+    addrr_start(c, DNS_T_MX, &defttl_nbo); /* 10 bytes */
+    c += 2;
+    *c++ = prio[0]; *c++ = prio[1];
+    if ((c = add_dn(p, c, mxdn, mxdnlen)) && fit(p, c, 2)) {
+      mxdnlen = (c - p->c) - 12;
+      p->c[10] = mxdnlen>>8; p->c[11] = mxdnlen;
+      p->c = c;
       p->p[7] += 1;
       return 1;
     }
   }
-  p->c = c;
   setnonauth(p->p); /* non-auth answer as we can't fit the record */
   return 0;
 }
@@ -343,15 +342,16 @@ int addrec_mx(struct dnspacket *p,
  * We just ignore any data that exceeds packet size */
 int addrec_any(struct dnspacket *p, unsigned dtp,
                const void *data, unsigned dsz) {
+  register unsigned char *c = p->c;
   if (aexists(p, dtp, data, dsz)) return 1;
-  if (!fit(p, 12 + dsz)) {
+  if (!fit(p, c, 12 + dsz)) {
     setnonauth(p->p); /* non-auth answer as we can't fit the record */
     return 0;
   }
-  addrr_start(p, dtp, &defttl_nbo); /* 10 bytes */
-  *p->c++ = dsz>>8; *p->c++ = dsz; /* dsize */
-  memcpy(p->c, data, dsz);
-  p->c += dsz;
+  addrr_start(c, dtp, &defttl_nbo); /* 10 bytes */
+  *c++ = dsz>>8; *c++ = dsz; /* dsize */
+  memcpy(c, data, dsz);
+  p->c = c + dsz;
   p->p[7] += 1; /* increment numanswers */
   return 1;
 }
@@ -366,13 +366,8 @@ int
 addrec_txt(struct dnspacket *p, const char *txt, const char *subst) {
   unsigned sl;
   char sb[256];
-  char *lp, *s, *const e = sb + 254;
+  char *lp = sb + 1, *s, *const e = sb + 254;
   if (!txt) return 1;
-  if (!fit(p, 14)) {
-    setnonauth(p->p);
-    return 0;
-  }
-  lp = sb + 1;
   if (!subst) subst = "$";
   while(lp < e) {
     if ((s = strchr(txt, '$')) == NULL)
@@ -384,11 +379,8 @@ addrec_txt(struct dnspacket *p, const char *txt, const char *subst) {
     lp += sl;
     if (!*s) break;
     sl = strlen(subst);
-    if (lp + sl > e) { /* does not fit */
-      /* sl = e - lp; */
-      setnonauth(p->p);
-      return 0;
-    }
+    if (lp + sl > e) /* silently truncate TXT RR >255 bytes */
+      sl = e - lp;
     memcpy(lp, subst, sl);
     lp += sl;
     txt = s + 1;
