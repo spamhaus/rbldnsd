@@ -10,7 +10,7 @@ LDFLAGS = $(CFLAGS)
 AR = ar
 ARFLAGS = rv
 RANLIB = :
-SHELL = /bin/sh -e
+SHELL = /bin/sh
 AWK = awk
 
 # Disable statistic counters
@@ -23,7 +23,9 @@ AWK = awk
 #DEFS = -DNOSTDINT_H
 # If you don't want/have IPv6 support (transport only)
 #DEFS = -DNOIPv6
-# For FreeBSD 4.4 use DEFS="-DNOMEMINFO -DNOSTDINT_H"
+#
+# For FreeBSD 4, use DEFS="-DNOMEMINFO -DNOSTDINT_H"
+# For Solaris, use DEFS="-DNOMEMINFO -DNOSTDINT_H -DNOIPv6"
 
 SOCKET_LIBS = `[ -f /usr/lib/libsocket.so ] && echo -lsocket -lnsl || :`
 
@@ -96,7 +98,8 @@ distclean: clean
 spec:
 	@sed "s/^Version:.*/Version: $(VERSION)/" rbldnsd.spec \
 	  > rbldnsd.spec.tmp
-	@if cmp rbldnsd.spec rbldnsd.spec.tmp ; then \
+	@set -e; \
+	if cmp rbldnsd.spec rbldnsd.spec.tmp ; then \
 	  rm -f rbldnsd.spec.tmp; \
 	else \
 	  echo "Updating rbldnsd.spec ($(VERSION))" ; \
@@ -108,7 +111,8 @@ depend dep deps: $(SRCS) $(GSRC)
 	@echo \ $(SRCS) $(GSRC)
 	@sed '/^# depend/q' Makefile > Makefile.tmp
 	@$(CC) $(CFLAGS) -MM $(SRCS) $(GSRC) >> Makefile.tmp
-	@if cmp Makefile.tmp Makefile ; then \
+	@set -e; \
+	if cmp Makefile.tmp Makefile ; then \
 	  echo Makefile unchanged; \
 	  rm -f Makefile.tmp; \
 	else \
