@@ -3,6 +3,15 @@ $Id$
 This file describes user-visible changes in rbldnsd.
 Never news are at top.
 
+0.82 (released 2003-04-05)
+
+ - recognize another variation of IP address range, for easy use:
+
+     127.0.0.1-2 is now treated as 127.0.0.1-127.0.0.2
+     127.0-200   is now treated as 127.0.0.0-127.0.200.255
+
+ - debianized
+
 0.81 (released 2003-04-03)
 
  - rbldnsd now recognizes IP address ranges in additional to

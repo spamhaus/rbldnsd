@@ -1,6 +1,6 @@
 $Id$
 
-2003-04-03 0.81pre3
+2003-04-03 0.81
 
  - IP4RANGES is now the default (but old behaviour may be selected
    by defining -DNOIP4RANGES).  Updated manpage etc.
