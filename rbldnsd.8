@@ -115,19 +115,18 @@ should be available inside \fIrootdir\fR.
 (after chrooting to \fIrootdir\fR if \fB\-r\fR option is also specified).
 May be used to shorten filename paths.
 
-.IP "\fB\-b\fR \fIaddress\fR[:\fIport\fR]"
+.IP "\fB\-b\fR \fIaddress\fR/\fIport\fR"
 This option is \fIrequired\fR.  \fBrbldnsd\fR will bind to specified
 \fIaddress\fR and \fIport\fR (port defaults to port 53, domain).
-Either numeric IP address or a hostname may be specified; IP address
-may be enclosed in square brackets [] (mandatory for IPv6 addresses
-since they contain colons).  It is possible to specify several addresses
-to listen on this way, by repeating \fB\-b\fR option.  Additionally,
-if there are several addresses listed for a hostname, \fBrbldnsd\fR
-will listen on all of them.
+Either numeric IP address or a hostname may be specified, and either
+port number or service name is accepted.
+It is possible to specify several addresses to listen on this way, by
+repeating \fB\-b\fR option.  Additionally, if there are several addresses
+listed for a hostname, \fBrbldnsd\fR will listen on all of them.
 Note that \fBrbldnsd\fR will work slightly faster if only one listening
 address is specified.
-Do not forget to protect construct like \fI[ip.add.re.ss]:port\fR
-from shell's globbing using quotes.
+Note the delimiter between host and port is a slash (/), not a colon,
+to be able to correctly handle IPv6 addresses.
 
 .IP \fB\-4\fR
 Use IPv4 listening socket/transport, do not attempt to use IPv6
@@ -143,7 +142,9 @@ Set answer time\-to\-live value to be \fIttl\fR seconds.  All answers will
 contain \fIttl\fR as a value of time\-to\-live field.  \fIttl\fR may
 be followed by a single character specifying the time unit: s for seconds,
 m for minutes, h for hours, d for days and w for weeks.  If no unit
-modifier given, seconds assumed.  Default \fIttl\fR is 35m.
+modifier given, seconds (s) assumed.  Default \fIttl\fR is 35m.
+If TTL is specified inside the data (see below), it takes precedence
+over this option.
 
 .IP "\fB\-c\fR \fIcheck\fR"
 Set interval between checking for zone file changes to be \fIcheck\fR,
@@ -165,11 +166,11 @@ disables checking whether the CIDR prefix fits within the network mask.
 .IP \fB\-q\fR
 Quick and quiet start.  Normally,
 .B rbldnsd
-does zone load in foreground, printing progress and statistic info,
-and aborts in case of any errors.  With this flag, nothing will
-be printed and first zone load will be done in background (unless
-.B \-n
-option is also given), and zone load errors will be non\-fatal.
+does socket initialization and zone load in foreground, writing progress
+and statistic to standard output, and aborts in case of any errors.
+With this flag, nothing will be printed and first zone load will be done
+in background (unless \fB\-n\fR option is also given), and zone load
+errors will be non\-fatal.
 
 .IP "\fB\-p\fR \fIpidfile\fR"
 Write rbldnsd's pid to the specified \fIpidfile\fR, so it will be easily

@@ -155,7 +155,7 @@ static void NORETURN usage(int exitcode) {
 " -u user[:group] - run as this user:group (rbldns)\n"
 " -r rootdir - chroot to this directory\n"
 " -w workdir - working directory with zone files\n"
-" -b address[:port] - bind to (listen on) this address (required)\n"
+" -b address[/port] - bind to (listen on) this address (required)\n"
 #ifndef NOIPv6
 " -4 - use IPv4 socket type\n"
 " -6 - use IPv6 socket type\n"
@@ -199,9 +199,9 @@ static void newsocket(struct sockaddr_in *sin) {
   if (fd < 0)
     error(errno, "unable to create socket");
   if (bind(fd, (struct sockaddr *)sin, sizeof(*sin)) < 0)
-    error(errno, "unable to bind to [%s]:%d", host, ntohs(sin->sin_port));
+    error(errno, "unable to bind to %s/%d", host, ntohs(sin->sin_port));
 
-  dslog(LOG_INFO, 0, "listening on [%s]:%d", host, ntohs(sin->sin_port));
+  dslog(LOG_INFO, 0, "listening on %s/%d", host, ntohs(sin->sin_port));
   sock[numsock++] = fd;
 }
 #else
@@ -220,9 +220,9 @@ static int newsocket(struct addrinfo *ai) {
               host, sizeof(host), serv, sizeof(serv),
               NI_NUMERICHOST|NI_WITHSCOPEID|NI_NUMERICSERV);
   if (bind(fd, ai->ai_addr, ai->ai_addrlen) < 0)
-        error(errno, "unable to bind to [%s]:%s", host, serv);
+        error(errno, "unable to bind to %s/%s", host, serv);
 
-  dslog(LOG_INFO, 0, "listening on [%s]:%s", host, serv);
+  dslog(LOG_INFO, 0, "listening on %s/%s", host, serv);
   sock[numsock++] = fd;
   return 1;
 }
@@ -232,7 +232,8 @@ static void
 initsockets(const char *bindaddr[MAXSOCK], int nba, int UNUSED family) {
 
   int i, x;
-  char *addrbuf, *host, *serv;
+  char *host, *serv;
+  const char *ba;
 
 #ifdef NOIPv6
 
@@ -241,7 +242,6 @@ initsockets(const char *bindaddr[MAXSOCK], int nba, int UNUSED family) {
   int port;
   struct servent *se;
   struct hostent *he;
-  int isip;
 
   memset(&sin, 0, sizeof(sin));
   sin.sin_family = AF_INET;
@@ -263,29 +263,14 @@ initsockets(const char *bindaddr[MAXSOCK], int nba, int UNUSED family) {
 #endif
 
   for (i = 0; i < nba; ++i) {
-    addrbuf = estrdup(bindaddr[i]);
+    ba = bindaddr[i];
+    host = estrdup(ba);
 
-    if (*addrbuf == '[') {
-      host = addrbuf + 1;
-      if (!(serv = strchr(host, ']')) || (serv[1] && serv[1] != ':'))
-        error(0, "invalid address syntax in `%.60s'", bindaddr[i]);
+    serv = strchr(host, '/');
+    if (serv) {
       *serv++ = '\0';
-      if (*serv) ++serv;
-#ifdef NOIPv6
-      isip = 1;
-#else
-      hints.ai_flags |= AI_NUMERICHOST;
-#endif
-    }
-    else {
-      host = addrbuf;
-      if ((serv = strchr(host, ':')) != NULL)
-        *serv++ = '\0';
-#ifdef NOIPv6
-      isip = 0;
-#else
-      hints.ai_flags &= ~AI_NUMERICHOST;
-#endif
+      if (!*host)
+        error(0, "missing host part in bind address `%.60s'", ba);
     }
 
 #ifdef NOIPv6
@@ -295,7 +280,7 @@ initsockets(const char *bindaddr[MAXSOCK], int nba, int UNUSED family) {
     else if ((x = satoi(serv)) > 0 && x <= 0xffff)
       sin.sin_port = htons(x);
     else if (!(se = getservbyname(serv, "udp")))
-      error(0, "unknown service in `%.60s'", bindaddr[i]);
+      error(0, "unknown service in `%.60s'", ba);
     else
       sin.sin_port = se->s_port;
 
@@ -303,13 +288,11 @@ initsockets(const char *bindaddr[MAXSOCK], int nba, int UNUSED family) {
       sin.sin_addr.s_addr = htonl(sinaddr);
       newsocket(&sin);
     }
-    else if (isip || !*host)
-      error(0, "invalid IP address in `%.60s'", bindaddr[i]);
     else if (!(he = gethostbyname(host))
              || he->h_addrtype != AF_INET
              || he->h_length != 4
              || !he->h_addr_list[0])
-      error(0, "unknown host in `%.60s'", bindaddr[i]);
+      error(0, "unknown host in `%.60s'", ba);
     else {
       for(x = 0; he->h_addr_list[x]; ++x) {
         memcpy(&sin.sin_addr, he->h_addr_list[x], 4);
@@ -324,17 +307,17 @@ initsockets(const char *bindaddr[MAXSOCK], int nba, int UNUSED family) {
 
     x = getaddrinfo(host, serv, &hints, &aires);
     if (x != 0)
-      error(0, "%.60s: %s", bindaddr[i], gai_strerror(x));
+      error(0, "%.60s: %s", ba, gai_strerror(x));
     for(ai = aires, x = 0; ai; ai = ai->ai_next)
       if (newsocket(ai))
         ++x;
     if (!x)
-      error(0, "%.60s: no available protocols", bindaddr[i]);
+      error(0, "%.60s: no available protocols", ba);
     freeaddrinfo(aires);
 
 #endif
 
-    free(addrbuf);
+    free(host);
   }
   endservent();
   endhostent();
