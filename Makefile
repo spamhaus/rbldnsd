@@ -27,6 +27,8 @@ AWK = awk
 #DEFS = -DNOIPv6
 # To turn on recognision of ipv6-mapped ipv4 queries (silly idea?)
 #DEFS = -DRECOGNIZE_IP4IN6
+# To use select() instead of poll()
+#DEFS = -DNOPOLL
 #
 # For FreeBSD 4, use DEFS="-DNOMEMINFO -DNOSTDINT_H"
 # For Solaris, use DEFS="-DNOMEMINFO -DNOSTDINT_H -DNOIPv6"

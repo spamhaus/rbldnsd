@@ -9,7 +9,8 @@ Never news are at top.
    on hosts where both IPv4 and IPv6 addresses are in use.  Having
    multiple listening addresses means rbldnsd now uses select/poll
    (but it works exactly as before if only one listening address
-   specified).
+   specified).  If your system does not provide working poll()
+   system call, specify -DNOPOLL at compile time.
 
  - feature: recognize host/port syntax in argument for -b option
    (bind address) to be able to bind to different ports.
