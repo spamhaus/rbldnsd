@@ -310,6 +310,7 @@ ds_generic_dump(const struct dataset *ds,
                 FILE *f) {
   const struct dsdata *dsd = ds->ds_dsd;
   const struct entry *e, *t;
+  char dn[DNS_MAXDN];
   char name[DNS_MAXDOMAIN+1];
   const unsigned char *ldn = NULL;
   const unsigned char *d;
@@ -317,16 +318,19 @@ ds_generic_dump(const struct dataset *ds,
   for (e = dsd->e, t = e + dsd->n; e < t; ++e) {
     if (ldn != e->ldn) {
       ldn = e->ldn;
-      if (ldn[0] > 1)
-        dns_dntop(ldn + 1, name, sizeof(name));
+      if (ldn[0] > 1) {
+        memcpy(dn, ldn + 1, ldn[0]);
+	dn[ldn[0]] = '\0';
+        dns_dntop(dn, name, sizeof(name));
+      }
       else
         strcpy(name, "@");
       d = name;
     }
     else
       d = "";
-    fprintf(f, "%s\t%u\t", d, unpack32(e->data));
-    d = e->data + 4;
+    fprintf(f, "%s\t%u\t", d, e->ttl);
+    d = e->data;
     switch(e->dtyp) {
     case NSQUERY_A:
       fprintf(f, "A\t%u.%u.%u.%u\n", d[0], d[1], d[2], d[3]);
