@@ -194,6 +194,7 @@ int ds_special(struct dataset *ds, char *line, int lineno) {
 #warning NS record compatibility mode: remove for 1.0 final
      struct dsns *dsns_first = 0;
      unsigned cnt;
+     int newformat = 0;
 #endif
 
 #ifndef INCOMPAT_0_99
@@ -215,9 +216,20 @@ int ds_special(struct dataset *ds, char *line, int lineno) {
      line += 3;
      SKIPSPACE(line);
 
+     /*XXX parse options (AndrewSN suggested `-bloat') here */
+
      if (!(line = parse_ttl(line, &ttl, ds->ds_ttl))) return 0;
 
      do {
+       if (*line == '-') {
+         /* skip nameservers that start with `-' aka 'commented-out' */
+         do ++line; while (*line && !ISSPACE(*line));
+         SKIPSPACE(line);
+#ifndef INCOMPAT_0_99
+	 newformat = 1;
+#endif
+         continue;
+       }
        if (!(line = parse_dn(line, dn, &dnlen))) return 0;
        dsns = (struct dsns*)
          mp_alloc(ds->ds_mp, sizeof(struct dsns) + dnlen - 1, 1);
@@ -233,7 +245,7 @@ int ds_special(struct dataset *ds, char *line, int lineno) {
      } while(*line);
 
 #ifndef INCOMPAT_0_99
-     if (cnt > 1) {
+     if (cnt > 1 || newformat) {
        ds->ds_nsflags |= DSF_NEWNS;
        ds->ds_dsns = dsns_first; /* throw away all NS recs */
      }

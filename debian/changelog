@@ -1,5 +1,7 @@
 rbldnsd (0.992) unstable; urgency=low
 
+  * recognize `-' as single-NS-comment char in $NS line
+
   * use O_LARGEFILE and #define _LARGEFILE64_SOURCE in rbldnsd.c
     to be able to write larger logfiles
 

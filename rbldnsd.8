@@ -268,8 +268,11 @@ Only first $NS line in a dataset is recognized, all subsequent lines
 are silently ignored.  When constructing a zone from several datasets,
 rbldnsd uses nameservers from $NS line in only first dataset where $NS
 line is given, in command-line order, just like for $SOA record.  Only
-first 20 namservers are recognized.  If \fIttl\fR is zero, default ttl
-will be used.
+first 20 namservers are recognized.
+Individual nameserver(s) may be prefixed with a minus sign (\-), which
+means this single nameserver will be ignored by \fBrbldnsd\fR.  This
+is useful to temporary comment out one nameserver entry without removing
+it from the list.  If \fIttl\fR is zero, default ttl will be used.
 
 .IP "\fB$TTL\fR \fItime-to-live\fR"
 Specifies TTL (time-to-live) value for all records in current dataset.
