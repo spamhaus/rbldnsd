@@ -341,6 +341,23 @@ else
   exit 1
 fi
 
+echo $en "checking for writev()/readv()... $ec"
+rm -f conftest*; cat >conftest.c <<EOF
+#include <sys/types.h>
+#include <unistd.h>
+#include <sys/uio.h>
+int main() {
+  struct iovec iov;
+  return writev(1, &iov, 1) && readv(1, &iov, 1);
+}
+EOF
+if $CC -o conftest conftest.c 2>&5; then
+  echo yes
+else
+  echo "no"
+  echo "#define NOIOVEC 1" >>confdef.h
+fi
+
 echo $en "creating Makefile... $ec"
 for var in $subst LIBS DEFS ; do
   eval echo "\"s|@$var@|\$$var|\""

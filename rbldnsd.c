@@ -40,6 +40,12 @@
 /* if system have stdint.h, assume it have inttypes.h too */
 # include <inttypes.h>
 #endif
+#ifndef NOSTATS
+# ifndef NOIOVEC
+#  include <sys/uio.h>
+#  define STATS_IPC_IOVEC 1
+# endif
+#endif
 
 #ifndef NI_MAXHOST
 # define NI_MAXHOST 1025
@@ -80,8 +86,10 @@ static unsigned recheck = 60;	/* interval between checks for reload */
 static int accept_in_cidr;	/* accept 127.0.0.1/8-style CIDRs */
 static int initialized;		/* 1 when initialized */
 static char *logfile;		/* log file name */
+#ifndef NOSTATS
 static char *statsfile;		/* statistics file */
 static int stats_relative;	/* dump relative, not absolute, stats */
+#endif
 unsigned def_ttl = 35*60;	/* default record TTL 35m */
 unsigned min_ttl, max_ttl;	/* TTL constraints */
 const char def_rr[5] = "\177\0\0\2\0";		/* default A RR */
@@ -93,11 +101,15 @@ static int numsock;		/* number of active sockets in sock[] */
 static FILE *flog;		/* log file */
 static int flushlog;		/* flush log after each line */
 static struct zone *zonelist;	/* list of zones we're authoritative for */
+static int numzones;		/* number of zones in zonelist */
 int lazy;			/* don't return AUTH section by default */
 static int fork_on_reload;
   /* >0 - perform fork on reloads, <0 - this is a child of reloading parent */
 static pid_t bgq_pid;		/* pid of bg query process */
 static int ipc_fd = -1;		/* pipe FD for IPC */
+#if STATS_IPC_IOVEC
+static struct iovec *stats_iov;
+#endif
 
 /* a list of zonetypes. */
 const struct dstype *ds_types[] = {
@@ -193,9 +205,11 @@ static void NORETURN usage(int exitcode) {
 "  during reload (may double memory requiriments)\n"
 " -q - quickstart, load zones after backgrounding\n"
 " -l [+]logfile - log queries and answers to this file (+ for unbuffered)\n"
+#ifndef NOSTATS
 " -s [+]statsfile - write a line with short statistics summary into this\n"
 "  file every `check' (-c) secounds, for rrdtool-like applications\n"
 "  (+ to log relative, not absolute, statistics counters)\n"
+#endif
 " -a (experimental) - _omit_ AUTH section when constructing reply,\n"
 "  do not return list of auth nameservers in default replies, only\n"
 "  return NS info when explicitly asked\n"
@@ -571,9 +585,19 @@ break;
   { const struct zone *z;
     for(c = 0, z = zonelist; z; z = z->z_next)
      ++c;
+    numzones = c;
   }
+#if STATS_IPC_IOVEC
+  stats_iov = (struct iovec *)emalloc(numzones * sizeof(struct iovec));
+  { struct zone *z;
+    for(c = 0, z = zonelist; z; z = z->z_next, ++c) {
+      stats_iov[c].iov_base = &z->z_stats;
+      stats_iov[c].iov_len = sizeof(z->z_stats);
+    }
+  }
+#endif
   dslog(LOG_INFO, 0, "rbldnsd version %s started (%d socket(s), %d zone(s))",
-        version, numsock, c);
+        version, numsock, numzones);
   initialized = 1;
 
   if (ipc_fd >= 0) {
@@ -738,10 +762,28 @@ static void logstats(int reset) {
     stats_time = t;
   }
 }
+
+#if STATS_IPC_IOVEC
+# define ipc_read_stats(fd)  readv(fd, stats_iov, numzones)
+# define ipc_write_stats(fd) writev(fd, stats_iov, numzones)
 #else
-# define logstats(r) ((void)0)
-# define dumpstats() ((void)0)
-# define dumpstats_z() ((void)0)
+static void ipc_read_stats(int fd) {
+  struct zone *z;
+  for(z = zonelist; z; z = z->z_next)
+    if (read(fd, &z->z_stats, sizeof(z->z_stats)) <= 0)
+      break;
+}
+static void ipc_write_stats(int fd) {
+  const struct zone *z;
+  for(z = zonelist; z; z = z->z_next)
+    if (write(fd, &z->z_stats, sizeof(z->z_stats)) <= 0)
+      break;
+}
+#endif
+
+#else
+# define ipc_read_stats(fd)
+# define ipc_write_stats(fd)
 #endif
 
 static void reopenlog(void) {
@@ -827,24 +869,22 @@ static void do_signalled(void) {
   sigprocmask(SIG_SETMASK, &ssblock, NULL);
   if (signalled & SIGNALLED_TERM) {
     if (fork_on_reload < 0) { /* this is a temp child; dump stats and exit */
-#ifndef NOSTATS
-      struct zone *z;
-      for(z = zonelist; z; z = z->z_next)
-        if (write(ipc_fd, &z->z_stats, sizeof(z->z_stats)) <= 0)
-          break;
-#endif
+      ipc_write_stats(ipc_fd);
       if (flog && !flushlog)
         fflush(flog);
       _exit(0);
     }
     dslog(LOG_INFO, 0, "terminating");
+#ifndef NOSTATS
     if (statsfile)
       dumpstats();
     logstats(0);
     if (statsfile)
       dumpstats_z();
+#endif
     exit(0);
   }
+#ifndef NOSTATS
   if (signalled & SIGNALLED_SSTATS && statsfile)
     dumpstats();
   if (signalled & SIGNALLED_LSTATS) {
@@ -852,6 +892,7 @@ static void do_signalled(void) {
     if (signalled & SIGNALLED_ZSTATS && statsfile)
       dumpstats_z();
   }
+#endif
   if (signalled & SIGNALLED_RELOG)
     reopenlog();
   if (signalled & SIGNALLED_RELOAD) {
@@ -864,9 +905,6 @@ static void do_signalled(void) {
         int s, n;
         fd_set fds;
         struct timeval tv;
-#ifndef NOSTATS
-        struct zone *z;
-#endif
 
         for(n = 1; ++n;) {
           if (kill(bgq_pid, SIGTERM) != 0)
@@ -880,12 +918,7 @@ static void do_signalled(void) {
           dslog(LOG_WARNING, 0, "waiting for qchild process: %s, retrying",
                 s ? strerror(errno) : "timeout");
         }
-
-#ifndef NOSTATS
-        for(z = zonelist; z; z = z->z_next)
-          if (read(ipc_fd, &z->z_stats, sizeof(z->z_stats)) <= 0)
-            break;
-#endif
+        ipc_read_stats(ipc_fd);
         close(ipc_fd);
         ipc_fd = -1;
         wait(&s);

@@ -3,7 +3,12 @@ rbldnsd (0.993p1) unstable; urgency=low
   * fixed query logging (-l) with background reloading
     (missing fflush() before fork() and exit())
 
- -- Michael Tokarev <mjt@corpit.ru>  Tue,  9 Mar 2004 02:51:41 +0300
+  * use writev/readv to transfer stats in 2-process reload
+    (may be a bit faster)
+
+  * cleanup NOSTATS #defines/usage a bit
+
+ -- Michael Tokarev <mjt@corpit.ru>  Tue,  9 Mar 2004 03:19:46 +0300
 
 rbldnsd (0.992) unstable; urgency=low
 
