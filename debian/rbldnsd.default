@@ -15,11 +15,11 @@
 #
 # osirusoft -r/var/lib/rbldns/osirusoft -b 127.3 \
 #   dialups.relays.osirusoft.com:ip4set:dialups \
-#   spews.relays.osirusoft.com:ip4vset:spews \
-#   inputs.relays.osirusoft.com:ip4vset:inputs \
+#   spews.relays.osirusoft.com:ip4set:spews \
+#   inputs.relays.osirusoft.com:ip4set:inputs \
 #   relays.osirusoft.com:ip4set:dialups \
-#   relays.osirusoft.com:ip4vset:spews \
-#   relays.osirusoft.com:ip4vset:inputs \
+#   relays.osirusoft.com:ip4set:spews \
+#   relays.osirusoft.com:ip4set:inputs \
 #
 #  "
 #

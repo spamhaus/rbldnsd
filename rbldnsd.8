@@ -420,19 +420,19 @@ combination of the two.  There are two ways to do this:
 .PP
 .nf
  rbldnsd \fIoptions...\fR \\
-   dialups.bl.ex.com:ip4vset:dialups \\
-   spam.bl.ex.com:ip4vset:spammers \\
-   bl.ex.com:ip4vset:dialups,spammers
+   dialups.bl.ex.com:ip4set:dialups \\
+   spam.bl.ex.com:ip4set:spammers \\
+   bl.ex.com:ip4set:dialups,spammers
 .fi
 .PP
 or:
 .PP
 .nf
  rbldnsd \fIoptions...\fR \\
-   dialups.bl.ex.com:ip4vset:dialups \\
-   spam.bl.ex.com:ip4vset:spammers \\
-   bl.ex.com:ip4vset:dialups \\
-   bl.ex.com:ip4vset:spammers
+   dialups.bl.ex.com:ip4set:dialups \\
+   spam.bl.ex.com:ip4set:spammers \\
+   bl.ex.com:ip4set:dialups \\
+   bl.ex.com:ip4set:spammers
 .fi
 .PP
 (note you should specify combined bl.ex.com zone
@@ -450,28 +450,10 @@ stored only once (both datasets will be reused), but
 combined bl.ex.com zone.
 
 .PP
-When combining several data files with \fBip4set\fR
-or \fBdnset\fR file types, A and TXT values will be
-the same for \fIall\fR records from \fIall\fR data
-files, and that will be from \fIfirst\fR data file
-(so specifying defaults in all but first file has
-no effect).  This may be considered a bug, but that's
-a tradeoff between an optimal storage and flexibility.
-If you really need to have different A and TXT values
-and data from several files, either use \fBip4vset\fR
-(or \fBdnvset\fR) types or use more than one data
-set for one zone (in both cases result will be the
-same: default values will be assigned from the same
-file where this record was initially located, and if
-there was no defaults in a file and no A/TXT value
-for an entry, it will not have one, regardless of
-how many files has been read before this one).
-
-.PP
 .B generic
 zone type is very rudimentary.  It's purpose is to
 complement all the other type to form complete nameserver
-that may answer to NS, A, TXT and MX queries.
+that may answer to A, TXT and MX queries.
 
 .SH BUGS
 
@@ -498,15 +480,9 @@ all cases.
 
 .PP
 .B rbldnsd
-will refuse to answer a query for a zone consisting of a ip4set or
-ip4vset dataset that does not provide all 4 octets of an IP address.
-That is, 0.0.127.bl.example.com, where bl.example.com consists of
-set of IP addresses, will be answered with REFUSE code.  This is
-because currently, there is no easy way for
-.B rbldnsd
-to know whenever any of 127.0.0.x address is listed (this currently
-requires quite some lookups), so it does not know whenever this
-domain \- 0.0.127.bl.example.com \- really exists or not.
+will answer with NXDOMAIN when query was made to an exclusion
+entry, even if some subdomain of query domain exists.  This will
+be fixed in a future release.
 
 .PP
 There is no TCP mode.  If a resource record does not fit UDP
@@ -540,7 +516,7 @@ as secondary), but the note remains: use rsync.
 
 .SH VERSION
 
-This manpage corresponds to \fBrbldnsd\fR version \fB0.84\fR.
+This manpage corresponds to \fBrbldnsd\fR version \fB0.89p3\fR.
 
 .SH AUTHOR
 
