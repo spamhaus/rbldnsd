@@ -93,6 +93,11 @@ clean:
 distclean: clean
 	-rm -f rbldnsd
 
+spec: rbldnsd.spec
+rbldnsd.spec: rbldnsd.spec.in debian/changelog
+	sed -e '1,/^$$/ D' -e "s/@VERSION@/$(VERSION)/" rbldnsd.spec.in > $@.tmp
+	mv $@.tmp $@
+
 depend dep deps: $(SRCS) $(GSRC)
 	@echo Generating deps for:
 	@echo \ $(SRCS) $(GSRC)
