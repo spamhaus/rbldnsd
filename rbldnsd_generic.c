@@ -9,12 +9,11 @@
 #include <sys/types.h>
 #include "rbldnsd.h"
 
-definedstype(generic, DSTF_DNREV|DSTF_ZERODN, "generic simplified bind-format");
+definedstype(generic, DSTF_ZERODN, "generic simplified bind-format");
 
 struct entry {
-  const unsigned char *lrdn;
-  	/* reversed DN, mp-allocated; first byte is length */
-  unsigned dtyp;	/* data (query) type */
+  const unsigned char *ldn;	/* DN, mp-allocated; first byte is length */
+  unsigned dtyp;		/* data (query) type */
     /* last word is DNS RR type, first word is NSQUERY_XX bit */
   unsigned char *data;	/* data, mp-allocated (size depends on qtyp) */
     /* first 4 bytes is ttl */
@@ -25,6 +24,7 @@ struct dataset {
   unsigned a;		/* entries allocated (only when loading) */
   struct entry *e;	/* entries */
   unsigned maxlab;	/* max level of labels */
+  unsigned minlab;	/* min level of labels */
 };
 
 static void ds_generic_free(struct dataset *ds) {
@@ -54,16 +54,15 @@ static int ds_generic_parseany(struct zonedataset *zds, char *s) {
 
   /* dn */
   if (s[0] == '@' && (s[1] == ' ' || s[1] == '\t')) {
-    data[DNS_MAXDN+1] = '\0';
+    data[1] = '\0';
     dsiz = 1;
     s += 2;
     skipspace(s);
   }
-  else if (!(s = parse_dn(s, data + DNS_MAXDN + 1, &dsiz)) || dsiz == 1)
+  else if (!(s = parse_dn(s, data + 1, &dsiz)) || dsiz == 1)
     return -1;
   data[0] = (unsigned char)dsiz;
-  dns_dnreverse(data + DNS_MAXDN + 1, data + 1, dsiz);
-  if (!(e->lrdn = mp_dmemdup(&zds->zds_mp, data, dsiz + 1)))
+  if (!(e->ldn = mp_dmemdup(&zds->zds_mp, data, dsiz + 1)))
     return 0;
 
   skipspace(s);
@@ -123,8 +122,9 @@ static int ds_generic_parseany(struct zonedataset *zds, char *s) {
   memcpy(e->data, data, dsiz);
 
   ++ds->n;
-  dsiz = dns_dnlabels(e->lrdn + 1);
+  dsiz = dns_dnlabels(e->ldn + 1);
   if (ds->maxlab < dsiz) ds->maxlab = dsiz;
+  if (ds->minlab > dsiz) ds->minlab = dsiz;
 
   return 1;
 }
@@ -162,15 +162,15 @@ static int ds_generic_finish(struct dataset *ds) {
 #   define QSORT_BASE ds->e
 #   define QSORT_NELT ds->n
 #   define QSORT_LT(a,b) \
-  memcmp(a->lrdn + 1, b->lrdn + 1, min(a->lrdn[0], b->lrdn[0])) < 0
+  memcmp(a->ldn + 1, b->ldn + 1, min(a->ldn[0], b->ldn[0])) < 0
 #   include "qsort.c"
 
     /* collect all equal DNs to point to the same place */
     { struct entry *e, *t;
       for(e = ds->e, t = e + ds->n - 1; e < t; ++e)
-        if (e[0].lrdn != e[1].lrdn && e[0].lrdn[0] == e[1].lrdn[0] &&
-            memcmp(e[0].lrdn, e[1].lrdn, e[0].lrdn[0]) == 0)
-          e[1].lrdn = e[0].lrdn;
+        if (e[0].ldn != e[1].ldn && e[0].ldn[0] == e[1].ldn[0] &&
+            memcmp(e[0].ldn, e[1].ldn, e[0].ldn[0]) == 0)
+          e[1].ldn = e[0].ldn;
     }
     SHRINK_ARRAY(struct entry, ds->e, ds->n, ds->a);
   }
@@ -182,31 +182,26 @@ static int
 ds_generic_query(const struct zonedataset *zds, const struct dnsquery *qry,
                  struct dnspacket *pkt) {
   const struct dataset *ds = zds->zds_ds;
-  const unsigned char *rdn = qry->q_rdn;
+  const unsigned char *dn = qry->q_dn;
   const struct entry *e = ds->e, *t;
   unsigned qlen = qry->q_dnlen;
   const unsigned char *d;
   int a = 0, b = ds->n - 1, m, r;
 
-  if (qry->q_dnlab > ds->maxlab || b < 0) return 0;
+  if (qry->q_dnlab > ds->maxlab || qry->q_dnlab < ds->minlab || b < 0)
+    return 0;
 
   for(;;) {
-    if (a > b) {
-      /* we should not return NXDOMAIN if a subdomain of a query exists */
-      if ((unsigned)a < ds->n && qlen < e[a].lrdn[0] &&
-          memcmp(rdn, e[a].lrdn + 1, qlen - 1) == 0)
-       return 1;
-      return 0;
-    }
+    if (a > b) return 0;
     t = e + (m = (a + b) >> 1);
-    if (!(r = memcmp(t->lrdn + 1, rdn, min(qlen, t->lrdn[0])))) break;
+    if (!(r = memcmp(t->ldn + 1, dn, min(qlen, t->ldn[0])))) break;
     else if (r < 0) a = m + 1;
     else b = m - 1;
   }
 
   /* find first entry with the DN in question */
-  rdn = (t--)->lrdn;
-  while(t >= e && t->lrdn == rdn)
+  dn = (t--)->ldn;
+  while(t >= e && t->ldn == dn)
     --t;
   e = t + 1;
 
@@ -226,6 +221,6 @@ ds_generic_query(const struct zonedataset *zds, const struct dnsquery *qry,
       addrr_mx(pkt, d + 4, d + 7, d[4], d);
       break;
     }
-  } while(++e < t && e->lrdn == rdn);
+  } while(++e < t && e->ldn == dn);
   return 1;
 }

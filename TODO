@@ -2,13 +2,8 @@ $Id$
 
 TODO list for rbldnsd, in no particular order.
 
- * deal with exclusion entries (ip4set/dnset) and NXDOMAINs.
-   e.g. if *.example.com listed but good.example.com excluded,
-   we should not return NXDOMAIN for good.example.com, but should
-   return zero RRs instead (positive answer, no records of requested
-   type).  Ditto for 127/8 and !127.0.0.1.
-
  * recheck whenever SOA/NS behaviour is correct
+   (seems to be ok)
 
  * review logging.  It should be possible to specify which packets
    (qtype, rcode, bad etc) to log in addition to filtering by client's IP.

@@ -3,6 +3,12 @@ $Id$
 This file describes user-visible changes in rbldnsd.
 Never news are at top.
 
+0.89p4 (8 May 2003)
+
+ - since bind9 returns NXDOMAIN for b.example.com even if a.b.example.com
+   exists, all the NXDOMAIN elimination code has been removed.  So much
+   useless work.  Now rbldnsd is small again.
+
 0.89p3 (8 May 2003)
 
  Incompatible changes:

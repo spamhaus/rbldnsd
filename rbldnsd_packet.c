@@ -206,9 +206,7 @@ int replypacket(struct dnspacket *pkt, unsigned qlen, const struct zone *zone) {
 
   /* initialize various query variations */
   if (zone->z_dstflags & DSTF_IP4REV) /* ip4 address */
-    qry.q_ip4oct = qry.q_dnlab <= 4 ? dntoip4addr(qry.q_dn, &qry.q_ip4) : 0;
-  if (zone->z_dstflags & DSTF_DNREV)	/* reverse DN */
-    dns_dnreverse(qry.q_dn, qry.q_rdn, qry.q_dnlen);
+    qry.q_ip4valid = dntoip4addr(qry.q_dn, &qry.q_ip4);
 
   /* search the datasets */
   found = 0;
@@ -314,7 +312,7 @@ static int addrr_soa(struct dnspacket *pkt, const struct zone *zone, int auth) {
       c += 20;
       dsz = (c - rstart) - 2;
       rstart[0] = dsz >> 8; rstart[1] = dsz;
-      pkt->p_buf[auth ? p_arcnt : p_ancnt]++;
+      pkt->p_buf[auth ? p_nscnt : p_ancnt]++;
       pkt->p_cur = c;
       return 1;
     }

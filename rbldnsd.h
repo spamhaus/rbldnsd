@@ -59,9 +59,8 @@ struct dnsquery {	/* q */
   unsigned char q_dn[DNS_MAXDN];	/* original query DN, lowercased */
   unsigned q_dnlen;			/* length of qdn */
   unsigned q_dnlab;			/* number of labels in qldn */
-  unsigned char q_rdn[DNS_MAXDN];	/* reverse of q_dn */
   ip4addr_t q_ip4;			/* parsed IP4 address */
-  unsigned q_ip4oct;			/* number of valid octets in ip4 */
+  int q_ip4valid;			/* true if q_ip4 is valid */
 };
 
 #define skipspace(s) while(*s == ' ' || *s == '\t') ++s
@@ -99,7 +98,6 @@ struct dataset_type {	/* dst */
 
 /* dst_flags */
 #define DSTF_IP4REV	0x01	/* ip4 set */
-#define DSTF_DNREV	0x02	/* reverse query DN */
 #define DSTF_ZERODN	0x04	/* query for zero dn too */
 
 #define declaredstype(t) extern const struct dataset_type dataset_##t##_type
@@ -238,9 +236,8 @@ extern const char def_rr[5];
  * readdslines() */
 int parse_a_txt(char *str, const char **rrp, const char def_a[4]);
 
-/* parse a DN as reverse-octet IP4 address.  Return number of octets
- * (1..4) or 0 in case q isn't a valid IP4 address. */
-unsigned dntoip4addr(const unsigned char *q, ip4addr_t *ap);
+/* parse a DN as reverse-octet IP4 address.  return true if ok */
+int dntoip4addr(const unsigned char *q, ip4addr_t *ap);
 
 /* the same as in ip4addr, but with error/policy checking */
 unsigned ip4parse_cidr(const char *s, ip4addr_t *ap, char **np);

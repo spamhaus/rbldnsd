@@ -196,19 +196,6 @@ ds_ip4set_find(const struct entry *e, int b, ip4addr_t q) {
 }
 
 static int
-ds_ip4set_find_masked(const struct entry *e, int b,
-                      ip4addr_t q, ip4addr_t mask) {
-  int a = 0, m;
-  --b;
-  while(a <= b) {
-    if ((e[(m = (a + b) >> 1)].addr & mask) == q) return 1;
-    else if ((e[m].addr & mask) < q) a = m + 1;
-    else b = m - 1;
-  }
-  return 0;
-}
-
-static int
 ds_ip4set_query(const struct zonedataset *zds, const struct dnsquery *qry,
                 struct dnspacket *pkt) {
   const struct dataset *ds = zds->zds_ds;
@@ -217,29 +204,7 @@ ds_ip4set_query(const struct zonedataset *zds, const struct dnsquery *qry,
   const struct entry *e, *t;
   const char *ipsubst;
 
-  if (qry->q_ip4oct != 4) {
-    unsigned n, l;
-
-    if (!(l = qry->q_ip4oct)) return 0;
-
-    /* we can't return NXDOMAIN for 3.2.1.bl.example.com -
-     * e.g. if 4.3.2.1.bl.example.com exists */
-    f = ip4mask(l * 8);
-    n = E32;
-    do 
-      if (ds_ip4set_find_masked(ds->e[n], ds->n[n], q, f))
-        return 1;
-    while (++n < 4 - l);
-    while(n <= E08) {
-      q &= f;
-      if (ds_ip4set_find(ds->e[n], ds->n[n], q)) return 1;
-      f <<= 8;
-      ++n;
-    }
-    return 0;
-  }
-
-  /* valid 4-octets IP */
+  if (!qry->q_ip4valid) return 0;
 
 #define try(i,mask) \
  (ds->n[i] && \
@@ -253,7 +218,6 @@ ds_ip4set_query(const struct zonedataset *zds, const struct dnsquery *qry,
     return 0;
 
   if (!e->rr) return 0;		/* exclusion */
-  /*XXX do not return NXDOMAIN -- like when less than 4 octets specified */
 
   ipsubst = (qry->q_tflag & NSQUERY_TXT) ? ip4atos(q) : NULL;
   do addrr_a_txt(pkt, qry->q_tflag, e->rr, ipsubst, zds);

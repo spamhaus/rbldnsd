@@ -115,17 +115,15 @@ static const unsigned char *dnotoa(const unsigned char *q, unsigned *ap) {
 
 /* parse DN (as in 4.3.2.1.in-addr.arpa) to ip4addr_t */
 
-unsigned dntoip4addr(const unsigned char *q, ip4addr_t *ap) {
+int dntoip4addr(const unsigned char *q, ip4addr_t *ap) {
   ip4addr_t a = 0, o;
   if ((q = dnotoa(q, &o)) == NULL) return 0; a |= o;
-  if (!*q) { *ap = a << 24; return 1; }
   if ((q = dnotoa(q, &o)) == NULL) return 0; a |= o << 8;
-  if (!*q) { *ap = a << 16; return 2; }
   if ((q = dnotoa(q, &o)) == NULL) return 0; a |= o << 16;
-  if (!*q) { *ap = a << 8; return 3; }
   if ((q = dnotoa(q, &o)) == NULL) return 0; a |= o << 24;
-  if (!*q) { *ap = a; return 4; }
-  return 0;
+  if (*q) return 0;
+  *ap = a;
+  return 1;
 }
 
 int parse_a_txt(char *str, const char **rrp, const char def_a[4]) {

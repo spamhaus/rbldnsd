@@ -479,12 +479,6 @@ to speed up some operations.  This isn't a problem in almost
 all cases.
 
 .PP
-.B rbldnsd
-will answer with NXDOMAIN when query was made to an exclusion
-entry, even if some subdomain of query domain exists.  This will
-be fixed in a future release.
-
-.PP
 There is no TCP mode.  If a resource record does not fit UDP
 packet (512 bytes), it will be silently ignored.  For most
 usages, this isn't a problem, because there should be only a

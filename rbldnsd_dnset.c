@@ -9,10 +9,10 @@
 #include <stdlib.h>
 #include "rbldnsd.h"
 
-definedstype(dnset, DSTF_DNREV, "set of (domain name, value) pairs");
+definedstype(dnset, 0, "set of (domain name, value) pairs");
 
 struct entry {
-  unsigned char *lrdn;	/* reverseDN key, mp-allocated, length-1 first */
+  unsigned char *ldn;	/* DN key, mp-allocated, length byte first */
   const char *rr;	/* A and TXT RRs */
 };
 
@@ -109,10 +109,10 @@ ds_dnset_parseline(struct zonedataset *zds, char *s, int lineno) {
 
   /* fill up an entry */
   e += ds->n[idx]++;
-  if (!(e->lrdn = (unsigned char*)mp_alloc(&zds->zds_mp, dnlen + 1)))
+  if (!(e->ldn = (unsigned char*)mp_alloc(&zds->zds_mp, dnlen + 1)))
     return 0;
-  e->lrdn[0] = (unsigned char)(dnlen - 1);
-  dns_dnreverse(dn, e->lrdn + 1, dnlen);
+  e->ldn[0] = (unsigned char)(dnlen);
+  memcpy(e->ldn + 1, dn, dnlen);
   e->rr = rr;
 
   /* adjust min/max #labels */
@@ -138,8 +138,7 @@ static int ds_dnset_load(struct zonedataset *zds, FILE *f) {
 #define min(a,b) ((a)<(b)?(a):(b))
 
 static int ds_dnset_lt(const struct entry *a, const struct entry *b) {
-  /* comparision includes next label length byte (note min()+1) */
-  int r = memcmp(a->lrdn + 1, b->lrdn + 1, min(a->lrdn[0], b->lrdn[0]) + 1);
+  int r = memcmp(a->ldn + 1, b->ldn + 1, min(a->ldn[0], b->ldn[0]));
   return
      r < 0 ? 1 :
      r > 0 ? 0 :
@@ -160,11 +159,11 @@ static int ds_dnset_finish(struct dataset *ds) {
     /* we make all the same DNs point to one string for faster searches */
     { register struct entry *e, *t;
       for(e = ds->e[r], t = e + ds->n[r] - 1; e < t; ++e)
-        if (e[0].lrdn[0] == e[1].lrdn[0] &&
-            memcmp(e[0].lrdn, e[1].lrdn, e[0].lrdn[0] + 1) == 0)
-          e[1].lrdn = e[0].lrdn;
+        if (e[0].ldn[0] == e[1].ldn[0] &&
+            memcmp(e[0].ldn, e[1].ldn, e[0].ldn[0]) == 0)
+          e[1].ldn = e[0].ldn;
     }
-#define dnset_eeq(a,b) a.lrdn == b.lrdn && rrs_equal(a,b)
+#define dnset_eeq(a,b) a.ldn == b.ldn && rrs_equal(a,b)
     REMOVE_DUPS(struct entry, ds->e[r], ds->n[r], dnset_eeq);
     SHRINK_ARRAY(struct entry, ds->e[r], ds->n[r], ds->a[r]);
   }
@@ -172,23 +171,9 @@ static int ds_dnset_finish(struct dataset *ds) {
   return 1;
 }
 
-/* entry->lrdn[0] is total length of a dn MINUS ONE.
- * `dnlen' is length of rdn, again minus one byte.
- * This is in order to be able to look up beginning
- * of `rdn' easily: we don't look at last terminating
- * byte, but compare lengths instead, as when looking
- * beginning of `rdn', next label will not be empty.
- * `sub' will be set to 1 if some entry in array
- * starts with `rdn' (i.e. some subdomain of `rdn'
- * is listed) - this is important since we should
- * not return NXDOMAIN in a case when we have listed
- * some subdomain of query domain.
- */
-
 static const struct entry *
 ds_dnset_find(const struct entry *e, int n,
-              const unsigned char *rdn, unsigned dnlen,
-              int *sub) {
+              const unsigned char *dn, unsigned dnlen) {
   int a = 0, b = n - 1, m, r;
 
   /* binary search */
@@ -196,32 +181,18 @@ ds_dnset_find(const struct entry *e, int n,
     /* middle entry */
     const struct entry *t = e + (m = (a + b) >> 1);
     /* compare minlen prefixes */
-    r = memcmp(t->lrdn + 1, rdn, min(t->lrdn[0], dnlen));
+    r = memcmp(t->ldn + 1, dn, min(t->ldn[0], dnlen));
     if (r < 0) a = m + 1;	/* look in last half */
     else if (r > 0) b = m - 1;	/* look in first half */
-    /* prefixes match (r == 0) */
-    else if (t->lrdn[0] == dnlen) {
+    else {
       /* found exact match, seek back to
        * first entry with this domain name */
-      rdn = (t--)->lrdn;
-      while(t > e && t->lrdn == rdn)
+      dn = (t--)->ldn;
+      while(t > e && t->ldn == dn)
         --t;
       return t + 1;
     }
-    else if (t->lrdn[0] < dnlen) a = m + 1; /* look in last half */
-    else b = m - 1;		/* look in first half */
   }
-
-  /* check if rdn is a subdomain of a listed entry.
-   * note that all subdomains are sorted after a superdomain.
-   * `a' now points to a place where `rdn' is to be inserted if
-   * that where insert operation */
-  if (sub /* subdomain checking requested */
-      && a < n /* found index is within array, i.e. subdomain possible */
-      && dnlen < (e += a)->lrdn[0] /* rdn's len less, subdomain possible */
-      && memcmp(rdn, e->lrdn + 1, dnlen) == 0 /* and this is subdomain */
-      )
-    *sub = 1;
 
   return NULL;			/* not found */
 }
@@ -230,26 +201,19 @@ static int
 ds_dnset_query(const struct zonedataset *zds, const struct dnsquery *qry,
                struct dnspacket *pkt) {
   const struct dataset *ds = zds->zds_ds;
-  const unsigned char *rdn = qry->q_rdn;
-  unsigned qlen = qry->q_dnlen - 1;
+  const unsigned char *dn = qry->q_dn;
+  unsigned qlen = qry->q_dnlen;
   unsigned qlab = qry->q_dnlab;
-  int sub = 0;
   const struct entry *e, *t;
   char name[DNS_MAXDOMAIN+1];
 
   if (!qlab) return 0;		/* do not match empty dn */
 
   if (qlab > ds->maxlab[EP] 	/* if we have less labels, search unnec. */
-      || !(e = ds_dnset_find(ds->e[EP], ds->n[EP], rdn, qlen, &sub))) {
+      || qlab < ds->minlab[EP]	/* ditto for more */
+      || !(e = ds_dnset_find(ds->e[EP], ds->n[EP], dn, qlen))) {
 
     /* try wildcard */
-
-    /* a funny place.  We will use non-reversed query dn
-     * to remove labels at the end of rdn - first label in dn
-     * is last label in rdn.  "removing" is done by substracting
-     * length of next label from qlen */
-
-    const unsigned char *dn = qry->q_dn;
 
     /* remove labels until number of labels in query is greather
      * than we have in wildcard array, but remove at least 1 label
@@ -258,24 +222,15 @@ ds_dnset_query(const struct zonedataset *zds, const struct dnsquery *qry,
       --qlab, qlen -= *dn + 1, dn += *dn + 1;
     while(qlab > ds->maxlab[EW]);
 
-    /* now, lookup every so long rdn in wildcard array */
+    /* now, lookup every so long dn in wildcard array */
     for(;;) {
 
-      if (qlab < ds->minlab[EW]) {
+      if (qlab < ds->minlab[EW])
         /* oh, number of labels in query become less than
          * minimum we have listed.  Nothing to search anymore */
-        if (sub) return 1;	/* if subdomain listed, positive */
-        if (qry->q_dnlab > ds->maxlab[EW])
-          return 0; /* query can't be superdomain */
-        /* if query listed as a wildcard base... */
-        if (ds_dnset_find(ds->e[EW], ds->n[EW], rdn, qry->q_dnlen - 1, &sub))
-          return 1;
-        return sub;		/* ..or it's subdomain */
-      }
+        return 0;
 
-      /* lookup an entry, do not watch if some subdomain
-       * listed (we removed some labels already) */
-      if ((e = ds_dnset_find(ds->e[EW], ds->n[EW], rdn, qlen, NULL)))
+      if ((e = ds_dnset_find(ds->e[EW], ds->n[EW], dn, qlen)))
         break;			/* found, listed */
 
       /* remove next label at the end of rdn */
@@ -291,16 +246,12 @@ ds_dnset_query(const struct zonedataset *zds, const struct dnsquery *qry,
     t = ds->e[EP] + ds->n[EP];
 
   if (!e->rr) return 0;	/* exclusion */
-  /*XXX do not return NXDOMAIN if some subdomain exists! */
 
-  rdn = e->lrdn;
-  if (qry->q_tflag & NSQUERY_TXT) {
-    char dn[DNS_MAXDN];
-    dns_dnreverse(e->lrdn + 1, dn, e->lrdn[0] + 1);
-    dns_dntop(dn, name, sizeof(name));
-  }
+  dn = e->ldn;
+  if (qry->q_tflag & NSQUERY_TXT)
+    dns_dntop(e->ldn + 1, name, sizeof(name));
   do addrr_a_txt(pkt, qry->q_tflag, e->rr, name, zds);
-  while(++e < t && e->lrdn == rdn);
+  while(++e < t && e->ldn == dn);
 
   return 1;
 }
