@@ -426,6 +426,21 @@ static void init(int argc, char **argv) {
   if (!nba)
     error(0, "no address to listen on (-b option) specified");
 
+  if (logfile) {
+    if (*logfile == '+') {
+      ++logfile;
+      flushlog = 1;
+    }
+    if (!*logfile) {
+      logfile = NULL;
+      flushlog = 0;
+    }
+    else if (logfile[0] == '-' && logfile[1] == '\0') {
+      logfile = NULL;
+      flog = stdout;
+    }
+  }
+
   tzset();
   if (nodaemon)
     logto = LOGTO_STDOUT|LOGTO_STDERR;
@@ -444,7 +459,7 @@ static void init(int argc, char **argv) {
     close(pfd[0]); close(pfd[1]);
     openlog(progname, LOG_PID|LOG_NDELAY, LOG_DAEMON);
     logto = LOGTO_STDERR|LOGTO_SYSLOG;
-    if (!quickstart) logto |= LOGTO_STDOUT;
+    if (!quickstart && !flog) logto |= LOGTO_STDOUT;
   }
 
   initsockets(bindaddr, nba, family);
@@ -513,20 +528,6 @@ static void init(int argc, char **argv) {
         version, numsock);
   initialized = 1;
 
-  if (logfile) {
-    if (*logfile == '+') {
-      ++logfile;
-      flushlog = 1;
-    }
-    if (!*logfile) {
-      logfile = NULL;
-      flushlog = 0;
-    }
-    else if (logfile[0] == '-' && logfile[1] == '\0') {
-      logfile = NULL;
-      flog = stdout;
-    }
-  }
   if (!nodaemon) {
     write(500, "", 1);
     close(500);

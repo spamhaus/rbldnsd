@@ -23,6 +23,9 @@ rbldnsd (0.98a.pre) unstable; urgency=low
   * Fixed range parsing.  E.g., 24.217.64-191 did not work (and any range
     like this where last two bits where xored into 255)    
   * allow logging to standard output (-l - or -l +-)
+  * move logfile handling a bit earlier in the init process, and
+    do not send initialization messages to stdout in case we're
+    logging queries there (-l -)
 
  -- Michael Tokarev <mjt@corpit.ru>  Fri, 22 Aug 2003 13:55:58 +0400
 
