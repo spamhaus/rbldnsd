@@ -16,12 +16,6 @@ TODO list for rbldnsd, in no particular order.
    send signal to it's child.  This will also give us an ability
    to monitor and restart failed child (ala supervise)
 
- * on reloads, fork a child with current in-memory zones, to
-   serve requests while reloading?  With "supervised" variant,
-   that may be two different childs: fork new child for new
-   data, wait when it will be ready and kill old child.  Requires
-   twice more memory.
-
  * allow 127.0.0.1/255.255.255.0 form?  Seems to be redundrand
    (CIDR exists), and it's not obvious how to handle masks like
    255.0.255.0 (what a mess)
