@@ -5,6 +5,14 @@ Never news are at top.
 
 0.98pre (7 Aug 2003)
 
+ - feature, and incompatibility change in dnset DN interpretation.
+   *.example.com is now NOT the same as .example.com.  Specify
+   *.example.com to include all subdomains of example.com, and
+   specify .example.com to include all subdomains AND example.com
+   itself - instead of specifying 2 lines, only one is now needed.
+   Looking for better variant to handle the same.. maybe *example.com?
+   (but this is confusing - will it match noexample.com?)
+
  - bugfix: memleak in combined dataset: NS and SOA caches was
    allocated for subzones of combined dataset (NS/SOA are never
    used here).

@@ -9,8 +9,8 @@
 #include "rbldnsd.h"
 
 struct entry {
-  unsigned char *ldn;	/* DN key, mp-allocated, length byte first */
-  const char *rr;	/* A and TXT RRs */
+  const unsigned char *ldn;	/* DN key, mp-allocated, length byte first */
+  const char *rr;		/* A and TXT RRs */
 };
 
 /*
@@ -47,13 +47,39 @@ static void ds_dnset_start(struct dataset *ds) {
 }
 
 static int
+ds_dnset_addent(struct dsdata *dsd, int idx,
+                const unsigned char *ldn, const char *rr,
+                unsigned dnlab) {
+  struct entry *e;
+
+  e = dsd->e[idx];
+  if (dsd->n[idx] >= dsd->a[idx]) { /* expand array */
+    dsd->a[idx] = dsd->a[idx] ? dsd->a[idx] << 1 : 64;
+    e = trealloc(struct entry, e, dsd->a[idx]);
+    if (!e) return 0;
+    dsd->e[idx] = e;
+  }
+
+  /* fill up an entry */
+  e += dsd->n[idx]++;
+  e->ldn = ldn;
+  e->rr = rr;
+
+  /* adjust min/max #labels */
+  if (dsd->maxlab[idx] < dnlab) dsd->maxlab[idx] = dnlab;
+  if (dsd->minlab[idx] > dnlab) dsd->minlab[idx] = dnlab;
+
+  return 1;
+}
+
+static int
 ds_dnset_line(struct dataset *ds, char *s, int lineno) {
   struct dsdata *dsd = ds->ds_dsd;
   unsigned char dn[DNS_MAXDN];
-  struct entry *e;
   const char *rr;
-  unsigned idx, dnlen, size;
-  int not;
+  unsigned char *ldn;
+  unsigned dnlen, size;
+  int not, iswild, isplain;
 
   if (*s == ':') {		/* default entry */
     if (!(size = parse_a_txt(lineno, s, &rr, def_rr)))
@@ -72,9 +98,9 @@ ds_dnset_line(struct dataset *ds, char *s, int lineno) {
     not = 0;
 
   /* check for wildcard: .xxx or *.xxx */
-  if (*s == '.') { idx = EW; ++s; }
-  else if (s[0] == '*' && s[1] == '.') { idx = EW; s += 2; }
-  else idx = EP;
+  if (*s == '.') { iswild = 1; isplain = 1; ++s; }
+  else if (s[0] == '*' && s[1] == '.') { iswild = 1; isplain = 0; s += 2; }
+  else { iswild = 0; isplain = 1; }
 
   /* disallow emptry DN to be listed (i.e. "all"?) */
   if (!(s = parse_dn(s, dn, &dnlen)) || dnlen == 1) {
@@ -96,26 +122,17 @@ ds_dnset_line(struct dataset *ds, char *s, int lineno) {
       return 0;
   }
 
-  e = dsd->e[idx];
-  if (dsd->n[idx] >= dsd->a[idx]) { /* expand array */
-    dsd->a[idx] = dsd->a[idx] ? dsd->a[idx] << 1 : 64;
-    e = trealloc(struct entry, e, dsd->a[idx]);
-    if (!e) return 0;
-    dsd->e[idx] = e;
-  }
-
-  /* fill up an entry */
-  e += dsd->n[idx]++;
-  if (!(e->ldn = (unsigned char*)mp_alloc(ds->ds_mp, dnlen + 1, 0)))
+  ldn = (unsigned char*)mp_alloc(ds->ds_mp, dnlen + 1, 0);
+  if (!ldn)
     return 0;
-  e->ldn[0] = (unsigned char)(dnlen - 1);
-  memcpy(e->ldn + 1, dn, dnlen);
-  e->rr = rr;
+  ldn[0] = (unsigned char)(dnlen - 1);
+  memcpy(ldn + 1, dn, dnlen);
 
-  /* adjust min/max #labels */
   dnlen = dns_dnlabels(dn);
-  if (dsd->maxlab[idx] < dnlen) dsd->maxlab[idx] = dnlen;
-  if (dsd->minlab[idx] > dnlen) dsd->minlab[idx] = dnlen;
+  if (isplain && !ds_dnset_addent(dsd, EP, ldn, rr, dnlen))
+    return 0;
+  if (iswild && !ds_dnset_addent(dsd, EW, ldn, rr, dnlen))
+    return 0;
 
   return 1;
 }

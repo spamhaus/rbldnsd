@@ -313,6 +313,20 @@ possible starting with wildcard (either with star\-dot (*.) or just a dot).
 Entry starting with exclamation sign is exclusion.  Default value for
 all subsequent lines may be specified by a line starting with a colon.
 .IP
+Wildcards are interpreted as follows:
+.RS
+.IP example.com
+only example.com domain is listed, not subdomains thereof.  Not a wildcard
+entry.
+.IP *.example.com
+all subdomains of example.com are listed, but not example.com itself.
+.IP .example.com
+all subdomains of example.com \fIand\fR example.com itself are listed.
+This is a shortcut: to list a domain name itself and all it's subdomains,
+one may either specify two lines (example.com and *.example.com), or
+one line (.example.com).
+.RE
+.IP
 This zone type may be used instead of \fBip4set\fR,
 provided all CIDR ranges are expanded and reversed (but in
 this case, TXT template will be expanded differently).
