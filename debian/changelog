@@ -1,5 +1,8 @@
 rbldnsd (0.992) unstable; urgency=low
 
+  * use O_LARGEFILE and #define _LARGEFILE64_SOURCE in rbldnsd.c
+    to be able to write larger logfiles
+
   * removed usage of NI_WITHSCOPEID (was used for unknwon reason
     anyway and it have problems with new Solaris)
 

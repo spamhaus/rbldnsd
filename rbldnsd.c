@@ -2,6 +2,8 @@
  * rbldnsd: main program
  */
 
+#define _LARGEFILE64_SOURCE /* to define O_LARGEFILE if supported */
+
 #include <sys/types.h>
 #include <unistd.h>
 #include <stdlib.h>
@@ -43,6 +45,10 @@
 #endif
 #ifndef NI_MAXSERV
 # define NI_MAXSERV 32
+#endif
+
+#ifndef O_LARGEFILE
+# define O_LARGEFILE 0
 #endif
 
 const char *version = VERSION;
@@ -650,7 +656,7 @@ static void reopenlog(void) {
   if (logfile) {
     int fd;
     if (flog) fclose(flog);
-    fd = open(logfile, O_WRONLY|O_APPEND|O_CREAT|O_NONBLOCK, 0644);
+    fd = open(logfile, O_WRONLY|O_APPEND|O_CREAT|O_NONBLOCK|O_LARGEFILE, 0644);
     if (fd < 0 || (flog = fdopen(fd, "a")) == NULL) {
       dslog(LOG_WARNING, 0, "error (re)opening logfile `%.50s': %s",
             logfile, strerror(errno));
