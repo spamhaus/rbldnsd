@@ -219,7 +219,8 @@ findqzone(const struct zone *zone,
 }
 
 /* construct reply to a query. */
-int replypacket(struct dnspacket *pkt, unsigned qlen, const struct zone *zone) {
+int replypacket(struct dnspacket *pkt, unsigned qlen, const struct zone *zone,
+                struct zone **mzone) {
 
   struct dnsquery qry;			/* query structure */
   struct dnsqinfo qi;			/* query info structure */
@@ -272,6 +273,7 @@ int replypacket(struct dnspacket *pkt, unsigned qlen, const struct zone *zone) {
     return refuse(DNS_R_REFUSED);
 
   /* found matching zone */
+  *mzone = (struct zone *)zone;
 
   if (!zone->z_stamp)	/* do not answer if not loaded */
     return refuse(DNS_R_SERVFAIL);

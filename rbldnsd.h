@@ -134,6 +134,7 @@ struct dstype {	/* dst */
 
 declaredstype(ip4set);
 declaredstype(dnset);
+declaredstype(dnhash);
 declaredstype(generic);
 declaredstype(combined);
 
@@ -194,6 +195,21 @@ struct dslist {	/* dsl */
 struct zonesoa;
 struct zonens;
 
+#ifdef STATS_LL
+typedef unsigned long long dnscnt_t;
+#else
+typedef unsigned long dnscnt_t;
+#endif
+struct dnsstats {
+  /* n - number of requests;
+   * i - number of bytes read
+   * o - number of bytes written
+   * a - number of answers */
+  dnscnt_t nnxd, inxd, onxd;		/* NXDOMAINs */
+  dnscnt_t nrep, irep, orep, arep;	/* OK replies */
+  dnscnt_t nerr, ierr, oerr;		/* other errors (REFUSED, FORMERR...) */
+};
+
 #define MAX_NS 20
 
 struct zone {	/* zone, list of zones */
@@ -211,6 +227,9 @@ struct zone {	/* zone, list of zones */
   unsigned z_nns;			/* number of NSes in z_dsnsa[] */
   unsigned z_cns;			/* current NS in rotation */
   struct zonens *z_zns;			/* pre-packed NS records */
+#ifndef NOSTATS
+  struct dnsstats z_stats;		/* statistic counters */
+#endif
   struct zone *z_next;			/* next in list */
 };
 
@@ -219,7 +238,8 @@ int update_zone_soa(struct zone *zone, const struct dssoa *dssoa);
 int update_zone_ns(struct zone *zone, const struct dsns **dsnsa, unsigned nns);
 
 /* parse query and construct a reply to it, return len of answer or 0 */
-int replypacket(struct dnspacket *p, unsigned qlen, const struct zone *zone);
+int replypacket(struct dnspacket *p, unsigned qlen, const struct zone *zone,
+                struct zone **mzone);
 const struct zone *
 findqzone(const struct zone *zonelist,
           unsigned dnlen, unsigned dnlab, unsigned char *const *const dnlptr,
@@ -242,23 +262,6 @@ void addrr_any(struct dnspacket *pkt, unsigned dtp,
                const unsigned char ttl[4]);
 void dump_a_txt(const char *name, const unsigned char *rr,
                 const char *subst, const struct dataset *ds, FILE *f);
-
-#ifdef STATS_LL
-typedef unsigned long long dnscnt_t;
-#else
-typedef unsigned long dnscnt_t;
-#endif
-struct dnsstats {
-  time_t stime;			/* start time */
-  /* n - number of requests;
-   * i - number of bytes read
-   * o - number of bytes written
-   * a - number of answers */
-  dnscnt_t nbad, ibad;			/* unrecognized, short etc requests */
-  dnscnt_t nnxd, inxd, onxd;		/* NXDOMAINs */
-  dnscnt_t nrep, irep, orep, arep;	/* OK replies */
-  dnscnt_t nerr, ierr, oerr;		/* other errors (REFUSED, FORMERR...) */
-};
 
 struct zone *addzone(struct zone *zonelist, const char *spec);
 void connectdataset(struct zone *zone,
