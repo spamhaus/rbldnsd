@@ -121,7 +121,7 @@ ds_ip4set_line(struct dataset *ds, char *s, int lineno) {
  */
 #define ip4range_expand_octet(bits)			\
   if ((a | 255u) >= b) {				\
-    if ((a ^ b) == 255u)				\
+    if (b - a == 255u)					\
       return fn((bits>>3)+1, a<<bits, 1);		\
     else						\
       return fn(bits>>3, a<<bits, b - a + 1);		\
