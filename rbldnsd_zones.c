@@ -359,13 +359,11 @@ static int loaddataset(struct dataset *ds) {
 static int updatezone(struct zone *zone) {
   time_t stamp = 0;
   const struct dssoa *dssoa = NULL;
-  const struct dsns *dsns;
+  const struct dsns *dsns = NULL;
   const struct dsns *dsnsa[MAX_NS];
-  unsigned n, nns;
-  struct dslist *dsl;
+  unsigned nns = 0;
   unsigned nsttl = 0;
-
-  nns = 0;
+  struct dslist *dsl;
 
   for(dsl = zone->z_dsl; dsl; dsl = dsl->dsl_next) {
     const struct dataset *ds = dsl->dsl_ds;
@@ -375,21 +373,24 @@ static int updatezone(struct zone *zone) {
       stamp = ds->ds_stamp;
     if (!dssoa)
       dssoa = ds->ds_dssoa;
-    if (ds->ds_dsns) {
-      if (!nsttl || nsttl > ds->ds_nsttl)
-        nsttl = ds->ds_nsttl;
-      for(dsns = ds->ds_dsns; dsns; dsns = dsns->dsns_next) {
-        for(n = 0; ; ++n) {
-          if (n == nns) {
-            if (n < MAX_NS)
-              dsnsa[nns++] = dsns;
-            break;
-          }
-          if (dns_dnequ(dsnsa[n]->dsns_dn, dsns->dsns_dn))
-            break;
+    if (!dsns)
+      dsns = ds->ds_dsns, nsttl = ds->ds_nsttl;
+  }
+
+  if (dsns) {
+    unsigned n;
+    do {
+      for(n = 0; ; ++n) {
+        if (n == nns) {
+          if (n < MAX_NS)
+            dsnsa[nns++] = dsns;
+          break;
         }
+        if (dns_dnequ(dsnsa[n]->dsns_dn, dsns->dsns_dn))
+          break;
       }
-    }
+      dsns = dsns->dsns_next;
+    } while(dsns);
   }
   zone->z_stamp = stamp;
   if (!update_zone_soa(zone, dssoa) ||
