@@ -11,7 +11,9 @@ rbldnsd (0.95pre) unstable; urgency=low
     ds_linefn is now passed via zonedataset to readdslines.  Preparations
     for combined dataset.
 
- -- Michael Tokarev <mjt@corpit.ru>  Mon, 26 May 2003 18:19:16 +0400
+  * Implemented `combined' dataset, with many changes all other the places
+
+ -- Michael Tokarev <mjt@corpit.ru>  Tue, 27 May 2003 03:46:50 +0400
 
 rbldnsd (0.94) unstable; urgency=low
 
