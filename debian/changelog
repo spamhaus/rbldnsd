@@ -15,6 +15,7 @@ rbldnsd (0.91pre) unstable; urgency=low
   * use PACK32/PACK16 everywhere
   * some more variants of parse_{time,uint32}
   * use parse_time() for -c option too
+  * always use SOA's TTL when SOA is included in answer
 
  -- Michael Tokarev <mjt@corpit.ru>  Wed, 14 May 2003 19:20:28 +0400
 
