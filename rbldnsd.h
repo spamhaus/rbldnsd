@@ -91,14 +91,13 @@ ds_queryfn_t(const struct dataset *ds, const struct dnsqinfo *qi,
 typedef void
 ds_dumpfn_t(const struct dataset *ds, const unsigned char *odn, FILE *f);
 
-/* use high word so that `generic' dataset works */
-#define NSQUERY_TXT	(1u<<16)
-#define NSQUERY_A	(1u<<17)
-#define NSQUERY_NS	(1u<<18)
-#define NSQUERY_SOA	(1u<<19)
-#define NSQUERY_MX	(1u<<20)
-#define NSQUERY_OTHER	(1u<<31)
-#define NSQUERY_ANY	0xffff0000u
+#define NSQUERY_TXT	(1u<<0)
+#define NSQUERY_A	(1u<<1)
+#define NSQUERY_NS	(1u<<2)
+#define NSQUERY_SOA	(1u<<3)
+#define NSQUERY_MX	(1u<<4)
+#define NSQUERY_OTHER	(1u<<5)
+#define NSQUERY_ANY	0xffffu
 
 struct dstype {	/* dst */
   const char *dst_name;		/* name of the type */
