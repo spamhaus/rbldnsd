@@ -1,6 +1,8 @@
 #!/usr/bin/make -f
-# Sample debian/rules that uses debhelper.
+# $Id$
+# debian/rules for rbldnsd
 # GNU copyright 1997 to 1999 by Joey Hess.
+# GNU copyright 2003 by Michael Tokarev.
 
 # Uncomment this to turn on verbose mode.
 #export DH_VERBOSE=1
