@@ -121,15 +121,22 @@ This option is \fIrequired\fR.  \fBrbldnsd\fR will bind to specified
 Either numeric IP address or a hostname may be specified; IP address
 may be enclosed in square brackets [] (mandatory for IPv6 addresses
 since they contain colons).  It is possible to specify several addresses
-to listen on this way, by repeating \fB\-b\fR option.
+to listen on this way, by repeating \fB\-b\fR option.  Additionally,
+if there are several addresses listed for a hostname, \fBrbldnsd\fR
+will listen on all of them.
 Note that \fBrbldnsd\fR will work slightly faster if only one listening
 address is specified.
+Do not forget to protect construct like \fI[ip.add.re.ss]:port\fR
+from shell's globbing using quotes.
 
 .IP \fB\-4\fR
-Use IPv4 listening socket/transport, do not attempt to use IPv6.
+Use IPv4 listening socket/transport, do not attempt to use IPv6
+(ignored if \fBrbldnsd\fR was built without IPv6 support).
 
 .IP \fB\-6\fR
-Use IPv6 listening socket/transport, do not attempt to use IPv4.
+Use IPv6 listening socket/transport, do not attempt to use IPv4
+(this option will be reported as error if IPv6 support was not
+compiled in).
 
 .IP "\fB\-t\fR \fIttl\fR"
 Set answer time\-to\-live value to be \fIttl\fR seconds.  All answers will
