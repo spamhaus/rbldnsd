@@ -477,24 +477,37 @@ static void logstats(struct dnsstats *s, int reset) {
 # define logstats(s,r)
 #endif
 
-static int reopenlog(int fdlog, const char *logfile) {
-  if (fdlog >= 0) close(fdlog);
-  return open(logfile, O_WRONLY|O_APPEND|O_CREAT|O_NONBLOCK, 0644);
+static FILE *reopenlog(FILE *flog, const char *logfile) {
+  int fd;
+  if (flog) fclose(flog);
+  fd = open(logfile, O_WRONLY|O_APPEND|O_CREAT|O_NONBLOCK, 0644);
+  if (fd >= 0 && (flog = fdopen(fd, "a")) != NULL)
+    return flog;
+  dslog(LOG_WARNING, 0, "error (re)opening logfile `%.50s': %s",
+	logfile, strerror(errno));
+  if (fd >= 0) close(fd);
+  return NULL;
 }
 
 int main(int argc, char **argv) {
   int fd;
   struct zone *zonelist;
   struct dnsstats stats;
-  int fdlog;
+  FILE *flog;
   int q, r;
   struct sockaddr_in sin;
   socklen_t sinl;
   struct dnspacket pkt;
+  int flushlog = 0;
 
   fd = init(argc, argv, &zonelist);
   setup_signals();
-  fdlog = logfile ? reopenlog(-1, logfile) : -1;
+  if (logfile) {
+    if (*logfile == '+') flushlog = 1, ++logfile;
+    flog = reopenlog(NULL, logfile);
+  }
+  else
+    flog = NULL;
   alarm(recheck);
 #ifndef NOSTATS
   memset(&stats, 0, sizeof(stats));
@@ -517,7 +530,7 @@ int main(int argc, char **argv) {
         logmemusage();
       }
       if ((signalled & SIGNALLED_HUP) && logfile)
-        fdlog = reopenlog(fdlog, logfile);
+        flog = reopenlog(flog, logfile);
       if (signalled & (SIGNALLED_HUP|SIGNALLED_ALRM))
         do_reload(zonelist);
       signalled = 0;
@@ -539,8 +552,8 @@ int main(int argc, char **argv) {
 #endif
       continue;
     }
-    if (fdlog >= 0 && (!logfilt || ip4list_match(logfilt, sin.sin_addr.s_addr)))
-      logreply(&pkt, ip4atos(ntohl(sin.sin_addr.s_addr)), fdlog);
+    if (flog && (!logfilt || ip4list_match(logfilt, sin.sin_addr.s_addr)))
+      logreply(&pkt, ip4atos(ntohl(sin.sin_addr.s_addr)), flog, flushlog);
 #ifndef NOSTATS
     switch(pkt.p[3]) {
     case DNS_R_NOERROR:

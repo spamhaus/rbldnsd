@@ -396,7 +396,8 @@ codename(unsigned c, const char *name, const char *base, char *buf)
   return buf;
 }
 
-void logreply(const struct dnspacket *pkt, const char *ip, int fdlog) {
+void logreply(const struct dnspacket *pkt, const char *ip,
+              FILE *flog, int flushlog) {
   char cbuf[DNS_MAXDOMAIN + 200];
   char tbuf[20];
   char *cp = cbuf;
@@ -415,5 +416,8 @@ void logreply(const struct dnspacket *pkt, const char *ip, int fdlog) {
   cp += sprintf(cp, "%s/%u/%d\n",
                 codename(c, dns_rcodename(c), "rcode", tbuf),
                 pkt->p[7], pkt->c - pkt->p);
-  write(fdlog, cbuf, cp - cbuf);
+  if (flushlog)
+    write(fileno(flog), cbuf, cp - cbuf);
+  else
+    fwrite(cbuf, cp - cbuf, 1, flog);
 }

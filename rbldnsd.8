@@ -160,7 +160,9 @@ after entering chroot jail and becoming a user.  Logfiles may be quite
 large, esp. on busy sites (\fBrbldnsd\fR will log \fIevery\fR recognized
 request if this option is specified).  This option is mainly intended for
 debugging purposes.  Upon receiption of SIGHUP signal, \fBrbldnsd\fR
-reopens it's logfile.
+reopens it's logfile.  If \fIlogfile\fR prefixed with a plus sign (+),
+logging will not be buffered (i.e. each line will be flushed to disk);
+by default, logging is buffered to reduce system load.
 
 .IP "\fB\-L\fR \fInetlist\fR"
 Only log requests that come from IPs matching \fInetlist\fR (which is
