@@ -1,7 +1,6 @@
 /* $Id$
  * ip4set dataset type: IP4 addresses (ranges), with A and TXT
- * values for every individual entry.  More flexible than
- * ip4set but requires more memory.
+ * values for every individual entry.
  */
 
 #include <stdio.h>
