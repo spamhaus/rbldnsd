@@ -16,20 +16,19 @@ ifneq (,$(findstring debug,$(DEB_BUILD_OPTIONS)))
 	CFLAGS += -g
 endif
 
-build: build-stamp
-build-stamp:
+build: debian/build-stamp
+debian/build-stamp:
 	dh_testdir
 	$(MAKE) CFLAGS="$(CFLAGS)" DEFS="$(DEFS)"
 	touch $@
 
 clean:
 	dh_testdir
-	rm -f build-stamp install-stamp
+	rm -f debian/build-stamp
 	-$(MAKE) clean
 	dh_clean
 
-install: install-stamp
-install-stamp: build-stamp
+install: debian/build-stamp
 	dh_testdir
 	dh_testroot
 	dh_clean
@@ -45,11 +44,9 @@ install-stamp: build-stamp
 	dh_compress
 	dh_fixperms
 
-	touch $@
-
 binary-indep:
 
-binary-arch: install-stamp
+binary-arch: build install
 	dh_testdir
 	dh_testroot
 	dh_installdeb
@@ -60,4 +57,4 @@ binary-arch: install-stamp
 
 binary: binary-arch
 
-.PHONY: build clean binary-indep binary-arch binary install configure
+.PHONY: build clean binary-indep binary-arch binary install

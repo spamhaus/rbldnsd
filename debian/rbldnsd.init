@@ -11,12 +11,14 @@ CONFFILE=/etc/default/$NAME
 test -f $DAEMON -a -f $CONFFILE || exit 0
 
 set -e
+
 RBLDNSD=
+
 . $CONFFILE
+
 test -n "$RBLDNSD" || exit 0
 
 function forall() {
-  action="$1"; shift
   echo "$RBLDNSD" |
     while read name args; do
       case "$name" in
@@ -24,34 +26,67 @@ function forall() {
 	-) name=rbldnsd; pidfile=/var/run/$name.pid;;
 	*) pidfile=/var/run/rbldnsd-$name.pid;;
       esac
-      echo "$action $DESC $name:"
-      $*
+      pid=
+      if [ -f $pidfile ]; then
+        if read p < $pidfile; then
+          if [ -d /proc/$p ]; then
+            if [ "`readlink /proc/$p/exe`" = $DAEMON ]; then
+              pid=$p
+            fi
+          fi
+        fi
+      fi
+      $1
     done
 }
 
-function startstop() {
-  start-stop-daemon --quiet --pidfile $pidfile --exec $DAEMON $@ -- \
-    -p $pidfile $args
+function report() {
+  echo "$1 $DESC: $name"
+}
+
+function runit() {
+  $DAEMON -p $pidfile $args
+}
+
+function start() {
+  if [ ! "$pid" ]; then
+    report Starting
+    runit
+  fi
+}
+
+stop() {
+  if [ "$pid" ]; then
+    report Stopping
+    kill $pid
+    rm -f $pidfile
+  fi
 }
 
 function restart() {
-  startstop --stop
-  sleep 1
-  startstop --start
+  if [ "$pid" ]; then
+    report Restarting 
+    kill $pid
+    sleep .5
+    runit
+  else
+    start
+  fi
+}
+
+function reload() {
+  if [ "$pid" ]; then
+    report Reloading
+    kill -HUP $pid
+  fi
 }
 
 case "$1" in
-  start)
-	forall Starting startstop --start
+  start|stop|reload|restart)
+	forall $1
 	;;
-  stop)
-  	forall Stopping startstop --oknodo --stop
-	;;
-  reload|force-reload)
-	forall Reloading startstop --stop --signal HUP
-	;;
-  restart|force-reload)
-	forall Restarting restart
+  force-reload)
+	forall reload
 	;;
   *)
 	N=/etc/init.d/$NAME

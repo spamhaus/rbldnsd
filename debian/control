@@ -8,5 +8,5 @@ Standards-Version: 3.5.2
 Package: rbldnsd
 Architecture: any
 Depends: ${shlibs:Depends}
-Description: <insert up to 60 chars description>
+Description: small and fast DNSBL nameserver daemon
  <insert long description, indented with spaces>
