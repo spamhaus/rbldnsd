@@ -408,28 +408,36 @@ addrr_a_txt(struct dnspacket *pkt, unsigned qtflag,
     addrr_any(pkt, DNS_T_A, rr, 4, zds->zds_ttl);
   if (*(rr += 4) && (qtflag & NSQUERY_TXT)) {
     unsigned sl;
-    char sb[256];
+    char sb[258];
     char *const e = sb + 254;
     char *lp = sb + 1;
-    const char *s;
+    const char *s, *si;
     if (!subst) subst = "$";
     while(lp < e) {
       if ((s = strchr(rr, '$')) == NULL)
         s = (char*)rr + strlen(rr);
       sl = s - rr;
       if (lp + sl > e)
-	sl = e - lp;
+        sl = e - lp;
       memcpy(lp, rr, sl);
       lp += sl;
-      if (!*s) break;
-      sl = strlen(subst);
+      if (!*s++) break;
+      if (*s >= '0' && *s <= '9') { /* $1 var */
+        si = zds->zds_subst[*s - '0'];
+        if (!si) { si = s - 1; sl = 2; }
+        else sl = strlen(si);
+        ++s;
+      }
+      else
+        sl = strlen(si = subst);
       if (lp + sl > e) /* silently truncate TXT RR >255 bytes */
-	sl = e - lp;
-      memcpy(lp, subst, sl);
+        sl = e - lp;
+      memcpy(lp, si, sl);
       lp += sl;
-      rr = s + 1;
+      rr = s;
     }
     sl = lp - sb;
+    if (sl > 254) sl = 254;
     sb[0] = sl - 1;
     addrr_any(pkt, DNS_T_TXT, sb, sl, zds->zds_ttl);
   }

@@ -192,6 +192,7 @@ static struct zonens *freezonens(struct zonens *zns) {
 static int loadzonedataset(struct zonedataset *zds) {
   struct zonefile *zf;
   time_t stamp = 0;
+  unsigned n;
   FILE *f;
 
   if (zds->zds_ds)
@@ -199,6 +200,11 @@ static int loadzonedataset(struct zonedataset *zds) {
   zds->zds_zsoa.zsoa_valid = 0;
   memcpy(zds->zds_ttl, defttl, 4);
   zds->zds_zns = freezonens(zds->zds_zns);
+  for (n = 0; n < 10; ++n)
+    if (zds->zds_subst[n]) {
+      free(zds->zds_subst[n]);
+      zds->zds_subst[n] = NULL;
+    }
   if (!(zds->zds_ds = zds->zds_type->dst_allocfn()))
     return 0;
   

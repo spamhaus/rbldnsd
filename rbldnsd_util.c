@@ -132,6 +132,18 @@ zds_special(struct zonedataset *zds, char *line) {
     return 1;
   }
 
+  if (line[0] >= '0' && line[0] <= '9' &&
+      (line[1] == ' ' || line[1] == '\t')) {
+    /* substitution vars */
+    unsigned n = line[0] - '0';
+    if (zds->zds_subst[n]) return 1; /* ignore second assignment */
+    line += 2;
+    skipspace(line);
+    if (!*line) return 0;
+    if (!(zds->zds_subst[n] = estrdup(line))) return 0;
+    return 1;
+  }
+
   return 0;
 }
 

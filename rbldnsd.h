@@ -159,6 +159,7 @@ struct zonedataset {	/* zds */
   struct zonesoa zds_zsoa;		/* SOA record */
   struct zonens *zds_zns;		/* NS records */
   unsigned char zds_ttl[4];		/* default ttl for a dataset */
+  char *zds_subst[10];			/* substitution variables */
   struct zonedataset *zds_next;		/* next in global list */
 };
 

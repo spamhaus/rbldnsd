@@ -224,6 +224,12 @@ Specifies TTL (time-to-live) value for all records in current dataset.
 See also \fB\-t\fR option.  \fB$TTL\fR special overrides \fB\-t\fR value
 on a per-dataset basis.
 
+.IP "\fB$\fIn\fR \fItext\fR"
+(\fIn\fR is a single digit).
+Specifies a substitution variable for use as $\fIn\fR placeholders.
+Valid in dnset and ip4set datsets, ignored in generic dataset.
+See below for usage.
+
 .PP
 The following dataset types are available:
 
@@ -350,11 +356,26 @@ There is no default TXT value, so
 .B rbldnsd
 will not return anything for TXT queries it TXT isn't
 specified.
-
 .PP
-In TXT template, any occurence of dollar sign is replaced
-with an entry listed (IP address for ip4set or a domain name
-for dnset) when formatting resulting TXT record.
+In a TXT template, some substitutions are available.  In particular,
+\fB$\fIn\fR sequence, where \fIn\fR is a single digit, is replaced
+by substitution variable $\fIn\fR defined for this dataset (see above
+for special dataset entries).  Single dollar sign ($) is replaced by
+a listed entry (IP address for ip4set dataset and domain name for
+dnset dataset).  To specify a dollar sign directly, double it.
+.PP
+For example, the following lines:
+.nf
+  $1 See http://www.example.com/bl
+  $2 for details
+  127.0.0.2  $1/spammer/$ $2
+  127.0.0.3  $1/relay/$ $2
+.fi
+will result in the following text to be generated:
+.nf
+  See http://www.example.com/bl/spammer/127.0.0.2 for details
+  See http://www.example.com/bl/relay/127.0.0.3 for details
+.fi
 
 .SH SIGNALS
 
