@@ -43,11 +43,11 @@ while(defined $_) {
   if ($last ne $sub) {
     die "duplicated zone $sub\n" if $zstats{$sub};
     die "unknown zone $sub\n" unless defined $zones{$sub};
-    print "\$DATASET ip4set $sub @\n";
-    $last = $sub;
     $zstats{$sub} = 0;
     $r = \$zstats{$sub};
     $sa = $zones{$sub};
+    print "\$DATASET ip4set $sub @\n:$sa:\n";
+    $last = $sub;
   }
   if ($sa ne $a) { print "$ip :$a:$txt\n"; }
   elsif ($txt ne '') { print "$ip $txt\n"; }
