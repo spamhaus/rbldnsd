@@ -225,7 +225,7 @@ int replypacket(struct dnspacket *pkt, unsigned qlen, const struct zone *zone) {
     }
 
   }
-  else if (found && zone->z_nns)
+  else if (found && h[p_ancnt] && zone->z_nns)
     addrr_ns(pkt, zone, 1); /* add nameserver records to positive answer */
 
   if (!found) {			/* negative result */
