@@ -143,7 +143,7 @@ rbldnsd_dnset.o: rbldnsd_dnset.c rbldnsd.h ip4addr.h dns.h mempool.h \
 rbldnsd_generic.o: rbldnsd_generic.c rbldnsd.h ip4addr.h dns.h \
  mempool.h qsort.c
 rbldnsd_combined.o: rbldnsd_combined.c rbldnsd.h ip4addr.h dns.h \
- mempool.h qsort.c
+ mempool.h
 rbldnsd_util.o: rbldnsd_util.c rbldnsd.h ip4addr.h dns.h mempool.h
 ip4rangetest.o: ip4rangetest.c ip4addr.h rbldnsd.h dns.h mempool.h
 dns_nametab.o: dns_nametab.c dns.h
