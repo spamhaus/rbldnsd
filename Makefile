@@ -1,4 +1,5 @@
 #! /usr/bin/make -rf
+# $Id$
 
 CC = cc
 CFLAGS = -O

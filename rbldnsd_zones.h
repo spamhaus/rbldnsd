@@ -1,4 +1,5 @@
-/* Each zone is composed of a set of zonedatasets.
+/* $Id$
+ * Each zone is composed of a set of zonedatasets.
  * There is a global list of zonedatas, each
  * with a timestamp etc.
  * Each zonedata is composed of a list of files.

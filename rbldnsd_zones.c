@@ -1,4 +1,4 @@
-/*
+/* $Id$
  * Nameserver zones: structures and routines
  */
 

@@ -1,4 +1,4 @@
-/* rbldnsd_dnvset.c.
+/* $Id$
  * Zone type which consists of a set of (possible wildcarded)
  * domain names together with (A,TXT) result for each.
  */

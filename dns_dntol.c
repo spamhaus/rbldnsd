@@ -1,3 +1,6 @@
+/* $Id$
+ */
+
 #include "dns.h"
 
 unsigned dns_dntol(const unsigned char *srcdn, unsigned char *dstdn) {

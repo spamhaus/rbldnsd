@@ -1,3 +1,6 @@
+/* $Id$
+ */
+
 #include <string.h>
 #include "dns.h"
 

@@ -1,3 +1,6 @@
+/* $Id$
+ */
+
 #ifndef DNS_PORT
 
 #define DNS_PORT 53

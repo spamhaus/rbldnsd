@@ -1,3 +1,6 @@
+/* $Id$
+ */
+
 #ifndef _IP4ADDR_H_INCLUDED
 #define _IP4ADDR_H_INCLUDED
 

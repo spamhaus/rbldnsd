@@ -1,3 +1,6 @@
+/* $Id$
+ */
+
 #include "dns.h"
 
 unsigned dns_dnlen(const unsigned char *dn) {

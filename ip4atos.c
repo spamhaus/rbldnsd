@@ -1,4 +1,4 @@
-/* Common utility routines for rbldnsd.
+/* $Id$
  */
 
 #include "ip4addr.h"

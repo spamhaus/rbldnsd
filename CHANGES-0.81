@@ -1,3 +1,5 @@
+$Id$
+
 2003-04-03 0.81pre2
 
  - -v option gone, logging is now done with -l logfile option

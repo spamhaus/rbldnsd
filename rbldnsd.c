@@ -1,3 +1,7 @@
+/* $Id$
+ * rbldnsd: main program
+ */
+
 #include <sys/types.h>
 #include <unistd.h>
 #include <stdlib.h>

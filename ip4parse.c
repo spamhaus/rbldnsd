@@ -1,4 +1,6 @@
-/* Common routines for ip4 addresses. */
+/* $Id$
+ * IP4 address parsing routines
+ */
 
 #include "ip4addr.h"
 

@@ -1,3 +1,6 @@
+/* $Id$
+ */
+
 #include "ip4addr.h"
 
 ip4addr_t ip4mask(unsigned bits) {

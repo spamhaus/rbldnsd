@@ -1,3 +1,6 @@
+/* $Id$
+ */
+
 #include "dns.h"
 
 unsigned dns_dntop(const unsigned char *dn, char *dst, unsigned dstsiz) {

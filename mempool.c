@@ -1,3 +1,6 @@
+/* $Id$
+ */
+
 #include <stdlib.h>
 #include <string.h>
 #include "mempool.h"

@@ -1,4 +1,5 @@
-/* a simplest zone type: a list of IP addresses with
+/* $Id$
+ * a simplest zone type: a list of IP addresses with
  * a common text (maybe with a substitution for IP).
  * A list is stored as a sorted array, with binary search --
  * maybe not the most efficient way, but it's the most optimal

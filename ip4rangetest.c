@@ -1,3 +1,7 @@
+/* $Id$
+ * small program to test ip4range_expand macro
+ */
+
 #include <stdio.h>
 #include "ip4addr.h"
 #include "rbldnsd.h"

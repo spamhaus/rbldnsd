@@ -1,5 +1,5 @@
-/* generic zone, simplified bind format.
- * Allows "inclusions" of other zone types.
+/* $Id$
+ * generic zone, simplified bind format.
  */
 
 #include <errno.h>

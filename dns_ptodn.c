@@ -1,3 +1,6 @@
+/* $Id$
+ */
+
 #include "dns.h"
 #include <errno.h>
 

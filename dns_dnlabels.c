@@ -1,3 +1,6 @@
+/* $Id$
+ */
+
 #include "dns.h"
 
 unsigned dns_dnlabels(const unsigned char *dn) {
