@@ -32,17 +32,16 @@ forall() {
     while read name args; do
       case "$name" in
         ""|\#*) continue;;
-	-) name=rbldnsd; pidfile=/var/run/$name.pid;;
+	-) name=$NAME; pidfile=/var/run/$name.pid;;
 	*) pidfile=/var/run/rbldnsd-$name.pid;;
       esac
       pid=
       if [ -f $pidfile ]; then
-        if read p < $pidfile; then
-          if [ -d /proc/$p ]; then
-            case "`ls -l /proc/$p/exe 2>/dev/null`" in
-              *$NAME*) pid=$p;;
-	    esac
-          fi
+        read p < $pidfile
+        if [ -n "$p" -a -f /proc/$p/cmdline ]; then
+          case "`cat /proc/$p/cmdline 2>/dev/null`" in
+            *$NAME*) pid=$p;;
+          esac
         fi
       fi
       $1
