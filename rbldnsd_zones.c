@@ -148,8 +148,7 @@ int ds_special(struct dataset *ds, char *line, int lineno) {
 
     /* SOA record */
     struct dssoa dssoa;
-    unsigned odnlen, pdnlen;
-    unsigned char dn[DNS_MAXDN*2];
+    unsigned char odn[DNS_MAXDN], pdn[DNS_MAXDN];
 
     if (ds->ds_dssoa)
       return 1; /* ignore if already set */
@@ -158,8 +157,8 @@ int ds_special(struct dataset *ds, char *line, int lineno) {
     SKIPSPACE(line);
 
     if (!(line = parse_ttl_nb(line, dssoa.dssoa_ttl, ds->ds_ttl))) return 0;
-    if (!(line = parse_dn(line, dn, &odnlen))) return 0;
-    if (!(line = parse_dn(line, dn + odnlen, &pdnlen))) return 0;
+    if (!(line = parse_dn(line, odn, &dssoa.dssoa_odnlen))) return 0;
+    if (!(line = parse_dn(line, pdn, &dssoa.dssoa_pdnlen))) return 0;
     if (!(line = parse_uint32(line, &dssoa.dssoa_serial))) return 0;
     if (!(line = parse_time_nb(line, dssoa.dssoa_n+0))) return 0;
     if (!(line = parse_time_nb(line, dssoa.dssoa_n+4))) return 0;
@@ -167,11 +166,9 @@ int ds_special(struct dataset *ds, char *line, int lineno) {
     if (!(line = parse_time_nb(line, dssoa.dssoa_n+12))) return 0;
     if (*line) return 0;
 
-    dssoa.dssoa_odn = mp_memdup(ds->ds_mp, dn, odnlen + pdnlen);
-    if (!dssoa.dssoa_odn) return -1;
-    dssoa.dssoa_pdn = dssoa.dssoa_odn + odnlen;
-    dssoa.dssoa_odnlen = odnlen;
-    dssoa.dssoa_pdnlen = pdnlen;
+    dssoa.dssoa_odn = mp_memdup(ds->ds_mp, odn, dssoa.dssoa_odnlen);
+    dssoa.dssoa_pdn = mp_memdup(ds->ds_mp, pdn, dssoa.dssoa_pdnlen);
+    if (!dssoa.dssoa_odn || !dssoa.dssoa_pdn) return -1;
     ds->ds_dssoa = mp_talloc(ds->ds_mp, struct dssoa);
     if (!ds->ds_dssoa) return -1;
     *ds->ds_dssoa = dssoa;
