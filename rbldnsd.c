@@ -672,7 +672,7 @@ static void dumpstats(void) {
   }
   fprintf(f, " *" C C C C C "\n",
     tot.q_ok + tot.q_nxd + tot.q_err,
-    tot.q_ok, tot.q_nxdt
+    tot.q_ok, tot.q_nxd,
     tot.b_in, tot.b_out);
 #undef C
   fclose(f);
