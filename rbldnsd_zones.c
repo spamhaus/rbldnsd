@@ -499,7 +499,7 @@ void dumpzone(const struct zone *z, FILE *f) {
       fprintf(f, "@\t%u\tSOA", unpack32(z->z_dssoa->dssoa_ttl));
       dns_dntop(z->z_dssoa->dssoa_odn, name, sizeof(name));
       fprintf(f, "\t%s.", name);
-      dns_dntop(z->z_dssoa->dssoa_pdn + 1, name, sizeof(name));
+      dns_dntop(z->z_dssoa->dssoa_pdn, name, sizeof(name));
       fprintf(f, "\t%s.", name);
       fprintf(f, "\t(%u %u %u %u %u)\n",
           unpack32(z->z_soa_n+0),
