@@ -2,12 +2,6 @@ $Id$
 
 TODO list for rbldnsd, in no particular order.
 
- * review logging.  It should be possible to specify which packets
-   (qtype, rcode, bad etc) to log in addition to filtering by client's IP.
-   Probably not needed as logfile may be FIFO now.
-
- * review all names to be consistent (partially done)
-
  * maybe multi-children environment.  Seems to be unnecessary.
 
  * implement TCP mode (in separate process, to reduce number of syscalls)
