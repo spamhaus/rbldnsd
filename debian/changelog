@@ -1,12 +1,4 @@
-rbldnsd (0.990pre0) unstable; urgency=low
-
-  * ensure we return all RRs of the same type (if there
-    are several of them) with the same (smallest) TTL.
-    Problem spotted by Victor Duchovny, MorganStanley.
-
-  * "randomize" order of RRs of the same type in `generic'
-    dataset. The randomization is dumb, but it is better
-    than nothing anyway.  Suggested by Furio Ercolessi.
+rbldnsd (0.99.00pre1) unstable; urgency=low
 
   * implemented master format dump for ip4trie dataset
 
@@ -26,6 +18,18 @@ rbldnsd (0.990pre0) unstable; urgency=low
 
   * add new dataset to the end of a list, not to top (cosmetic change,
     specifies loading order and thus logging order only)
+
+ -- Michael Tokarev <mjt@corpit.ru>  Sun, 30 Nov 2003 14:41:25 +0300
+
+rbldnsd (0.990pre0) unstable; urgency=low
+
+  * ensure we return all RRs of the same type (if there
+    are several of them) with the same (smallest) TTL.
+    Problem spotted by Victor Duchovny, MorganStanley.
+
+  * "randomize" order of RRs of the same type in `generic'
+    dataset. The randomization is dumb, but it is better
+    than nothing anyway.  Suggested by Furio Ercolessi.
 
  -- Michael Tokarev <mjt@corpit.ru>  Sun, 30 Nov 2003 14:28:52 +0300
 
