@@ -564,12 +564,9 @@ int update_zone_ns(struct zone *zone, const struct dsns *dsns, unsigned ttl) {
       if (nns < MAX_NS)
         nsdna[nns++] = dsns->dsns_dn;
       else {
-        char name[DNS_MAXDOMAIN+1];
-        dns_dntop(zone->z_dn, name, sizeof(name));
-        dslog(LOG_WARNING, 0,
-              "zone %.70s: too many NS records specified, "
-              "only first %d will be used",
-              name, MAX_NS);
+        zlog(LOG_WARNING, zone,
+             "too many NS records specified, only first %d will be used",
+             MAX_NS);
         break;
       }
     }

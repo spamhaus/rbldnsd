@@ -377,12 +377,9 @@ static int updatezone(struct zone *zone) {
 
   zone->z_stamp = stamp;
   if (!update_zone_soa(zone, dssoa) ||
-      !update_zone_ns(zone, dsns, nsttl)) {
-    char name[DNS_MAXDOMAIN+1];
-    dns_dntop(zone->z_dn, name, sizeof(name));
-    dslog(LOG_WARNING, 0,
-          "zone %.70s: NS or SOA RRs are too long, will be ignored", name);
-  }
+      !update_zone_ns(zone, dsns, nsttl))
+    zlog(LOG_WARNING, zone,
+         "NS or SOA RRs are too long, will be ignored");
 
   return 1;
 }
@@ -433,9 +430,7 @@ int reloadzones(struct zone *zonelist) {
 
     for(; zonelist; zonelist = zonelist->z_next) {
       if (!updatezone(zonelist)) {
-        char name[DNS_MAXDOMAIN+1];
-        dns_dntop(zonelist->z_dn, name, sizeof(name));
-        dslog(LOG_WARNING, 0, "zone %.70s will not be serviced", name);
+        zlog(LOG_WARNING, zonelist, "zone will not be serviced");
         zonelist->z_stamp = 0;
       }
     }
