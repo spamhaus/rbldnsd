@@ -4,6 +4,8 @@ rbldnsd (0.83p1) unstable; urgency=low
 
   * added meminfo logging via mallinfo - disable with -DNOMEMINFO
 
+  * fixed invocation w/o -b (bind address): rbldnsd wasn't work w/o -b at all
+
  -- Michael Tokarev <mjt@corpit.ru>  Sun,  6 Apr 2003 02:46:29 +0400
 
 rbldnsd (0.82) unstable; urgency=low

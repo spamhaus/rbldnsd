@@ -159,7 +159,7 @@ static int init(int argc, char **argv, struct zone **zonep) {
     error(errno, "unable to create listening socket");
   memset(&sin, 0, sizeof(sin));
   sin.sin_family = AF_INET;
-  if (bindaddr) {
+  if (bindaddr && *bindaddr) {
     if ((p = strchr(bindaddr, ':')) != NULL)
       *p++ = '\0';
     if (*bindaddr && ip4addr(bindaddr, &saddr, NULL))
