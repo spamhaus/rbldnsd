@@ -2,13 +2,14 @@ Source: rbldnsd
 Section: net
 Priority: optional
 Maintainer: Michael Tokarev <mjt@corpit.ru>
+Uploaders: Santiago Vila <sanvila@debian.org>
 Build-Depends: debhelper (>> 3.0.0)
-Standards-Version: 3.5.2
+Standards-Version: 3.6.1
 
 Package: rbldnsd
 Architecture: any
 Depends: ${shlibs:Depends}
-Description: small and fast DNSBL nameserver daemon
+Description: small nameserver daemon designed for DNSBLs
  Rbldnsd is a small authoritate-only DNS nameserver
  designed to serve DNS-based blocklists (DNSBLs).
  It may handle IP-based and name-based blocklists.
