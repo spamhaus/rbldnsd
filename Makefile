@@ -60,7 +60,7 @@ RBLDNSD_OBJS = $(RBLDNSD_SRCS:.c=.o) librbldnsd.a
 MISC = rbldnsd.8 qsort.c Makefile NEWS CHANGES \
  EasynetDynablock2rbldnsd.pl osirusoft2rbldnsd.pl
 
-SRCS = $(LIB_SRCS) $(RBLDNSD_SRCS) ip4rangetest.c
+SRCS = $(LIB_SRCS) $(RBLDNSD_SRCS)
 GSRC = $(LIB_GSRC)
 HDRS = $(LIB_HDRS) $(RBLDNSD_HDRS)
 
@@ -76,9 +76,6 @@ librbldnsd.a: $(LIB_OBJS)
 	-rm -f $@
 	$(AR) $(ARFLAGS) $@ $(LIB_OBJS)
 	$(RANLIB) $@
-
-ip4rangetest: ip4rangetest.o ip4parse.o
-	$(LD) $(LDFLAGS) -o $@ ip4rangetest.o ip4parse.o
 
 .SUFFIXES: .c .o
 
@@ -153,5 +150,4 @@ rbldnsd_generic.o: rbldnsd_generic.c rbldnsd.h ip4addr.h dns.h \
 rbldnsd_combined.o: rbldnsd_combined.c rbldnsd.h ip4addr.h dns.h \
  mempool.h
 rbldnsd_util.o: rbldnsd_util.c rbldnsd.h ip4addr.h dns.h mempool.h
-ip4rangetest.o: ip4rangetest.c ip4addr.h rbldnsd.h dns.h mempool.h
 dns_nametab.o: dns_nametab.c dns.h
