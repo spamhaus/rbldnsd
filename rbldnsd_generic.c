@@ -17,19 +17,10 @@ definedstype(generic, DSTF_DNREV, "generic simplified bind-format");
 struct entry {
   const unsigned char *lrdn;
   	/* reversed DN, mp-allocated; first byte is length */
-  u_int16_t dtyp;	/* data (query) type */
-  u_int16_t dsiz;	/* data size */
-  unsigned char *data;	/* data of size dsize, mp-allocated */
+  unsigned dtyp;	/* data (query) type */
+    /* last word is DNS RR type, first word is NSQUERY_XX bit */
+  unsigned char *data;	/* data, mp-allocated (size depends on qtyp) */
 };
-
-/* note: we use two bytes in dtyp.
- * lsb is a type in DNS, e.g. DNS_T_A: all types fit in one byte.
- * msb is our NSQUERY_* flag: see definitions in rbldnsd.h
- * Once DNS types will not fit in one byte, this code should be rewviwed.
- * Good news for _now_ is that the whole thing (type + size) fits nicely
- * in 4 bytes (2 shorts), so entry size is 12 bytes (will be 16 if anything
- * will be added).
- */
 
 struct dataset {
   unsigned n;		/* number of entries */
@@ -134,10 +125,9 @@ static int ds_generic_parseany(struct dataset *ds, char *line) {
   else
     return -1;
 
+  e->dtyp = dtyp;
   if (!(e->data = mp_ealloc(&ds->mp, dsiz)))
     return 0;
-  e->dtyp = dtyp;
-  e->dsiz = dsiz;
   memcpy(e->data, data, dsiz);
 
   ++ds->n;
@@ -241,8 +231,11 @@ ds_generic_query(const struct dataset *ds,
     case DNS_T_MX:
       addrec_mx(packet, e->data, e->data + 3, e->data[2]);
       break;
-    default:
-      addrec_any(packet, e->dtyp & 0xff, e->data, e->dsiz);
+    case DNS_T_A:
+      addrec_any(packet, DNS_T_A, e->data, 4);
+      break;
+    case DNS_T_TXT:
+      addrec_any(packet, DNS_T_TXT, e->data, (unsigned)(e->data[0]) + 1);
       break;
     }
   } while(++e < t && e->lrdn == rdn);

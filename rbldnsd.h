@@ -76,14 +76,14 @@ ds_queryfn_t(const struct dataset *ds,
              const struct dnsquery *query, unsigned qtyp,
              struct dnspacket *packet);
 
-/* flags used in qtyp. should be in MSB byte for `generic' dataset */
-#define NSQUERY_TXT	(1u<< 8)
-#define NSQUERY_A	(1u<< 9)
-#define NSQUERY_NS	(1u<<10)
-#define NSQUERY_SOA	(1u<<11)
-#define NSQUERY_MX	(1u<<12)
-#define NSQUERY_OTHER	(1u<<15)
-#define NSQUERY_ANY	0xff00u
+/* flags used in qtyp. should be in MS word for `generic' dataset to work */
+#define NSQUERY_TXT	(1u<<16)
+#define NSQUERY_A	(1u<<17)
+#define NSQUERY_NS	(1u<<18)
+#define NSQUERY_SOA	(1u<<19)
+#define NSQUERY_MX	(1u<<20)
+#define NSQUERY_OTHER	(1u<<31)
+#define NSQUERY_ANY	0xffff0000u
 
 struct dataset_type {	/* dst */
   const char *dst_name;		/* name of the type */
