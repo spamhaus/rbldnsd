@@ -3,26 +3,26 @@ $Id$
 By default (if no -u option is specified), rbldnsd runs as user rbldns.
 At a time the rbldnsd package is installed, such a user is created on
 the target system, with home directory /var/lib/rbldns (note the directory
-is owned by root user, see below).  When the package is removed, rbldns
-user is NOT removed, so that files owned by that user, if any, will not
-be "orphaned" (package removal scripts does not check whenever there are
-any such files exists).  If you're sure there's no files owned by that
-user exists after removing the package, it's ok to remove the user (and
+is owned by root user, see below).  When the package is removed, user
+rbldns is NOT removed, so that files owned by that user, if any, will not
+be "orphaned" (package removal scripts don't check whether there are any
+such files still exists).  If you're sure no files owned by that user
+exists after removing the package, it's ok to remove the user (and
 /var/lib/rbldns directory) too.
 
-Note again the rbldns home directory, /var/lib/rbldns, is owned by root,
-not by rbldns.  Usually you will put zone data files into that directory,
-and use it as a chroot directory for rbldnsd (-r option).  If you want
-rbldnsd query and statistic logs (-l and -s options), you may create
-files for that in this directory (or a subdirectory of it) and set
-owner/permissions of that files in such a way so rbldnsd will be able
-to write to them.  The two files -- query and statistics logs -- are
-the ONLY files where rbldnsd should be able to write to, the rest of
-files, including zone data, never opened for writing by rbldnsd in
-normal circumstances, and generally (from security perspective) should
-not be writable by the daemon.  Fell free to chown the /var/lib/rbldns
-directory to whatever user you like, to be able to put data files into
-it.  If you're paranoid about security (every system administrator shoud
-be, right?), create yet another account that will own data files and
-set up data updating process to run as that account.
+Note again the rbldns home directory, /var/lib/rbldns, is owned by root
+when the package is installed, not by rbldns user.  Usually you will put
+zone data files into that directory, and use it as a chroot directory for
+rbldnsd (-r option).  Feel free to chown the /var/lib/rbldns directory to
+whatever user you like, to be able to put data files into it.  If you're
+paranoid about security (every system administrator should be, right?),
+create yet another account that will own data files and set up data
+updating process to run as that account.  If you want rbldnsd query and
+statistic logs (-l and -s options), you may create files for that in
+this directory (or a subdirectory of it) and set owner/permissions of
+that files in such a way so rbldnsd will be able to write to them.  The
+two files -- query and statistics logs -- are the ONLY files where rbldnsd
+should be able to write to, the rest of files, including zone data, are
+never opened for writing by rbldnsd in normal circumstances, and generally
+(from security perspective) should not be writable by the daemon.
 
