@@ -48,6 +48,8 @@ rbldnsd (0.96pre) unstable; urgency=low
      dntoip4addr() from rbldnsd_utils.c to rbldnsd_packet.c
      ds_loading from rbldnsd_zones.c to rbldnsd.c
 
+  * fixed alignment bug in mempool.c that caused allocation slip
+
  -- Michael Tokarev <mjt@corpit.ru>  Thu, 29 May 2003 12:09:24 +0400
 
 rbldnsd (0.95) unstable; urgency=low
