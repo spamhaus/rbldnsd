@@ -17,6 +17,7 @@ rbldnsd (0.98a.pre) unstable; urgency=low
   * config test for vsnprintf(), fatal if not found for now (OSF lacks it)
   * remove EasynetDynablock2rbldnsd.pl since easynet.nl provides dynablock
     in rbldnsd format now.
+  * remove osirusoft2rbldns.pl since relays.osirusoft.com is dead.
 
  -- Michael Tokarev <mjt@corpit.ru>  Fri, 22 Aug 2003 13:55:58 +0400
 

@@ -44,7 +44,6 @@ install: debian/build-stamp
 	dh_installinit
 	dh_installdocs NEWS TODO CHANGES-0.81
 	dh_installchangelogs
-	dh_installexamples osirusoft2rbldnsd.pl
 	dh_strip
 	dh_compress
 	dh_fixperms

@@ -11,6 +11,8 @@ Never news are at top.
    because it is too huge, but my own "mini-autoconf" may be not
    as portable/tested, obviously.
 
+ - remove EasynetDynablock and relays.osirusoft.com conversion scripts
+
 0.98 (17 Aug 2003)
 
  - incompatible change: bind address (-b option) is now mandatory.
