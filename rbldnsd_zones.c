@@ -141,8 +141,11 @@ struct zone *addzone(struct zone *zonelist, const char *spec) {
 /* parse $SPECIAL construct */
 int ds_special(struct dataset *ds, char *line, int lineno) {
 
-  if ((line[0] == 's' || line[0] == 'S') &&
-      (line[1] == 'o' || line[1] == 'O') &&
+  switch(*line) {
+
+  case 's': case 'S':
+
+  if ((line[1] == 'o' || line[1] == 'O') &&
       (line[2] == 'a' || line[2] == 'A') &&
       ISSPACE(line[3])) {
 
@@ -176,9 +179,11 @@ int ds_special(struct dataset *ds, char *line, int lineno) {
 
     return 1;
   }
+  break;
 
-  if ((line[0] == 'n' || line[0] == 'N') &&
-      (line[1] == 's' || line[1] == 'S') &&
+  case 'n': case 'N':
+
+  if ((line[1] == 's' || line[1] == 'S') &&
       ISSPACE(line[2])) {
 
      unsigned char dn[DNS_MAXDN], ttl[4];
@@ -204,9 +209,10 @@ int ds_special(struct dataset *ds, char *line, int lineno) {
 
      return 1;
   }
+  break;
 
-  if ((line[0] == 't' || line[0] == 'T') &&
-      (line[1] == 't' || line[1] == 'T') &&
+  case 't': case 'T':
+  if ((line[1] == 't' || line[1] == 'T') &&
       (line[2] == 'l' || line[2] == 'L') &&
       ISSPACE(line[3])) {
     unsigned char ttl[4];
@@ -218,9 +224,11 @@ int ds_special(struct dataset *ds, char *line, int lineno) {
     memcpy(ds->ds_ttl, ttl, 4);
     return 1;
   }
+  break;
 
-  if (line[0] >= '0' && line[0] <= '9' &&
-      ISSPACE(line[1])) {
+  case '0': case '1': case '2': case '3': case '4':
+  case '5': case '6': case '7': case '8': case '9':
+  if (ISSPACE(line[1])) {
     /* substitution vars */
     unsigned n = line[0] - '0';
     if (ds->ds_subset) ds = ds->ds_subset;
@@ -231,9 +239,10 @@ int ds_special(struct dataset *ds, char *line, int lineno) {
     if (!(ds->ds_subst[n] = estrdup(line))) return 0;
     return 1;
   }
+  break;
 
-  if ((line[0] == 'D' || line[0] == 'd') &&
-      (line[1] == 'A' || line[1] == 'a') &&
+  case 'd': case 'D':
+  if ((line[1] == 'A' || line[1] == 'a') &&
       (line[2] == 'T' || line[2] == 't') &&
       (line[3] == 'A' || line[3] == 'a') &&
       (line[4] == 'S' || line[4] == 's') &&
@@ -244,6 +253,9 @@ int ds_special(struct dataset *ds, char *line, int lineno) {
     line += 8;
     SKIPSPACE(line);
     return ds_combined_newset(ds, line, lineno);
+  }
+  break;
+
   }
 
   return 0;
