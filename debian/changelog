@@ -4,6 +4,7 @@ rbldnsd (0.99) unstable; urgency=low
    - #include "config.h"
    - uint32_t
    - STATS_LL => uint64_t/long long/long, PRI_DNSCNT: PRIu64/llu/lu
+    Thanks to Christian Krackowizer for testing and patience.
   * change ip4addr parsing routines to return -1 in case of error,
     instead of 0, and treat 0 to be valid return value too (0/0)
   * fix utimes printing (time rbldnsd spent when loading zones)

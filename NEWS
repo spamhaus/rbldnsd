@@ -9,7 +9,9 @@ Never news are at top.
    -DSTATS_LL gone; NOSTDINT_H, NOIPv6, NOMEMINFO, NOPOLL are
    set automatically (hopefully).  I dont use GNU autoconf just
    because it is too huge, but my own "mini-autoconf" may be not
-   as portable/tested, obviously.
+   as portable/tested, obviously.  Great thanks to Christian Krackowizer
+   (ckrackowiz at std.schuler-ag.com) for testing this stuff on
+   numerous platforms.
 
  - remove EasynetDynablock and relays.osirusoft.com conversion scripts
 
