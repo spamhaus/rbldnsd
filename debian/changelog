@@ -1,3 +1,13 @@
+rbldnsd (0.89p3) unstable; urgency=low
+
+  * ip4vset and ip4set merged, ditto for dnvset and dnset.
+  * $NS in datasets
+  * $TTL in datasets generic records; now required for $SOA and $NS
+  * $n substitutions
+  * more details in NEWS
+
+ -- Michael Tokarev <mjt@corpit.ru>  Thu,  8 May 2003 16:59:33 +0400
+
 rbldnsd (0.89p2) unstable; urgency=low
 
   * again, many changes.  DN-based lists are now ok too from

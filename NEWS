@@ -3,6 +3,40 @@ $Id$
 This file describes user-visible changes in rbldnsd.
 Never news are at top.
 
+0.89p3 (8 May 2003)
+
+ Incompatible changes:
+
+ - ip4vset and dnvset are gone.  A trivial idea allowed me to merge
+   functionality into ip4set and dnset.
+   This means, in particular, that default A/TXT values may be specified
+   at any place in data files, and applies to all subsequent records up
+   to end of file (defaults gets reset at file boundary), and negative
+   (exclusion) entries works - all in uniform way.
+
+ - $NS special in every dataset instead of NS record in generic dataset.
+   Up to 20 per zone may be specified.  Rbldnsd still does not add NS RRs
+   into normal answers, and perhaps will never do; also it never fills up
+   ADDITIONAL section (e.g. with NS A RRs).
+
+ - rbldnsd will now refuse ANY, SOA and NS queries for zone's base DN if
+   SOA and/or NS records (as specials) aren't specified.
+
+ - Support for NS and SOA record types removed from generic dataset.  Use
+   dataset specials ($SOA and $NS) for this.
+
+ - $SOA and $NS specials requires TTL as a first word, so SOA become
+   8-field instead of 7-field, and NS become 2-field instead of one-field.
+
+ Changes:
+
+ - Allow to specify TTL per dataset (as $TTL special), and for every record
+   in generic dataset (optional field before record type)
+
+ - substitution variables $0,$1,$2...$9 implemented for TXT templates,
+   so it is now possible to use less space and less typing.  I don't know
+   whenever this is useful or not.
+
 0.89p2 (6 May 2003)
 
  Incompatible changes:
