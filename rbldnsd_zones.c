@@ -167,7 +167,7 @@ struct zone *newzone(struct zone **zonelist,
     else if (zone->z_dnlen == dnlen && memcmp(zone->z_dn, dn, dnlen) == 0)
       break;
     else {
-      if (zone->z_dnlen < dnlen &&
+      if (!lastzonep && zone->z_dnlen < dnlen &&
           memcmp(dn + dnlen - zone->z_dnlen, zone->z_dn, zone->z_dnlen) == 0)
         lastzonep = zonep;
       zonep = &zone->z_next;
