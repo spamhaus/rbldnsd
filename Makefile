@@ -114,17 +114,14 @@ ip4atos.o: ip4atos.c ip4addr.h
 ip4mask.o: ip4mask.c ip4addr.h
 mempool.o: mempool.c mempool.h
 rbldnsd.o: rbldnsd.c rbldnsd.h ip4addr.h dns.h mempool.h
-rbldnsd_zones.o: rbldnsd_zones.c dns.h rbldnsd.h ip4addr.h
-rbldnsd_packet.o: rbldnsd_packet.c rbldnsd.h ip4addr.h dns.h
-rbldnsd_generic.o: rbldnsd_generic.c rbldnsd.h ip4addr.h dns.h \
- mempool.h qsort.c
-rbldnsd_ip4set.o: rbldnsd_ip4set.c rbldnsd.h ip4addr.h dns.h qsort.c
-rbldnsd_ip4vset.o: rbldnsd_ip4vset.c rbldnsd.h ip4addr.h dns.h \
- mempool.h qsort.c
+rbldnsd_zones.o: rbldnsd_zones.c rbldnsd.h ip4addr.h dns.h mempool.h
+rbldnsd_packet.o: rbldnsd_packet.c rbldnsd.h ip4addr.h dns.h mempool.h
+rbldnsd_ip4set.o: rbldnsd_ip4set.c rbldnsd.h ip4addr.h dns.h mempool.h \
+ qsort.c
 rbldnsd_dnset.o: rbldnsd_dnset.c rbldnsd.h ip4addr.h dns.h mempool.h \
  qsort.c
-rbldnsd_dnvset.o: rbldnsd_dnvset.c rbldnsd.h ip4addr.h dns.h mempool.h \
- qsort.c
+rbldnsd_generic.o: rbldnsd_generic.c rbldnsd.h ip4addr.h dns.h \
+ mempool.h qsort.c
 rbldnsd_util.o: rbldnsd_util.c rbldnsd.h ip4addr.h dns.h mempool.h
-ip4rangetest.o: ip4rangetest.c ip4addr.h rbldnsd.h dns.h
+ip4rangetest.o: ip4rangetest.c ip4addr.h rbldnsd.h dns.h mempool.h
 dns_nametab.o: dns_nametab.c dns.h
