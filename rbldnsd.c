@@ -79,7 +79,7 @@ static char *logfile;		/* log file name */
 static int logmemtms;		/* print memory usage and (re)load time info */
 unsigned char def_ttl[4] = "\0\0\010\064";	/* default record TTL 35m */
 const char def_rr[5] = "\177\0\0\2\0";		/* default A RR */
-struct dataset *ds_loading;
+struct dataset *ds_loading;	/* a dataset currently being loaded if any */
 
 #define MAXSOCK	20	/* maximum # of supported sockets */
 static int sock[MAXSOCK];	/* array of active sockets */
@@ -513,10 +513,25 @@ static void init(int argc, char **argv) {
         version, numsock);
   initialized = 1;
 
+  if (logfile) {
+    if (*logfile == '+') {
+      ++logfile;
+      flushlog = 1;
+    }
+    if (!*logfile) {
+      logfile = NULL;
+      flushlog = 0;
+    }
+    else if (logfile[0] == '-' && logfile[1] == '\0') {
+      logfile = NULL;
+      flog = stdout;
+    }
+  }
   if (!nodaemon) {
     write(500, "", 1);
     close(500);
-    close(0); close(1); close(2);
+    close(0); close(2);
+    if (!flog) close(1);
     setsid();
     logto = LOGTO_SYSLOG;
   }
@@ -629,16 +644,22 @@ static void logstats(int reset) {
 # define logstats(z,r)
 #endif
 
-static FILE *reopenlog(FILE *flog, const char *logfile) {
-  int fd;
-  if (flog) fclose(flog);
-  fd = open(logfile, O_WRONLY|O_APPEND|O_CREAT|O_NONBLOCK, 0644);
-  if (fd >= 0 && (flog = fdopen(fd, "a")) != NULL)
-    return flog;
-  dslog(LOG_WARNING, 0, "error (re)opening logfile `%.50s': %s",
-        logfile, strerror(errno));
-  if (fd >= 0) close(fd);
-  return NULL;
+static void reopenlog(void) {
+  if (logfile) {
+    int fd;
+    if (flog) fclose(flog);
+    fd = open(logfile, O_WRONLY|O_APPEND|O_CREAT|O_NONBLOCK, 0644);
+    if (fd < 0 || (flog = fdopen(fd, "a")) == NULL) {
+      dslog(LOG_WARNING, 0, "error (re)opening logfile `%.50s': %s",
+            logfile, strerror(errno));
+      if (fd >= 0) close(fd);
+      flog = NULL;
+    }
+  }
+  else if (flog && !flushlog) { /* log to stdout */
+    clearerr(flog);
+    fflush(flog);
+  }
 }
 
 static void do_signalled(void) {
@@ -654,8 +675,8 @@ static void do_signalled(void) {
     logstats(signalled & SIGNALLED_ZEROSTATS);
     logmemusage();
   }
-  if ((signalled & SIGNALLED_RELOG) && logfile)
-    flog = reopenlog(flog, logfile);
+  if (signalled & SIGNALLED_RELOG)
+    reopenlog();
   if (signalled & SIGNALLED_RELOAD)
     do_reload();
   signalled = 0;
@@ -718,12 +739,7 @@ static void request(int fd) {
 int main(int argc, char **argv) {
   init(argc, argv);
   setup_signals();
-  if (logfile) {
-    if (*logfile == '+') flushlog = 1, ++logfile;
-    flog = reopenlog(NULL, logfile);
-  }
-  else
-    flog = NULL;
+  reopenlog();
   alarm(recheck);
 #ifndef NOSTATS
   stats_time = time(NULL);

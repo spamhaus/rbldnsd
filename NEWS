@@ -20,6 +20,9 @@ Never news are at top.
    64-191, ...  The listing will never be matched, so bug does no harm
    (i.e. no extra, incorrect listings).
 
+ - feature: allow logging to standard output (-l - or -l +-).  See manpage
+   for details.  Idea by Klaus Alexander Seistrup @magnetic-ink.dk.
+
 0.98 (17 Aug 2003)
 
  - incompatible change: bind address (-b option) is now mandatory.
