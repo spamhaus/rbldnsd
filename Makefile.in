@@ -157,19 +157,21 @@ ip4mask.o: ip4mask.c ip4addr.h config.h
 mempool.o: mempool.c mempool.h
 rbldnsd.o: rbldnsd.c rbldnsd.h config.h ip4addr.h dns.h mempool.h
 rbldnsd_zones.o: rbldnsd_zones.c rbldnsd.h config.h ip4addr.h dns.h \
- mempool.h
+  mempool.h
 rbldnsd_packet.o: rbldnsd_packet.c rbldnsd.h config.h ip4addr.h dns.h \
- mempool.h
+  mempool.h
 rbldnsd_ip4set.o: rbldnsd_ip4set.c rbldnsd.h config.h ip4addr.h dns.h \
- mempool.h qsort.c
-rbldnsd_ip4trie.o: rbldnsd_ip4trie.c rbldnsd.h config.h ip4addr.h \
- dns.h mempool.h
+  mempool.h qsort.c
+rbldnsd_ip4tset.o: rbldnsd_ip4tset.c rbldnsd.h config.h ip4addr.h dns.h \
+  mempool.h qsort.c
+rbldnsd_ip4trie.o: rbldnsd_ip4trie.c rbldnsd.h config.h ip4addr.h dns.h \
+  mempool.h
 rbldnsd_dnset.o: rbldnsd_dnset.c rbldnsd.h config.h ip4addr.h dns.h \
- mempool.h qsort.c
-rbldnsd_generic.o: rbldnsd_generic.c rbldnsd.h config.h ip4addr.h \
- dns.h mempool.h qsort.c
-rbldnsd_combined.o: rbldnsd_combined.c rbldnsd.h config.h ip4addr.h \
- dns.h mempool.h
+  mempool.h qsort.c
+rbldnsd_generic.o: rbldnsd_generic.c rbldnsd.h config.h ip4addr.h dns.h \
+  mempool.h qsort.c
+rbldnsd_combined.o: rbldnsd_combined.c rbldnsd.h config.h ip4addr.h dns.h \
+  mempool.h
 rbldnsd_util.o: rbldnsd_util.c rbldnsd.h config.h ip4addr.h dns.h \
- mempool.h
+  mempool.h
 dns_nametab.o: dns_nametab.c dns.h
