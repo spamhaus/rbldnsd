@@ -109,7 +109,17 @@ by sending SIGHUP signal to \fBrbldnsd\fR.
 
 .IP "\fB\-p\fR \fIpidfile\fR"
 Write rbldnsd's pid to the specified \fIpidfile\fR, so it will be easily
-findable.
+findable.  This file gets written before entering chroot jail (if specified)
+and before changing userid, so it's ok to specify e.g. /var/run/rbldnsd.pid
+here.
+
+.IP "\fB\-l\fR \fIlogfile\fR"
+Specifies a file to which log all requests made.  This file is created
+after entering chroot jail and becoming a user.  Logfiles may be quite
+large, esp. on busy sites (\fBrbldnsd\fR will log \fIevery\fR recognized
+request if this option is specified).  This option is mainly intended for
+debugging purposes.  Upon receiption of SIGHUP signal, \fBrbldnsd\fR
+reopens it's logfile.
 
 .IP \fB\-n\fR
 Do not become a daemon.  Normally, \fBrbldnsd\fR will fork and go to the
@@ -128,10 +138,13 @@ types are available:
 .IP \fBip4set\fR
 A set of IP addresses or CIDR address ranges, with common A and TXT
 values.  IP addresses are specified one per line, by an IP address
-prefix (1, 2, 3 or 4 octets) optionally followed by a slash and
-number of bits in network part.  127.0.0 and 127.0.0.0/24 and 127/24
-are all the same.  Every IP address that fits within any of specified
-ranges is "listed", and
+prefix (initial octets), complete IP address, CIDR range, or IP
+prefix range (two IP prefixes or complete addresses delimited by
+a dash, inclusive).  127.0.0 and 127.0.0.0/24 and 127/24 and
+127\-127.0.0 and 127.0.0.0\-127.0.0.255 are all the same (note that
+in prefix range, last boundary is completed with all-ones (255), not
+all-zeros line with first boundary and a prefix alone).  Every IP
+address that fits within any of specified ranges is "listed", and
 .B rbldnsd
 will respond to reverse queries against it within specified zone with
 positive results.
@@ -157,10 +170,12 @@ fast and memory requiriments are less than of other types.
 .IP \fBip4vset\fR
 A set of IP addresses or CIDR ranges, similar to \fBi4set\fR, with
 ability to specify individual A values and TXT templates for every
-entry (in additional to defaults).  Every line contains an IP address
-or CIDR range, optionally followed by A value and TXT template
-in the same form as default values specified in first line that
-starts with colon sign (see below).
+entry (in additional to defaults).  Every line contains single IP
+address, IP address prefix (initial octets), CIDR range, or inclusive
+range of two IP prefixes or addresses (separated by a dash), which
+is optionally folloved by A value and TXT template in the same form
+as default values specified in first line that starts with colon
+sign (see below).
 .IP
 If an entry starts with an exclamation sign (!), this is
 .I exclusion
