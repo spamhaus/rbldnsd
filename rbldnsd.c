@@ -82,8 +82,11 @@ const char def_rr[5] = "\177\0\0\2\0";		/* default A RR */
 struct dataset *ds_loading;
 
 #define MAXSOCK	20	/* maximum # of supported sockets */
-static int sock[MAXSOCK];
-static int numsock;
+static int sock[MAXSOCK];	/* array of active sockets */
+static int numsock;		/* number of active sockets in sock[] */
+static FILE *flog;		/* log file */
+static int flushlog;		/* flush log after each line */
+static struct zone *zonelist;	/* list of zones we're authoritative for */
 
 /* a list of zonetypes. */
 const struct dstype *ds_types[] = {
@@ -121,7 +124,7 @@ static void logmemusage(void) {
 # define logmemusage()
 #endif
 
-static int do_reload(struct zone *zonelist) {
+static int do_reload(void) {
   int r;
 #ifndef NOTIMES
   struct tms tms;
@@ -338,7 +341,7 @@ initsockets(const char *bindaddr[MAXSOCK], int nba, int UNUSED family) {
   }
 }
 
-static struct zone *init(int argc, char **argv) {
+static void init(int argc, char **argv) {
   int c;
   char *p;
   const char *user = NULL;
@@ -349,7 +352,6 @@ static struct zone *init(int argc, char **argv) {
   gid_t gid = 0;
   int nodaemon = 0, quickstart = 0, dump = 0, nover = 0;
   int family = AF_UNSPEC;
-  struct zone *zonelist = NULL;
 
   if ((progname = strrchr(argv[0], '/')) != NULL)
     argv[0] = ++progname;
@@ -410,7 +412,7 @@ static struct zone *init(int argc, char **argv) {
       error(errno, "unable to chroot to %.50s", rootdir);
     if (workdir && chdir(workdir) < 0)
       error(errno, "unable to chdir to %.50s", workdir);
-    if (!do_reload(zonelist))
+    if (!do_reload())
       error(0, "zone loading errors, aborting");
     now = time(NULL);
     printf("; zone dump made %s", ctime(&now));
@@ -504,7 +506,7 @@ static struct zone *init(int argc, char **argv) {
 
   if (quickstart)
     signalled = SIGNALLED_RELOAD;	/* zones will be loaded after fork */
-  else if (!do_reload(zonelist))
+  else if (!do_reload())
     error(0, "zone loading errors, aborting");
 
   dslog(LOG_INFO, 0, "rbldnsd version %s started (%d socket(s))",
@@ -519,7 +521,6 @@ static struct zone *init(int argc, char **argv) {
     logto = LOGTO_SYSLOG;
   }
 
-  return zonelist;
 }
 
 static void sighandler(int sig) {
@@ -571,7 +572,7 @@ static void setup_signals(void) {
 static struct dnsstats gstats;
 static time_t stats_time;
 
-static void logstats(struct zone *zonelist, int reset) {
+static void logstats(int reset) {
   time_t t = time(NULL);
   time_t d = t - stats_time;
   struct dnsstats tot = gstats;
@@ -640,27 +641,23 @@ static FILE *reopenlog(FILE *flog, const char *logfile) {
   return NULL;
 }
 
-static FILE *flog;
-static int flushlog;
-static struct zone *zonelist;
-
-static void do_signalled() {
+static void do_signalled(void) {
   sigset_t ssorig;
   sigprocmask(SIG_BLOCK, &ssblock, &ssorig);
   if (signalled & SIGNALLED_TERM) {
     dslog(LOG_INFO, 0, "terminating");
-    logstats(zonelist, 0);
+    logstats(0);
     logmemusage();
     exit(0);
   }
   if (signalled & SIGNALLED_STATS) {
-    logstats(zonelist, signalled & SIGNALLED_ZEROSTATS);
+    logstats(signalled & SIGNALLED_ZEROSTATS);
     logmemusage();
   }
   if ((signalled & SIGNALLED_RELOG) && logfile)
     flog = reopenlog(flog, logfile);
   if (signalled & SIGNALLED_RELOAD)
-    do_reload(zonelist);
+    do_reload();
   signalled = 0;
   sigprocmask(SIG_SETMASK, &ssorig, NULL);
 }
@@ -719,7 +716,7 @@ static void request(int fd) {
 }
 
 int main(int argc, char **argv) {
-  zonelist = init(argc, argv);
+  init(argc, argv);
   setup_signals();
   if (logfile) {
     if (*logfile == '+') flushlog = 1, ++logfile;

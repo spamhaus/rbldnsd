@@ -18,6 +18,8 @@ rbldnsd (0.98a.pre) unstable; urgency=low
   * remove EasynetDynablock2rbldnsd.pl since easynet.nl provides dynablock
     in rbldnsd format now.
   * remove osirusoft2rbldns.pl since relays.osirusoft.com is dead.
+  * made zonelist really global in rbldnsd.c, reorder some globals to
+    be in one place, add some more comments
 
  -- Michael Tokarev <mjt@corpit.ru>  Fri, 22 Aug 2003 13:55:58 +0400
 
