@@ -524,8 +524,12 @@ static void init(int argc, char **argv) {
   else if (!do_reload())
     error(0, "zone loading errors, aborting");
 
-  dslog(LOG_INFO, 0, "rbldnsd version %s started (%d socket(s))",
-        version, numsock);
+  { const struct zone *z;
+    for(c = 0, z = zonelist; z; z = z->z_next)
+     ++c;
+  }
+  dslog(LOG_INFO, 0, "rbldnsd version %s started (%d socket(s), %d zone(s))",
+        version, numsock, c);
   initialized = 1;
 
   if (!nodaemon) {

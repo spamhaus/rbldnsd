@@ -28,6 +28,8 @@ rbldnsd (0.99.01) unstable; urgency=low
 
   * new routine: zlog(loglevel, zone, fmt, ...)
 
+  * log number of zones at startup
+
  -- Michael Tokarev <mjt@corpit.ru>  Sun, 30 Nov 2003 18:34:04 +0300
 
 rbldnsd (0.990pre0) unstable; urgency=low
