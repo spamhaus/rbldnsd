@@ -11,8 +11,9 @@ rbldnsd (0.994pre) unstable; urgency=low
     rbldnsd_utils.c where the stuff belongs to, out from
     rbldnsd_packets.c which is too large and has nothing to
     do with that stuff.
+  * new helper dump_ip4(), analogous to dump_ip4range()
 
- -- Michael Tokarev <mjt@corpit.ru>  Sun, 24 Oct 2004 21:30:30 +0400
+ -- Michael Tokarev <mjt@corpit.ru>  Tue,  2 Nov 2004 02:50:41 +0300
 
 rbldnsd (0.993.1) unstable; urgency=low
 
