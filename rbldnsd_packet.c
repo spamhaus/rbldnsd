@@ -6,7 +6,6 @@
 #include <time.h>
 #include <stdio.h>
 #include <sys/types.h>
-#include <netinet/in.h>
 #include <unistd.h>
 #include "rbldnsd.h"
 #include "dns.h"
@@ -348,8 +347,9 @@ int addrec_any(struct dnspacket *p, unsigned dtp,
 
 int
 addrec_a(struct dnspacket *p, ip4addr_t aip) {
-  aip = htonl(aip);
-  return addrec_any(p, DNS_T_A, &aip, 4);
+  unsigned char ip[4];
+  ip[0] = aip >> 24; ip[1] = aip >> 16; ip[2] = aip >> 8; ip[3] = aip;
+  return addrec_any(p, DNS_T_A, ip, 4);
 }
 
 int
