@@ -187,8 +187,8 @@ int main(int argc, char **argv) {
     bits = ip4cidr(argv[i], &a, &np);
     if (bits < 0) printf(" cidr : err tail=`%s'\n", np);
     else
-      printf(" cidr : bits=%d " IPFMT " tail=`%s'%s\n",
-	     bits, octets(a), np, HP(a,bits));
+      printf(" cidr : bits=%d " IPFMT " " IPFMT " tail=`%s'%s\n",
+             bits, octets(a), octets(a&ip4mask(bits)), np, HP(a,bits));
 
     bits = ip4range(s, &a, &b, NULL);
     if (bits < 0) printf(" range: err\n");
