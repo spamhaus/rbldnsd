@@ -8,6 +8,7 @@ BEGIN {
   s = ""
   print "/* file automatically generated */"
   print "#include \"dns.h\""
+  print "#include <stdio.h>"
 }
 
 /^enum dns_/ {
@@ -29,9 +30,11 @@ n != "" && /^}/ {
   print " {0,0}"
   print "};\n"
   print "const char *dns_" n "name(enum dns_" n " code) {"
+  print " static char buf[20];"
   print " switch(code) {" s
   print " }"
-  print " return 0;"
+  print " sprintf(buf, \"" n "%d\", code);"
+  print " return buf;"
   print "}"
   #print "#endif /* " n "tab */"
   s = ""

@@ -443,33 +443,19 @@ addrr_a_txt(struct dnspacket *pkt, unsigned qtflag,
   }
 }
 
-static const char *
-codename(unsigned c, const char *name, const char *base, char *buf)
-{
-  if (name) return name;
-  sprintf(buf, "%s%d", base, c);
-  return buf;
-}
-
 void logreply(const struct dnspacket *pkt, const char *ip,
               FILE *flog, int flushlog) {
   char cbuf[DNS_MAXDOMAIN + 200];
-  char tbuf[20];
   char *cp = cbuf;
-  const unsigned char *const h = pkt->p_buf;
   const unsigned char *const q = pkt->p_sans - 4;
-  unsigned c;
 
   cp += sprintf(cp, "%lu %s ", (unsigned long)time(NULL), ip);
-  cp += dns_dntop(h + p_hdrsize, cp, DNS_MAXDOMAIN);
-  c = ((unsigned)q[0]<<8)|q[1];
-  cp += sprintf(cp, " %s ", codename(c, dns_typename(c), "type", tbuf));
-  c = ((unsigned)q[2]<<8)|q[3];
-  cp += sprintf(cp, "%s: ", codename(c, dns_classname(c), "class", tbuf));
-  c = h[3];
-  cp += sprintf(cp, "%s/%u/%d\n",
-                codename(c, dns_rcodename(c), "rcode", tbuf),
-                h[p_ancnt], pkt->p_cur - pkt->p_buf);
+  cp += dns_dntop(pkt->p_buf + p_hdrsize, cp, DNS_MAXDOMAIN);
+  cp += sprintf(cp, " %s %s: %s/%u/%d\n",
+      dns_typename(((unsigned)q[0]<<8)|q[1]),
+      dns_classname(((unsigned)q[2]<<8)|q[3]),
+      dns_rcodename(pkt->p_buf[p_f2] & pf2_rcode),
+      pkt->p_buf[p_ancnt], pkt->p_cur - pkt->p_buf);
   if (flushlog)
     write(fileno(flog), cbuf, cp - cbuf);
   else
