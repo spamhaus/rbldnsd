@@ -1,4 +1,4 @@
-rbldnsd (0.99) unstable; urgency=low
+rbldnsd (0.99) unstable; urgency=medium
 
   * autoconf-style configuration.  Run ./configure before make.
    - #include "config.h"
