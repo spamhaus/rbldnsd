@@ -24,7 +24,10 @@ rbldnsd (0.990pre0) unstable; urgency=low
 
   * use ns records from FIRST dataset (with non-empty $NS) only
 
- -- Michael Tokarev <mjt@corpit.ru>  Sun, 30 Nov 2003 14:25:48 +0300
+  * add new dataset to the end of a list, not to top (cosmetic change,
+    specifies loading order and thus logging order only)
+
+ -- Michael Tokarev <mjt@corpit.ru>  Sun, 30 Nov 2003 14:28:52 +0300
 
 rbldnsd (0.99) unstable; urgency=medium
 

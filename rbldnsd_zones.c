@@ -15,7 +15,7 @@ static struct dataset *ds_list;
 
 static struct dataset *newdataset(char *spec) {
   /* type:file,file,file... */
-  struct dataset *ds;
+  struct dataset *ds, **dsp;
   char *f;
   struct dsfile **dsfp, *dsf;
   static const char *const delims = ",:";
@@ -26,7 +26,7 @@ static struct dataset *newdataset(char *spec) {
     error(0, "invalid zone data specification `%.60s'", spec);
   *f++ = '\0';
 
-  for(ds = ds_list; ds; ds = ds->ds_next)
+  for(dsp = &ds_list; (ds = *dsp) != NULL; dsp = &ds->ds_next)
     if (strcmp(ds->ds_type->dst_name, spec) == 0 &&
         strcmp(ds->ds_spec, f) == 0)
       return ds;
@@ -43,8 +43,8 @@ static struct dataset *newdataset(char *spec) {
   ds->ds_dsd = (struct dsdata*)(ds->ds_mp + 1);
   ds->ds_spec = estrdup(f);
 
-  ds->ds_next = ds_list;
-  ds_list = ds;
+  ds->ds_next = NULL;
+  *dsp = ds;
 
   dsfp = &ds->ds_dsf;
   for (f = strtok(f, delims); f; f = strtok(NULL, delims)) {
