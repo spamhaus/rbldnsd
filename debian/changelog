@@ -17,6 +17,9 @@ rbldnsd (0.993p1) unstable; urgency=low
     (with the exception of 1.2.3.4-5 - last part
     may have only one octet)
 
+  * really require complete IPv4 addresses (not
+    prefixes) in ip4tset.
+
   * fixed query logging (-l) with background reloading
     (missing fflush() before fork() and exit())
 
@@ -36,7 +39,7 @@ rbldnsd (0.993p1) unstable; urgency=low
 
   * some hooks, to build custom versions (rbldnsd_hooks.[ch])
 
- -- Michael Tokarev <mjt@corpit.ru>  Wed,  9 Jun 2004 22:54:10 +0400
+ -- Michael Tokarev <mjt@corpit.ru>  Wed,  9 Jun 2004 23:31:58 +0400
 
 rbldnsd (0.992) unstable; urgency=low
 

@@ -47,7 +47,7 @@ ds_ip4tset_line(struct dataset *ds, char *s, int lineno) {
     return 1;
   }
 
-  if (!ip4addr(s, &a, &s) ||
+  if (ip4prefix(s, &a, &s) != 32 ||
       (*s && !ISSPACE(*s) && !ISCOMMENT(*s) && *s != ':')) {
     dswarn(lineno, "invalid address");
     return 1;
