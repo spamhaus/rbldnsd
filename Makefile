@@ -24,21 +24,13 @@ SOCKET_LIBS = `[ -f /usr/lib/libsocket.so ] && echo -lsocket -lnsl || :`
 
 LIBDNS_SRCS = dns_ptodn.c dns_dntop.c dns_dntol.c dns_dnlen.c dns_dnlabels.c dns_dnreverse.c
 LIBDNS_HDRS = dns.h
-LIBDNS_MANS =
-LIBDNS_MISC =
-LIBDNS_OBJS = $(LIBDNS_SRCS:.c=.o)
-LIBDNS_LIB  = libdns.a
-LIBDNS_LIBD = $(LIBDNS_LIB)
-LIBDNS_LIBF = $(LIBDNS_LIB)
 
 LIBIP4_SRCS = ip4parse.c ip4atos.c ip4mask.c
 LIBIP4_HDRS = ip4addr.h
-LIBIP4_MANS =
-LIBIP4_MISC =
-LIBIP4_OBJS = $(LIBIP4_SRCS:.c=.o)
-LIBIP4_LIB  = libip4addr.a
-LIBIP4_LIBD = $(LIBIP4_LIB)
-LIBIP4_LIBF = $(LIBIP4_LIB)
+
+LIB_SRCS = $(LIBDNS_SRCS) $(LIBIP4_SRCS)
+LIB_HDRS = $(LIBDNS_HDRS) $(LIBIP4_HDRS)
+LIB_OBJS = $(LIB_SRCS:.c=.o)
 
 RBLDNSD_SRCS = rbldnsd.c rbldnsd_zones.c rbldnsd_packet.c \
   rbldnsd_generic.c \
@@ -47,49 +39,41 @@ RBLDNSD_SRCS = rbldnsd.c rbldnsd_zones.c rbldnsd_packet.c \
   rbldnsd_util.c \
   mempool.c
 RBLDNSD_HDRS = rbldnsd.h rbldnsd_zones.h mempool.h
-RBLDNSD_MANS = rbldnsd.8
-RBLDNSD_MISC =
 RBLDNSD_OBJS = $(RBLDNSD_SRCS:.c=.o)
-RBLDNSD_LIBS = $(SOCKET_LIBS)
 
-MISC_SRCS = ip4rangetest.c
-MISC = Makefile NEWS CHANGES WirehubDynablock2rbldnsd.pl
+MISC = rbldnsd.8 Makefile NEWS CHANGES WirehubDynablock2rbldnsd.pl
 
-SRCS = $(LIBDNS_SRCS) $(LIBIP4_SRCS) $(RBLDNSD_SRCS) $(MISC_SRCS)
-HDRS = $(LIBDNS_HDRS) $(LIBIP4_HDRS) $(RBLDNSD_HDRS)
-MANS = $(LIBDNS_MANS) $(RBLDNSD_MANS)
-DISTFILES = $(SRCS) $(HDRS) $(MANS) $(MISC)
+SRCS = $(LIB_SRCS) $(RBLDNSD_SRCS) ip4rangetest.c
+HDRS = $(LIB_HDRS) $(RBLDNSD_HDRS)
+DISTFILES = $(SRCS) $(HDRS) $(MISC)
 VERSION = 0.81
 VERSION_DATE = 2003-04-03
 
 all: rbldnsd
 
-rbldnsd: $(RBLDNSD_OBJS) $(LIBDNS_LIBD) $(LIBIP4_LIBD)
-	$(LD) $(LDFLAGS) -o $@ $(RBLDNSD_OBJS) $(LIBDNS_LIBF) $(LIBIP4_LIBF) $(RBLDNSD_LIBS)
+rbldnsd: $(RBLDNSD_OBJS) librbldnsd.a
+	$(LD) $(LDFLAGS) -o $@ $(RBLDNSD_OBJS) librbldnsd.a $(SOCKET_LIBS)
 
-$(LIBDNS_LIB): $(LIBDNS_OBJS)
+librbldnsd.a: $(LIB_OBJS)
 	-rm -f $@
-	$(AR) $(ARFLAGS) $@ $(LIBDNS_OBJS)
+	$(AR) $(ARFLAGS) $@ $(LIB_OBJS)
 	$(RANLIB) $@
 
-$(LIBIP4_LIB): $(LIBIP4_OBJS)
-	-rm -f $@
-	$(AR) $(ARFLAGS) $@ $(LIBIP4_OBJS)
-	$(RANLIB) $@
-
-ip4rangetest: ip4rangetest.o $(LIBIP4_LIB)
-	$(LD) $(LDFLAGS) -o $@ ip4rangetest.o $(LIBIP4_LIB)
+ip4rangetest: ip4rangetest.o librbldnsd.a
+	$(LD) $(LDFLAGS) -o $@ ip4rangetest.o librbldnsd.a
 
 .SUFFIXES: .c .o
 
+COMPILE = $(CC) $(CFLAGS) $(DEFS) -c $<
+
 .c.o:
-	$(CC) $(CFLAGS) $(DEFS) -c $<
+	$(COMPILE)
 
 rbldnsd.o: rbldnsd.c
-	$(CC) $(CFLAGS) -DVERSION='"$(VERSION) $(VERSION_DATE)"' $(DEFS) -c rbldnsd.c
+	$(COMPILE) -DVERSION='"$(VERSION) $(VERSION_DATE)"'
 
 clean:
-	-rm -f *.o *~ core $(LIBDNS_LIB) $(LIBIP4_LIB) ip4rangetest
+	-rm -f $(RBLDNSD_OBJS) $(LIB_OBJS) librbldnsd.a ip4rangetest
 distclean: clean
 	-rm -f rbldnsd
 
