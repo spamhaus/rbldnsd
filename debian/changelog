@@ -1,3 +1,9 @@
+rbldnsd (0.994) unstable; urgency=low
+
+  * released 0.994
+
+ -- Michael Tokarev <mjt@corpit.ru>  Sat, 18 Dec 2004 17:07:24 +0300
+
 rbldnsd (0.993.9) unstable; urgency=low
 
   * fixed wrong return in ds_ip4trie_dump_octets(), which
