@@ -13,7 +13,9 @@ rbldnsd (0.992pre2) unstable; urgency=low
 
   * remove some bash-isms from rbldnsd.init
 
- -- Michael Tokarev <mjt@corpit.ru>  Sat, 28 Feb 2004 02:47:31 +0300
+  * lazy mode is still experimental...
+
+ -- Michael Tokarev <mjt@corpit.ru>  Sat, 28 Feb 2004 04:57:36 +0300
 
 rbldnsd (0.992pre1) unstable; urgency=low
 
