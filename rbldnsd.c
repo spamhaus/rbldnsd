@@ -618,12 +618,14 @@ static void sighandler(int sig) {
 }
 
 static sigset_t ssblock; /* signals to block during zone reload */
+static sigset_t ssempty; /* empty set */
 
 static void setup_signals(void) {
   struct sigaction sa;
   memset(&sa, 0, sizeof(sa));
   sa.sa_handler = sighandler;
   sigemptyset(&ssblock);
+  sigemptyset(&ssempty);
   sigaction(SIGHUP, &sa, NULL);
   sigaddset(&ssblock, SIGHUP);
   sigaction(SIGALRM, &sa, NULL);
@@ -811,7 +813,8 @@ int start_loading() {
     signal(SIGUSR2, SIG_IGN);
 #endif
     close(pfd[0]);
-    ipc_fd = pfd[1];;
+    ipc_fd = pfd[1];
+    ds_loading = NULL;
     longjmp(reload_ctx, 1);
   }
   close(pfd[1]);
@@ -821,8 +824,7 @@ int start_loading() {
 }
 
 static void do_signalled(void) {
-  sigset_t ssorig;
-  sigprocmask(SIG_BLOCK, &ssblock, &ssorig);
+  sigprocmask(SIG_SETMASK, &ssblock, NULL);
   if (signalled & SIGNALLED_TERM) {
     if (fork_on_reload < 0) { /* this is a temp child; dump stats and exit */
 #ifndef NOSTATS
@@ -855,6 +857,7 @@ static void do_signalled(void) {
       do_reload();
     else /* else two-process reload */
     if (!setjmp(reload_ctx)) {
+      do_reload();
       if (bgq_pid > 0) {
         int s, n;
         fd_set fds;
@@ -889,7 +892,7 @@ static void do_signalled(void) {
     } /* 2process reload, parent */
   }
   signalled = 0;
-  sigprocmask(SIG_SETMASK, &ssorig, NULL);
+  sigprocmask(SIG_SETMASK, &ssempty, NULL);
 }
 
 static void request(int fd) {
