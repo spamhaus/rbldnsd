@@ -3,6 +3,10 @@ $Id$
 This file describes user-visible changes in rbldnsd.
 Never news are at top.
 
+0.84 (not yet released):
+
+ - rewrote query parsing routine to be much more accurate and a bit faster.
+
 0.83 (released 2003-04-19)
 
  - critical security fix in query parsing code - that check was
