@@ -1,4 +1,6 @@
 #! /bin/sh
+# $Id$
+
 set -e
 
 # dns_maketab.sh dns.h prefix name
