@@ -2,3 +2,4 @@ rbldnsd
 ip4rangetest
 rbldnsd-*.tar.gz
 dns_nametab.c
+rbldnsd.spec

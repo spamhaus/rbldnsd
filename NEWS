@@ -6,6 +6,12 @@ Never news are at top.
 0.91
 
  - rotate nameserver records (simple cyclic rotation)
+ 
+ - understand time units - 1w = 7d = 168h = 10080m = 604800s
+
+ - allow compilation without IPv6 transport support (-DNOIPv6)
+
+ - bugfix: fixed default A RR to be 127.0.0.2, not 2.0.0.127
 
 0.90 (10 May 2003)
 
