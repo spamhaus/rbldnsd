@@ -152,6 +152,9 @@ int replypacket(struct dnspacket *p, unsigned qlen, const struct zone *zone) {
     return refuse(DNS_R_REFUSED);
 }
 
+/* check whenever a given RR is already in the packet
+ * (to suppress duplicate answers)
+ * May be unnecessary? */
 static int aexists(const struct dnspacket *p, unsigned typ,
                    const void *val, unsigned vlen) {
   const unsigned char *c, *e;
@@ -163,6 +166,8 @@ static int aexists(const struct dnspacket *p, unsigned typ,
   return 0;
 }
 
+/* add a new record into answer, check for dups.
+ * We just ignore any data that exceeds packet size */
 int addrec_any(struct dnspacket *p, unsigned dtp,
                const void *data, unsigned dsz) {
   if (p->c + 12 + dsz >= p->p + sizeof(p->p)) return 0;
