@@ -1,4 +1,4 @@
-rbldnsd (0.97a) unstable; urgency=low
+rbldnsd (0.97a) unstable; urgency=medium
 
   * recognize and ignore "in" in `generic' dataset, as in:
      example.com 1D IN A 127.0.0.1

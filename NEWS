@@ -11,6 +11,10 @@ Never news are at top.
    system, invalid data may crash you server.  DNS operations (query
    handling etc) aren't affected by this bug, it is in dataset parsing
    code.
+   Please note that this fix also restores previously non-working
+   detection of non-zero host part in ranges like 1.2.3.4/24 (proper
+   form is 1.2.3.0/24).  If you want to process such address ranges,
+   specify -e command-line option.
 
  - feature: recognize and ignore "IN" classname in `generic' dataset,
    so it is now possible to have
