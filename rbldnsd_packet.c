@@ -218,7 +218,7 @@ static int aexists(const struct dnspacket *p, unsigned typ,
   return 0;
 }
 
-#define fit(p, bytes) ((p)->c + (bytes) <= (p)->p + sizeof((p)->p))
+#define fit(p, bytes) ((p)->c + (bytes) <= (p)->p + sizeof(DNS_MAXPACKET))
 
 /* adds 8 bytes */
 #define addrr_rrstart(p,type,ttl)			\
@@ -267,12 +267,14 @@ static int add_soa(struct dnspacket *p, const struct zone *zone, int auth) {
   unsigned char *c;
   unsigned char *rstart;
   unsigned dsz;
+  struct dnsdnptr *cdnptr;
   if (!zone->z_zsoa.zsoa_valid) {
     if (!auth)
       setnonauth(p->p); /* non-auth answer as we can't fit the record */
     return 0;
   }
   c = p->c; /* save curpos in case RR will not fit */
+  cdnptr = p->compr.cptr; /* ditto for compression pointer */
   if (add_dn(p, zone->z_dn, zone->z_dnlen) && fit(p, 8 + 2)) {
     /* 8 bytes */
     addrr_rrstart(p, DNS_T_SOA,
@@ -291,6 +293,7 @@ static int add_soa(struct dnspacket *p, const struct zone *zone, int auth) {
     }
   }
   p->c = c; /* restore */
+  p->compr.cptr = cdnptr;
   setnonauth(p->p); /* non-auth answer as we can't fit the record */
   return 0;
 }
