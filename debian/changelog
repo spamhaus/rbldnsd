@@ -35,7 +35,9 @@ rbldnsd (0.96pre) unstable; urgency=low
     startup) - both to avoid memory fragmentation and to ensure all
     the required memory is allocated.
 
- -- Michael Tokarev <mjt@corpit.ru>  Thu, 29 May 2003 04:57:21 +0400
+  * Only add NS records if reply contains some data
+
+ -- Michael Tokarev <mjt@corpit.ru>  Thu, 29 May 2003 11:48:10 +0400
 
 rbldnsd (0.95) unstable; urgency=low
 
