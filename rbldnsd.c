@@ -68,7 +68,7 @@ unsigned char defttl[4] = "\0\0\010\064";	/* default record TTL 35m */
 const char def_rr[5] = "\177\0\0\2\0";		/* default A RR */
 
 /* a list of zonetypes. */
-const struct dataset_type *dataset_types[] = {
+const struct dstype *ds_types[] = {
   &dataset_ip4set_type,
   &dataset_dnset_type,
   &dataset_generic_type,
@@ -132,7 +132,7 @@ static int do_reload(struct zone *zonelist) {
 }
 
 static void NORETURN usage(int exitcode) {
-   const struct dataset_type **dstp;
+   const struct dstype **dstp;
    printf(
 "%s: rbl dns daemon version %s\n"
 "Usage is: %s [options] zonespec...\n"
@@ -161,7 +161,7 @@ static void NORETURN usage(int exitcode) {
 "syntax, repeated names constitute the same zone.\n"
 "Available dataset types:\n"
 , progname, version, progname);
-  for(dstp = dataset_types; *dstp; ++dstp)
+  for(dstp = ds_types; *dstp; ++dstp)
     printf(" %s - %s\n", (*dstp)->dst_name, (*dstp)->dst_descr);
   exit(exitcode);
 }

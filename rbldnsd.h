@@ -33,7 +33,7 @@ extern unsigned char defttl[4];
 
 struct zone;
 struct dataset;
-struct zonedataset;
+struct dsdata;
 
 struct dnsdnptr {	/* used for DN name compression */
   const unsigned char *dnp;	/* DN pointer */
@@ -62,7 +62,7 @@ struct dnsquery {	/* q */
   unsigned char *q_lptr[DNS_MAXLABELS];	/* pointers to labels */
 };
 
-struct dnsqueryinfo {	/* qi */
+struct dnsqinfo {	/* qi */
   unsigned char *const *qi_dnlptr;
   const unsigned char *qi_dn;		/* cached query DN */
   unsigned qi_tflag;			/* query RR type flag (NSQUERY_XX) */
@@ -94,15 +94,15 @@ char *parse_dn(char *s, unsigned char *dn, unsigned *dnlenp);
  * readdslines() */
 int parse_a_txt(char *str, const char **rrp, const char def_a[4]);
 
-typedef void ds_startfn_t(struct zonedataset *zds);
-typedef int ds_linefn_t(struct zonedataset *zds, char *line, int lineno);
-typedef void ds_finishfn_t(struct zonedataset *zds);
-typedef void ds_resetfn_t(struct dataset *ds, int freeall);
+typedef void ds_startfn_t(struct dataset *ds);
+typedef int ds_linefn_t(struct dataset *ds, char *line, int lineno);
+typedef void ds_finishfn_t(struct dataset *ds);
+typedef void ds_resetfn_t(struct dsdata *dsd, int freeall);
 typedef int
-ds_queryfn_t(const struct zonedataset *zds, const struct dnsqueryinfo *qi,
+ds_queryfn_t(const struct dataset *ds, const struct dnsqinfo *qi,
              struct dnspacket *pkt);
 typedef void
-ds_dumpfn_t(const struct zonedataset *zds, const unsigned char *odn, FILE *f);
+ds_dumpfn_t(const struct dataset *ds, const unsigned char *odn, FILE *f);
 
 /* use high word so that `generic' dataset works */
 #define NSQUERY_TXT	(1u<<16)
@@ -113,7 +113,7 @@ ds_dumpfn_t(const struct zonedataset *zds, const unsigned char *odn, FILE *f);
 #define NSQUERY_OTHER	(1u<<31)
 #define NSQUERY_ANY	0xffff0000u
 
-struct dataset_type {	/* dst */
+struct dstype {	/* dst */
   const char *dst_name;		/* name of the type */
   unsigned dst_flags;		/* how to pass arguments to queryfn */
   unsigned dst_size;		/* size of struct dataset */
@@ -130,7 +130,7 @@ struct dataset_type {	/* dst */
 #define DSTF_IP4REV	0x01	/* ip4 set */
 #define DSTF_ZERODN	0x04	/* query for zero dn too */
 
-#define declaredstype(t) extern const struct dataset_type dataset_##t##_type
+#define declaredstype(t) extern const struct dstype dataset_##t##_type
 #define definedstype(t, flags, descr) \
  static ds_resetfn_t ds_##t##_reset; \
  static ds_startfn_t ds_##t##_start; \
@@ -138,8 +138,8 @@ struct dataset_type {	/* dst */
  static ds_finishfn_t ds_##t##_finish; \
  static ds_queryfn_t ds_##t##_query; \
  static ds_dumpfn_t ds_##t##_dump; \
- const struct dataset_type dataset_##t##_type = { \
-   #t /* name */, flags, sizeof(struct dataset), \
+ const struct dstype dataset_##t##_type = { \
+   #t /* name */, flags, sizeof(struct dsdata), \
    ds_##t##_reset, ds_##t##_start, ds_##t##_line, ds_##t##_finish, \
    ds_##t##_query, ds_##t##_dump, \
    descr }
@@ -149,11 +149,11 @@ declaredstype(dnset);
 declaredstype(generic);
 declaredstype(combined);
 
-extern const struct dataset_type *dataset_types[];
+extern const struct dstype *ds_types[];
 
 /*
  * Each zone is composed of a set of datasets.
- * There is a global list of zonedatas, each
+ * There is a global list of datasets, each
  * with a timestamp etc.
  * Each zonedata is composed of a list of files.
  */
@@ -175,34 +175,34 @@ struct zonens { /* zns */
      */
 };
 
-struct zonefile {	/* zf */
-  time_t zf_stamp;		/* last timestamp of this file */
-  struct zonefile *zf_next;	/* next file in list */
-  const char *zf_name;		/* name of this file */
+struct dsfile {	/* dsf */
+  time_t dsf_stamp;		/* last timestamp of this file */
+  struct dsfile *dsf_next;	/* next file in list */
+  const char *dsf_name;		/* name of this file */
 };
 
-struct zonedataset {	/* zds */
-  const struct dataset_type *zds_type;	/* type of this data */
-  struct dataset *zds_ds;		/* type-specific data */
-  time_t zds_stamp;			/* timestamp */
-  const char *zds_spec;			/* original specification */
-  struct zonefile *zds_zf;		/* list of files for this data */
-  struct zonesoa zds_zsoa;		/* SOA record */
-  struct zonens *zds_zns;		/* NS records */
-  unsigned char zds_ttl[4];		/* default ttl for a dataset */
-  char *zds_subst[10];			/* substitution variables */
-  struct mempool *zds_mp;		/* memory pool for data */
-  struct zonedataset *zds_next;		/* next in global list */
+struct dataset {	/* ds */
+  const struct dstype *ds_type;	/* type of this data */
+  struct dsdata *ds_dsd;		/* type-specific data */
+  time_t ds_stamp;			/* timestamp */
+  const char *ds_spec;			/* original specification */
+  struct dsfile *ds_dsf;		/* list of files for this data */
+  struct zonesoa ds_zsoa;		/* SOA record */
+  struct zonens *ds_zns;		/* NS records */
+  unsigned char ds_ttl[4];		/* default ttl for a dataset */
+  char *ds_subst[10];			/* substitution variables */
+  struct mempool *ds_mp;		/* memory pool for data */
+  struct dataset *ds_next;		/* next in global list */
   /* for (re)loads */
-  unsigned zds_warn;			/* number of load warnings */
-  const char *zds_fname;		/* current file name */
-  struct zonedataset *zds_subset;	/* currently loading subset */
+  unsigned ds_warn;			/* number of load warnings */
+  const char *ds_fname;		/* current file name */
+  struct dataset *ds_subset;	/* currently loading subset */
 };
 
-struct zonedatalist {	/* zdl */
-  struct zonedataset *zdl_zds;
-  ds_queryfn_t *zdl_queryfn;	/* cached from zds */
-  struct zonedatalist *zdl_next;
+struct dslist {	/* dsl */
+  struct dataset *dsl_ds;
+  ds_queryfn_t *dsl_queryfn;	/* cached dsl_ds->ds_type->dst_queryfn */
+  struct dslist *dsl_next;
 };
 
 struct zone {	/* zone, list of zones */
@@ -211,8 +211,8 @@ struct zone {	/* zone, list of zones */
   unsigned z_dnlen;			/* length of z_dn */
   unsigned z_dnlab;			/* number of dn labels */
   unsigned z_dstflags;			/* flags of all datasets */
-  struct zonedatalist *z_zdl;		/* list of datas */
-  struct zonedatalist **z_zdlp;		/* last zdl in list */
+  struct dslist *z_dsl;			/* list of datasets */
+  struct dslist **z_dslp;		/* last z_dsl in list */
   struct zonesoa z_zsoa;		/* SOA record */
   const unsigned char *z_zttllns[20];	/* list of nameservers */
     /* keep z_zns definition in sync with rbldnsd_packet.c:addrr_ns() */
@@ -225,7 +225,7 @@ int replypacket(struct dnspacket *p, unsigned qlen, const struct zone *zone);
 const struct zone *
 findqzone(const struct zone *zonelist,
           unsigned dnlen, unsigned dnlab, unsigned char *const *const dnlptr,
-          struct dnsqueryinfo *qi);
+          struct dnsqinfo *qi);
 
 /* log a reply */
 struct sockaddr;
@@ -238,7 +238,7 @@ void logreply(const struct dnspacket *pkt,
 /* add a record into answer section */
 void addrr_a_txt(struct dnspacket *pkt, unsigned qtflag,
                  const char *rr, const char *subst,
-                 const struct zonedataset *zds);
+                 const struct dataset *ds);
 void addrr_any(struct dnspacket *pkt, unsigned dtp,
                const void *data, unsigned dsz,
                const unsigned char ttl[4]);
@@ -247,7 +247,7 @@ void addrr_mx(struct dnspacket *pkt,
               const unsigned char *mxdn, unsigned mxdnlen,
               const unsigned char ttl[4]);
 void dump_a_txt(const char *name, const unsigned char *rr,
-                const char *subst, const struct zonedataset *zds, FILE *f);
+                const char *subst, const struct dataset *ds, FILE *f);
 
 struct dnsstats {
   time_t stime;			/* start time */
@@ -262,9 +262,9 @@ struct dnsstats {
 };
 
 struct zone *addzone(struct zone *zonelist, const char *spec);
-void connectzonedataset(struct zone *zone,
-                        struct zonedataset *zds,
-                        struct zonedatalist *zdl);
+void connectdataset(struct zone *zone,
+                    struct dataset *ds,
+                    struct dslist *dsl);
 struct zone *newzone(struct zone **zonelist,
                      unsigned char *dn, unsigned dnlen,
                      struct mempool *mp);
@@ -274,14 +274,14 @@ void dumpzone(const struct zone *z, FILE *f);
 void PRINTFLIKE(3,4) dslog(int level, int lineno, const char *fmt, ...);
 void PRINTFLIKE(2,3) dswarn(int lineno, const char *fmt, ...);
 void PRINTFLIKE(1,2) dsloaded(const char *fmt, ...);
-extern struct zonedataset *zds_loading;
+extern struct dataset *ds_loading;
 
-int readdslines(FILE *f, struct zonedataset *zds);
+int readdslines(FILE *f, struct dataset *ds);
 /* parse $SPECIAL */
-int zds_special(struct zonedataset *zds, char *line, int lineno);
+int ds_special(struct dataset *ds, char *line, int lineno);
 
-/* from rbldnsd_combined.c, special routine used inside zds_special() */
-int ds_combined_newset(struct zonedataset *zds, char *line, int lineno);
+/* from rbldnsd_combined.c, special routine used inside ds_special() */
+int ds_combined_newset(struct dataset *ds, char *line, int lineno);
 
 extern const char def_rr[5];
 

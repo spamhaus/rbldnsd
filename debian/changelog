@@ -1,3 +1,20 @@
+rbldnsd (0.96pre) unstable; urgency=low
+
+  * renamed almost all structures and variables, to be more accurate:
+     struct dataset => struct dsdata  (dsd)
+     struct zonedataset => struct dataset (zds => ds)
+     struct zonedatalist => struct dslist (zdl => dsl)
+     struct zonefile => struct dsfile (zf => dsf)
+     struct dataset_type => struct dstype (dst)
+     dataset_types[] => ds_types[]
+     zds_loading => ds_loading
+     struct dnsqueryinfo => struct dnsqinfo (qi)
+     connectzonedataset() => connectdataset()
+     zds_special() => ds_special()
+   and so on.
+
+ -- Michael Tokarev <mjt@corpit.ru>  Tue, 27 May 2003 22:18:20 +0400
+
 rbldnsd (0.95) unstable; urgency=low
 
   * Portability: #include <netinet/in.h> for sockaddr_in definition in

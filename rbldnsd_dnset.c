@@ -20,7 +20,7 @@ struct entry {
  * variables indexed by EP and EW.
  */
 
-struct dataset {
+struct dsdata {
   unsigned n[2]; /* number of entries */
   unsigned a[2]; /* entries allocated (used only when loading) */
   struct entry *e[2]; /* entries: plain and wildcard */
@@ -35,20 +35,20 @@ struct dataset {
 
 definedstype(dnset, 0, "set of (domain name, value) pairs");
 
-static void ds_dnset_reset(struct dataset *ds, int UNUSED unused_freeall) {
-  if (ds->e[EP]) free(ds->e[EP]);
-  if (ds->e[EW]) free(ds->e[EW]);
-  memset(ds, 0, sizeof(*ds));
-  ds->minlab[EP] = ds->minlab[EW] = DNS_MAXDN;
+static void ds_dnset_reset(struct dsdata *dsd, int UNUSED unused_freeall) {
+  if (dsd->e[EP]) free(dsd->e[EP]);
+  if (dsd->e[EW]) free(dsd->e[EW]);
+  memset(dsd, 0, sizeof(*dsd));
+  dsd->minlab[EP] = dsd->minlab[EW] = DNS_MAXDN;
 }
 
-static void ds_dnset_start(struct zonedataset *zds) {
-  zds->zds_ds->def_rr = def_rr;
+static void ds_dnset_start(struct dataset *ds) {
+  ds->ds_dsd->def_rr = def_rr;
 }
 
 static int
-ds_dnset_line(struct zonedataset *zds, char *s, int lineno) {
-  struct dataset *ds = zds->zds_ds;
+ds_dnset_line(struct dataset *ds, char *s, int lineno) {
+  struct dsdata *dsd = ds->ds_dsd;
   unsigned char dn[DNS_MAXDN];
   struct entry *e;
   const char *rr;
@@ -60,7 +60,7 @@ ds_dnset_line(struct zonedataset *zds, char *s, int lineno) {
       dswarn(lineno, "invalid default entry");
       return 1;
     }
-    if (!(ds->def_rr = mp_dmemdup(zds->zds_mp, rr, size)))
+    if (!(dsd->def_rr = mp_dmemdup(ds->ds_mp, rr, size)))
       return 0;
     return 1;
   }
@@ -91,26 +91,26 @@ ds_dnset_line(struct zonedataset *zds, char *s, int lineno) {
   else {			/* else parse rest */
     SKIPSPACE(s);
     if (!*s || ISCOMMENT(*s))	/* use default if none given */
-      rr = ds->def_rr;
-    else if (!(size = parse_a_txt(s, &rr, ds->def_rr))) {
+      rr = dsd->def_rr;
+    else if (!(size = parse_a_txt(s, &rr, dsd->def_rr))) {
       dswarn(lineno, "invalid value");
       return 1;
     }
-    else if (!(rr = mp_dmemdup(zds->zds_mp, rr, size)))
+    else if (!(rr = mp_dmemdup(ds->ds_mp, rr, size)))
       return 0;
   }
 
-  e = ds->e[idx];
-  if (ds->n[idx] >= ds->a[idx]) { /* expand array */
-    ds->a[idx] = ds->a[idx] ? ds->a[idx] << 1 : 64;
-    e = trealloc(struct entry, e, ds->a[idx]);
+  e = dsd->e[idx];
+  if (dsd->n[idx] >= dsd->a[idx]) { /* expand array */
+    dsd->a[idx] = dsd->a[idx] ? dsd->a[idx] << 1 : 64;
+    e = trealloc(struct entry, e, dsd->a[idx]);
     if (!e) return 0;
-    ds->e[idx] = e;
+    dsd->e[idx] = e;
   }
 
   /* fill up an entry */
-  e += ds->n[idx]++;
-  if (!(e->ldn = (unsigned char*)mp_alloc(zds->zds_mp, dnlen + 1, 0)))
+  e += dsd->n[idx]++;
+  if (!(e->ldn = (unsigned char*)mp_alloc(ds->ds_mp, dnlen + 1, 0)))
     return 0;
   e->ldn[0] = (unsigned char)(dnlen - 1);
   memcpy(e->ldn + 1, dn, dnlen);
@@ -118,8 +118,8 @@ ds_dnset_line(struct zonedataset *zds, char *s, int lineno) {
 
   /* adjust min/max #labels */
   dnlen = dns_dnlabels(dn);
-  if (ds->maxlab[idx] < dnlen) ds->maxlab[idx] = dnlen;
-  if (ds->minlab[idx] > dnlen) ds->minlab[idx] = dnlen;
+  if (dsd->maxlab[idx] < dnlen) dsd->maxlab[idx] = dnlen;
+  if (dsd->minlab[idx] > dnlen) dsd->minlab[idx] = dnlen;
 
   return 1;
 }
@@ -137,29 +137,29 @@ static int ds_dnset_lt(const struct entry *a, const struct entry *b) {
      a->rr < b->rr;
 }
 
-static void ds_dnset_finish(struct zonedataset *zds) {
-  struct dataset *ds = zds->zds_ds;
+static void ds_dnset_finish(struct dataset *ds) {
+  struct dsdata *dsd = ds->ds_dsd;
   unsigned r;
   for(r = 0; r < 2; ++r) {
-    if (!ds->n[r]) continue;
+    if (!dsd->n[r]) continue;
 
 #   define QSORT_TYPE struct entry
-#   define QSORT_BASE ds->e[r]
-#   define QSORT_NELT ds->n[r]
+#   define QSORT_BASE dsd->e[r]
+#   define QSORT_NELT dsd->n[r]
 #   define QSORT_LT(a,b) ds_dnset_lt(a,b)
 #   include "qsort.c"
 
     /* we make all the same DNs point to one string for faster searches */
     { register struct entry *e, *t;
-      for(e = ds->e[r], t = e + ds->n[r] - 1; e < t; ++e)
+      for(e = dsd->e[r], t = e + dsd->n[r] - 1; e < t; ++e)
         if (memcmp(e[0].ldn, e[1].ldn, e[0].ldn[0] + 1) == 0)
           e[1].ldn = e[0].ldn;
     }
 #define dnset_eeq(a,b) a.ldn == b.ldn && rrs_equal(a,b)
-    REMOVE_DUPS(struct entry, ds->e[r], ds->n[r], dnset_eeq);
-    SHRINK_ARRAY(struct entry, ds->e[r], ds->n[r], ds->a[r]);
+    REMOVE_DUPS(struct entry, dsd->e[r], dsd->n[r], dnset_eeq);
+    SHRINK_ARRAY(struct entry, dsd->e[r], dsd->n[r], dsd->a[r]);
   }
-  dsloaded("e/w=%u/%u", ds->n[EP], ds->n[EW]);
+  dsloaded("e/w=%u/%u", dsd->n[EP], dsd->n[EW]);
 }
 
 static const struct entry *
@@ -194,9 +194,9 @@ ds_dnset_find(const struct entry *e, int n,
 }
 
 static int
-ds_dnset_query(const struct zonedataset *zds, const struct dnsqueryinfo *qi,
+ds_dnset_query(const struct dataset *ds, const struct dnsqinfo *qi,
                struct dnspacket *pkt) {
-  const struct dataset *ds = zds->zds_ds;
+  const struct dsdata *dsd = ds->ds_dsd;
   const unsigned char *dn = qi->qi_dn;
   unsigned qlen0 = qi->qi_dnlen0;
   unsigned qlab = qi->qi_dnlab;
@@ -205,9 +205,9 @@ ds_dnset_query(const struct zonedataset *zds, const struct dnsqueryinfo *qi,
 
   if (!qlab) return 0;		/* do not match empty dn */
 
-  if (qlab > ds->maxlab[EP] 	/* if we have less labels, search unnec. */
-      || qlab < ds->minlab[EP]	/* ditto for more */
-      || !(e = ds_dnset_find(ds->e[EP], ds->n[EP], dn, qlen0))) {
+  if (qlab > dsd->maxlab[EP] 	/* if we have less labels, search unnec. */
+      || qlab < dsd->minlab[EP]	/* ditto for more */
+      || !(e = ds_dnset_find(dsd->e[EP], dsd->n[EP], dn, qlen0))) {
 
     /* try wildcard */
 
@@ -216,17 +216,17 @@ ds_dnset_query(const struct zonedataset *zds, const struct dnsqueryinfo *qi,
      * for wildcard itself. */
     do
       --qlab, qlen0 -= *dn + 1, dn += *dn + 1;
-    while(qlab > ds->maxlab[EW]);
+    while(qlab > dsd->maxlab[EW]);
 
     /* now, lookup every so long dn in wildcard array */
     for(;;) {
 
-      if (qlab < ds->minlab[EW])
+      if (qlab < dsd->minlab[EW])
         /* oh, number of labels in query become less than
          * minimum we have listed.  Nothing to search anymore */
         return 0;
 
-      if ((e = ds_dnset_find(ds->e[EW], ds->n[EW], dn, qlen0)))
+      if ((e = ds_dnset_find(dsd->e[EW], dsd->n[EW], dn, qlen0)))
         break;			/* found, listed */
 
       /* remove next label at the end of rdn */
@@ -235,37 +235,37 @@ ds_dnset_query(const struct zonedataset *zds, const struct dnsqueryinfo *qi,
       --qlab;
 
     }
-    t = ds->e[EW] + ds->n[EW];
+    t = dsd->e[EW] + dsd->n[EW];
 
   }
   else
-    t = ds->e[EP] + ds->n[EP];
+    t = dsd->e[EP] + dsd->n[EP];
 
   if (!e->rr) return 0;	/* exclusion */
 
   dn = e->ldn;
   if (qi->qi_tflag & NSQUERY_TXT)
     dns_dntop(e->ldn + 1, name, sizeof(name));
-  do addrr_a_txt(pkt, qi->qi_tflag, e->rr, name, zds);
+  do addrr_a_txt(pkt, qi->qi_tflag, e->rr, name, ds);
   while(++e < t && e->ldn == dn);
 
   return 1;
 }
 
 static void
-ds_dnset_dump(const struct zonedataset *zds,
+ds_dnset_dump(const struct dataset *ds,
               const unsigned char UNUSED *unused_odn,
               FILE *f) {
-  const struct dataset *ds = zds->zds_ds;
+  const struct dsdata *dsd = ds->ds_dsd;
   const struct entry *e, *t;
   unsigned char name[DNS_MAXDOMAIN+4];
-  for (e = ds->e[EP], t = e + ds->n[EP]; e < t; ++e) {
+  for (e = dsd->e[EP], t = e + dsd->n[EP]; e < t; ++e) {
     dns_dntop(e->ldn + 1, name, sizeof(name));
-    dump_a_txt(name, e->rr, name, zds, f);
+    dump_a_txt(name, e->rr, name, ds, f);
   }
   name[0] = '*'; name[1] = '.';
-  for (e = ds->e[EW], t = e + ds->n[EW]; e < t; ++e) {
+  for (e = dsd->e[EW], t = e + dsd->n[EW]; e < t; ++e) {
     dns_dntop(e->ldn + 1, name + 2, sizeof(name) - 2);
-    dump_a_txt(name, e->rr, name + 2, zds, f);
+    dump_a_txt(name, e->rr, name + 2, ds, f);
   }
 }

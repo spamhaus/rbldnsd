@@ -91,13 +91,13 @@ char *parse_dn(char *s, unsigned char *dn, unsigned *dnlenp) {
   return n;
 }
 
-int readdslines(FILE *f, struct zonedataset *zds) {
+int readdslines(FILE *f, struct dataset *ds) {
 #define bufsiz 512
   char _buf[bufsiz+4], *line, *eol;
 #define buf (_buf+4)  /* keep room for 4 IP octets in addrtxt() */
   int lineno = 0, noeol = 0;
-  struct zonedataset *zdscur = zds;
-  ds_linefn_t *linefn = zdscur->zds_type->dst_linefn;
+  struct dataset *dscur = ds;
+  ds_linefn_t *linefn = dscur->ds_type->dst_linefn;
   while(fgets(buf, bufsiz, f)) {
     eol = buf + strlen(buf) - 1;
     if (eol < buf) /* can this happen? */
@@ -123,17 +123,17 @@ int readdslines(FILE *f, struct zonedataset *zds) {
     eol[1] = '\0';
     if (line[0] == '$' ||
         ((ISCOMMENT(line[0]) || line[0] == ':') && line[1] == '$')) {
-      int r = zds_special(zds, line[0] == '$' ? line + 1 : line + 2, lineno);
+      int r = ds_special(ds, line[0] == '$' ? line + 1 : line + 2, lineno);
       if (!r)
         dswarn(lineno, "invalid or unrecognized special entry");
       else if (r < 0)
         return 0;
-      zdscur = zds->zds_subset ? zds->zds_subset : zds;
-      linefn = zdscur->zds_type->dst_linefn;
+      dscur = ds->ds_subset ? ds->ds_subset : ds;
+      linefn = dscur->ds_type->dst_linefn;
       continue;
     }
     if (line[0] && !ISCOMMENT(line[0]))
-      if (!linefn(zdscur, line, lineno))
+      if (!linefn(dscur, line, lineno))
         return 0;
   }
   return 1;

@@ -14,7 +14,7 @@ struct entry {
   const char *rr;	/* A and TXT RRs */
 };
 
-struct dataset {
+struct dsdata {
   unsigned n[4];	/* counts */
   unsigned a[4];	/* allocated (only for loading) */
   unsigned f[4];	/* how much to allocate next time */
@@ -30,37 +30,37 @@ struct dataset {
 
 definedstype(ip4set, DSTF_IP4REV, "set of (ip4, value) pairs");
 
-static void ds_ip4set_reset(struct dataset *ds, int UNUSED unused_freeall) {
+static void ds_ip4set_reset(struct dsdata *dsd, int UNUSED unused_freeall) {
   unsigned r;
   for (r = 0; r < 4; ++r) {
-    if (!ds->e[r]) continue;
-    free(ds->e[r]);
-    ds->e[r] = NULL;
-    ds->n[r] = ds->a[r] = 0;
+    if (!dsd->e[r]) continue;
+    free(dsd->e[r]);
+    dsd->e[r] = NULL;
+    dsd->n[r] = dsd->a[r] = 0;
   }
-  ds->def_rr = NULL;
+  dsd->def_rr = NULL;
 }
 
 static int
-ds_ip4set_addent(struct dataset *ds, unsigned idx,
+ds_ip4set_addent(struct dsdata *dsd, unsigned idx,
                  ip4addr_t a, unsigned count,
                  const char *rr) {
-  struct entry *e = ds->e[idx];
+  struct entry *e = dsd->e[idx];
   ip4addr_t step = 1 << (idx << 3);
 
-  if (ds->n[idx] + count > ds->a[idx]) {
-    if (!ds->a[idx])
-      ds->a[idx] = ds->f[idx] ? ds->f[idx] : 64;
-    while(ds->n[idx] + count > ds->a[idx])
-      ds->a[idx] <<= 1;
-    e = trealloc(struct entry, e, ds->a[idx]);
+  if (dsd->n[idx] + count > dsd->a[idx]) {
+    if (!dsd->a[idx])
+      dsd->a[idx] = dsd->f[idx] ? dsd->f[idx] : 64;
+    while(dsd->n[idx] + count > dsd->a[idx])
+      dsd->a[idx] <<= 1;
+    e = trealloc(struct entry, e, dsd->a[idx]);
     if (!e)
       return 0;
-    ds->e[idx] = e;
+    dsd->e[idx] = e;
   }
 
-  e += ds->n[idx];
-  ds->n[idx] += count;
+  e += dsd->n[idx];
+  dsd->n[idx] += count;
   for(; count--; a += step, ++e) {
     e->addr = a;
     e->rr = rr;
@@ -69,13 +69,13 @@ ds_ip4set_addent(struct dataset *ds, unsigned idx,
   return 1;
 }
 
-static void ds_ip4set_start(struct zonedataset *zds) {
-  zds->zds_ds->def_rr = def_rr;
+static void ds_ip4set_start(struct dataset *ds) {
+  ds->ds_dsd->def_rr = def_rr;
 }
 
 static int
-ds_ip4set_line(struct zonedataset *zds, char *s, int lineno) {
-  struct dataset *ds = zds->zds_ds;
+ds_ip4set_line(struct dataset *ds, char *s, int lineno) {
+  struct dsdata *dsd = ds->ds_dsd;
   ip4addr_t a, b;
   const char *rr;
   unsigned rrl;
@@ -87,7 +87,7 @@ ds_ip4set_line(struct zonedataset *zds, char *s, int lineno) {
       dswarn(lineno, "invalid default entry");
       return 1;
     }
-    if (!(ds->def_rr = mp_dmemdup(zds->zds_mp, rr, rrl)))
+    if (!(dsd->def_rr = mp_dmemdup(ds->ds_mp, rr, rrl)))
       return 0;
     return 1;
   }
@@ -108,18 +108,18 @@ ds_ip4set_line(struct zonedataset *zds, char *s, int lineno) {
   else {
     SKIPSPACE(s);
     if (!*s || ISCOMMENT(*s))
-      rr = ds->def_rr;
-    else if (!(rrl = parse_a_txt(s, &rr, ds->def_rr))) {
+      rr = dsd->def_rr;
+    else if (!(rrl = parse_a_txt(s, &rr, dsd->def_rr))) {
       dswarn(lineno, "invalid value");
       return 1;
     }
-    else if (!(rr = mp_dmemdup(zds->zds_mp, rr, rrl)))
+    else if (!(rr = mp_dmemdup(ds->ds_mp, rr, rrl)))
       return 0;
   }
 
   /*XXX some comments about funny ip4range_expand et al */
 
-#define fn(idx,start,count) ds_ip4set_addent(ds, idx, start, count, rr)
+#define fn(idx,start,count) ds_ip4set_addent(dsd, idx, start, count, rr)
 
 /* helper macro for ip4range_expand:
  * deal with last octet, shifting a and b when done
@@ -153,21 +153,21 @@ ds_ip4set_line(struct zonedataset *zds, char *s, int lineno) {
 
 }
 
-static void ds_ip4set_finish(struct zonedataset *zds) {
-  struct dataset *ds = zds->zds_ds;
+static void ds_ip4set_finish(struct dataset *ds) {
+  struct dsdata *dsd = ds->ds_dsd;
   unsigned r;
   for(r = 0; r < 4; ++r) {
-    if (!ds->n[r]) {
-      ds->f[r] = 0;
+    if (!dsd->n[r]) {
+      dsd->f[r] = 0;
       continue;
     }
-    ds->f[r] = ds->a[r];
-    while((ds->f[r] >> 1) >= ds->n[r])
-      ds->f[r] >>= 1;
+    dsd->f[r] = dsd->a[r];
+    while((dsd->f[r] >> 1) >= dsd->n[r])
+      dsd->f[r] >>= 1;
 
 #   define QSORT_TYPE struct entry
-#   define QSORT_BASE ds->e[r]
-#   define QSORT_NELT ds->n[r]
+#   define QSORT_BASE dsd->e[r]
+#   define QSORT_NELT dsd->n[r]
 #   define QSORT_LT(a,b) \
        a->addr < b->addr ? 1 : \
        a->addr > b->addr ? 0 : \
@@ -175,11 +175,11 @@ static void ds_ip4set_finish(struct zonedataset *zds) {
 #   include "qsort.c"
 
 #define ip4set_eeq(a,b) a.addr == b.addr && rrs_equal(a,b)
-    REMOVE_DUPS(struct entry, ds->e[r], ds->n[r], ip4set_eeq);
-    SHRINK_ARRAY(struct entry, ds->e[r], ds->n[r], ds->a[r]);
+    REMOVE_DUPS(struct entry, dsd->e[r], dsd->n[r], ip4set_eeq);
+    SHRINK_ARRAY(struct entry, dsd->e[r], dsd->n[r], dsd->a[r]);
   }
   dsloaded("e32/24/16/8=%u/%u/%u/%u",
-          ds->n[E32], ds->n[E24], ds->n[E16], ds->n[E08]);
+          dsd->n[E32], dsd->n[E24], dsd->n[E16], dsd->n[E08]);
 }
 
 static const struct entry *
@@ -200,9 +200,9 @@ ds_ip4set_find(const struct entry *e, int b, ip4addr_t q) {
 }
 
 static int
-ds_ip4set_query(const struct zonedataset *zds, const struct dnsqueryinfo *qi,
+ds_ip4set_query(const struct dataset *ds, const struct dnsqinfo *qi,
                 struct dnspacket *pkt) {
-  const struct dataset *ds = zds->zds_ds;
+  const struct dsdata *dsd = ds->ds_dsd;
   ip4addr_t q = qi->qi_ip4;
   ip4addr_t f;
   const struct entry *e, *t;
@@ -211,9 +211,9 @@ ds_ip4set_query(const struct zonedataset *zds, const struct dnsqueryinfo *qi,
   if (!qi->qi_ip4valid) return 0;
 
 #define try(i,mask) \
- (ds->n[i] && \
-  (t = ds->e[i] + ds->n[i], \
-   e = ds_ip4set_find(ds->e[i], ds->n[i], (f = q & mask))) != NULL)
+ (dsd->n[i] && \
+  (t = dsd->e[i] + dsd->n[i], \
+   e = ds_ip4set_find(dsd->e[i], dsd->n[i], (f = q & mask))) != NULL)
 
   if (!try(E32, 0xffffffff) &&
       !try(E24, 0xffffff00) &&
@@ -224,23 +224,23 @@ ds_ip4set_query(const struct zonedataset *zds, const struct dnsqueryinfo *qi,
   if (!e->rr) return 0;		/* exclusion */
 
   ipsubst = (qi->qi_tflag & NSQUERY_TXT) ? ip4atos(q) : NULL;
-  do addrr_a_txt(pkt, qi->qi_tflag, e->rr, ipsubst, zds);
+  do addrr_a_txt(pkt, qi->qi_tflag, e->rr, ipsubst, ds);
   while(++e < t && e->addr == f);
 
   return 1;
 }
 
 static void
-ds_ip4set_dump(const struct zonedataset *zds,
+ds_ip4set_dump(const struct dataset *ds,
                const unsigned char UNUSED *unused_odn,
                FILE *f) {
   unsigned r;
   ip4addr_t a;
   const struct entry *e, *t;
-  const struct dataset *ds = zds->zds_ds;
+  const struct dsdata *dsd = ds->ds_dsd;
   char name[4*3+3+1];
   for (r = 0; r < 4; ++r) {
-    for(e = ds->e[r], t = e + ds->n[r]; e < t; ++e) {
+    for(e = dsd->e[r], t = e + dsd->n[r]; e < t; ++e) {
       a = e->addr;
       switch(r) {
       case E32:
@@ -258,7 +258,7 @@ ds_ip4set_dump(const struct zonedataset *zds,
 	sprintf(name, "*.%u", (a >> 24));
 	break;
       }
-      dump_a_txt(name, e->rr, ip4atos(a), zds, f);
+      dump_a_txt(name, e->rr, ip4atos(a), ds, f);
     }
   }
 }

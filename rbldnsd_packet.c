@@ -126,7 +126,7 @@ parsequery(register const unsigned char *q, unsigned qlen,
 const struct zone *
 findqzone(const struct zone *zone,
           unsigned dnlen, unsigned dnlab, unsigned char *const *const dnlptr,
-          struct dnsqueryinfo *qi) {
+          struct dnsqinfo *qi) {
   const unsigned char *q;
 
   for(;; zone = zone->z_next) {
@@ -150,9 +150,9 @@ findqzone(const struct zone *zone,
 int replypacket(struct dnspacket *pkt, unsigned qlen, const struct zone *zone) {
 
   struct dnsquery qry;			/* query structure */
-  struct dnsqueryinfo qi;		/* query info structure */
+  struct dnsqinfo qi;			/* query info structure */
   unsigned char *const h = pkt->p_buf;	/* packet's header */
-  const struct zonedatalist *zdl;
+  const struct dslist *dsl;
   int found;
 
   if (!(pkt->p_cur = pkt->p_sans = parsequery(h, qlen, &qry)))
@@ -220,8 +220,8 @@ int replypacket(struct dnspacket *pkt, unsigned qlen, const struct zone *zone) {
 
   /* search the datasets */
   found = 0;
-  for(zdl = zone->z_zdl; zdl; zdl = zdl->zdl_next)
-    if (zdl->zdl_queryfn(zdl->zdl_zds, &qi, pkt))
+  for(dsl = zone->z_dsl; dsl; dsl = dsl->dsl_next)
+    if (dsl->dsl_queryfn(dsl->dsl_ds, &qi, pkt))
       found = 1;	/* positive answer */
 
   if (qi.qi_dnlab == 0) {	/* query to base zone: SOA and NS only */
@@ -462,20 +462,20 @@ txtsubst(char *sb, const char *txt, const char *s0, char *const sn[10]) {
 void
 addrr_a_txt(struct dnspacket *pkt, unsigned qtflag,
             const char *rr, const char *subst,
-            const struct zonedataset *zds) {
+            const struct dataset *ds) {
   if (qtflag & NSQUERY_A)
-    addrr_any(pkt, DNS_T_A, rr, 4, zds->zds_ttl);
+    addrr_any(pkt, DNS_T_A, rr, 4, ds->ds_ttl);
   if (rr[4] && (qtflag & NSQUERY_TXT)) {
     char sb[260];
-    unsigned sl = txtsubst(sb + 1, rr + 4, subst, zds->zds_subst);
+    unsigned sl = txtsubst(sb + 1, rr + 4, subst, ds->ds_subst);
     sb[0] = sl;
-    addrr_any(pkt, DNS_T_TXT, sb, sl + 1, zds->zds_ttl);
+    addrr_any(pkt, DNS_T_TXT, sb, sl + 1, ds->ds_ttl);
   }
 }
 
 void
 dump_a_txt(const char *name, const unsigned char *rr,
-           const char *subst, const struct zonedataset *zds, FILE *f) {
+           const char *subst, const struct dataset *ds, FILE *f) {
   if (!rr)
     fprintf(f, "%s\tCNAME\texcluded\n", name);
   else {
@@ -484,7 +484,7 @@ dump_a_txt(const char *name, const unsigned char *rr,
     if (rr[4]) {
       char txt[260];
       char *p, *n;
-      txt[txtsubst(txt, rr + 4, subst, zds->zds_subst)] = '\0';
+      txt[txtsubst(txt, rr + 4, subst, ds->ds_subst)] = '\0';
       fprintf(f, "\tTXT\t\"");
       for(p = txt; (n = strchr(p, '"')) != NULL; p = n + 1) {
         fwrite(p, 1, n - p, f);
