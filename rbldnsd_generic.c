@@ -63,7 +63,7 @@ static int ds_generic_parseany(struct zonedataset *zds, char *s) {
     return -1;
   dnlab = dns_dnlabels(data + 1);
   data[0] = (unsigned char)(dsiz - 1);
-  if (!(e->ldn = mp_dmemdup(&zds->zds_mp, data, dsiz)))
+  if (!(e->ldn = mp_dmemdup(zds->zds_mp, data, dsiz)))
     return 0;
 
   SKIPSPACE(s);
@@ -118,7 +118,7 @@ static int ds_generic_parseany(struct zonedataset *zds, char *s) {
 
   e->dtyp = dtyp;
   dsiz += 4;
-  if (!(e->data = mp_alloc(&zds->zds_mp, dsiz, 0)))
+  if (!(e->data = mp_alloc(zds->zds_mp, dsiz, 0)))
     return 0;
   memcpy(e->data, data, dsiz);
 

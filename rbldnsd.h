@@ -191,7 +191,7 @@ struct zonedataset {	/* zds */
   struct zonens *zds_zns;		/* NS records */
   unsigned char zds_ttl[4];		/* default ttl for a dataset */
   char *zds_subst[10];			/* substitution variables */
-  struct mempool zds_mp;		/* memory pool for all data */
+  struct mempool *zds_mp;		/* memory pool for data */
   struct zonedataset *zds_next;		/* next in global list */
   /* for (re)loads */
   unsigned zds_warn;			/* number of load warnings */

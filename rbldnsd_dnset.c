@@ -60,7 +60,7 @@ ds_dnset_line(struct zonedataset *zds, char *s, int lineno) {
       dswarn(lineno, "invalid default entry");
       return 1;
     }
-    if (!(ds->def_rr = mp_dmemdup(&zds->zds_mp, rr, size)))
+    if (!(ds->def_rr = mp_dmemdup(zds->zds_mp, rr, size)))
       return 0;
     return 1;
   }
@@ -96,7 +96,7 @@ ds_dnset_line(struct zonedataset *zds, char *s, int lineno) {
       dswarn(lineno, "invalid value");
       return 1;
     }
-    else if (!(rr = mp_dmemdup(&zds->zds_mp, rr, size)))
+    else if (!(rr = mp_dmemdup(zds->zds_mp, rr, size)))
       return 0;
   }
 
@@ -110,7 +110,7 @@ ds_dnset_line(struct zonedataset *zds, char *s, int lineno) {
 
   /* fill up an entry */
   e += ds->n[idx]++;
-  if (!(e->ldn = (unsigned char*)mp_alloc(&zds->zds_mp, dnlen + 1, 0)))
+  if (!(e->ldn = (unsigned char*)mp_alloc(zds->zds_mp, dnlen + 1, 0)))
     return 0;
   e->ldn[0] = (unsigned char)(dnlen - 1);
   memcpy(e->ldn + 1, dn, dnlen);

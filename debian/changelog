@@ -26,7 +26,9 @@ rbldnsd (0.95pre) unstable; urgency=low
 
   * use varlen zns_ttldn[]
 
- -- Michael Tokarev <mjt@corpit.ru>  Tue, 27 May 2003 20:55:04 +0400
+  * use one memory pool for all nested datasets in combined dataset
+
+ -- Michael Tokarev <mjt@corpit.ru>  Tue, 27 May 2003 21:01:37 +0400
 
 rbldnsd (0.94) unstable; urgency=low
 

@@ -117,9 +117,11 @@ static struct zonedataset *newzonedataset(char *spec) {
     if (!*++dstp)
       error(0, "unknown dataset type `%.60s'", spec);
   zds = (struct zonedataset*)ezalloc(sizeof(struct zonedataset) +
+                                     sizeof(struct mempool) +
                                      (*dstp)->dst_size);
   zds->zds_type = *dstp;
-  zds->zds_ds = (struct dataset*)(zds + 1);
+  zds->zds_mp = (struct mempool*)(zds + 1);
+  zds->zds_ds = (struct dataset*)(zds->zds_mp + 1);
   zds->zds_spec = estrdup(f);
 
   zds->zds_next = zonedatasets;
@@ -275,7 +277,7 @@ int zds_special(struct zonedataset *zds, char *line, int lineno) {
      dn[4] = (unsigned char)n;
      n += 4;
 
-     zns = (struct zonens*)mp_alloc(&zds->zds_mp, sizeof(struct zonens) + n, 1);
+     zns = (struct zonens*)mp_alloc(zds->zds_mp, sizeof(struct zonens) + n, 1);
      if (!zns) return 0;
      memcpy(zns->zns_ttlldn, dn, n + 1);
 
@@ -333,7 +335,7 @@ int zds_special(struct zonedataset *zds, char *line, int lineno) {
 
 static void freezonedataset(struct zonedataset *zds) {
   zds->zds_type->dst_resetfn(zds->zds_ds);
-  mp_free(&zds->zds_mp);
+  mp_free(zds->zds_mp);
   zds->zds_zsoa.zsoa_valid = 0;
   memcpy(zds->zds_ttl, defttl, 4);
   zds->zds_zns = NULL;

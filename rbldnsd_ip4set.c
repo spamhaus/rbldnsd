@@ -81,7 +81,7 @@ ds_ip4set_line(struct zonedataset *zds, char *s, int lineno) {
       dswarn(lineno, "invalid default entry");
       return 1;
     }
-    if (!(ds->def_rr = mp_dmemdup(&zds->zds_mp, rr, rrl)))
+    if (!(ds->def_rr = mp_dmemdup(zds->zds_mp, rr, rrl)))
       return 0;
     return 1;
   }
@@ -107,7 +107,7 @@ ds_ip4set_line(struct zonedataset *zds, char *s, int lineno) {
       dswarn(lineno, "invalid value");
       return 1;
     }
-    else if (!(rr = mp_dmemdup(&zds->zds_mp, rr, rrl)))
+    else if (!(rr = mp_dmemdup(zds->zds_mp, rr, rrl)))
       return 0;
   }
 
