@@ -13,6 +13,13 @@ Never news are at top.
 
  - remove EasynetDynablock and relays.osirusoft.com conversion scripts
 
+ - bugfix: Fixed range parsing.  E.g., 24.217.64-191 did not work (and any
+   range like this where last two bits where xored into 255).  Spotted by
+   easynet.nl folks, thanks.  This bug occurs only when last 2 numbers,
+   when xored together, gives 255, like 124-131, 120-135, 127-128, 65-190,
+   64-191, ...  The listing will never be matched, so bug does no harm
+   (i.e. no extra, incorrect listings).
+
 0.98 (17 Aug 2003)
 
  - incompatible change: bind address (-b option) is now mandatory.

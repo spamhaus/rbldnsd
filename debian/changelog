@@ -20,6 +20,8 @@ rbldnsd (0.98a.pre) unstable; urgency=low
   * remove osirusoft2rbldns.pl since relays.osirusoft.com is dead.
   * made zonelist really global in rbldnsd.c, reorder some globals to
     be in one place, add some more comments
+  * Fixed range parsing.  E.g., 24.217.64-191 did not work (and any range
+    like this where last two bits where xored into 255)    
 
  -- Michael Tokarev <mjt@corpit.ru>  Fri, 22 Aug 2003 13:55:58 +0400
 
