@@ -8,8 +8,6 @@
 #include <string.h>
 #include <stdlib.h>
 #include "rbldnsd.h"
-#include "dns.h"
-#include "mempool.h"
 
 definedstype(ip4set, DSTF_IP4REV, "set of (ip4, value) pairs");
 
@@ -22,7 +20,6 @@ struct dataset {
   unsigned n[4];	/* counts */
   unsigned a[4];	/* allocated (only for loading) */
   struct entry *e[4];	/* entries */
-  struct mempool mp;	/* mempool for TXT RRs */
   const char *def_rr;	/* default A and TXT RRs */
 };
 
@@ -34,7 +31,6 @@ struct dataset {
 
 static void ds_ip4set_free(struct dataset *ds) {
   if (ds) {
-    mp_free(&ds->mp);
     if (ds->e[E32]) free(ds->e[E32]);
     if (ds->e[E24]) free(ds->e[E24]);
     if (ds->e[E16]) free(ds->e[E16]);
@@ -83,7 +79,7 @@ ds_ip4set_parseline(struct zonedataset *zds, char *s, int lineno) {
       dswarn(lineno, "invalid default entry");
       return 1;
     }
-    if (!(ds->def_rr = mp_dmemdup(&ds->mp, rr, rrl)))
+    if (!(ds->def_rr = mp_dmemdup(&zds->zds_mp, rr, rrl)))
       return 0;
     return 1;
   }
@@ -110,7 +106,7 @@ ds_ip4set_parseline(struct zonedataset *zds, char *s, int lineno) {
       dswarn(lineno, "invalid value");
       return 1;
     }
-    else if (!(rr = mp_dmemdup(&ds->mp, rr, rrl)))
+    else if (!(rr = mp_dmemdup(&zds->zds_mp, rr, rrl)))
       return 0;
   }
 

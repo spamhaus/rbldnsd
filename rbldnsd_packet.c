@@ -8,7 +8,6 @@
 #include <sys/types.h>
 #include <unistd.h>
 #include "rbldnsd.h"
-#include "dns.h"
 
 static int addrr_soa(struct dnspacket *pkt, const struct zone *zone, int auth);
 static int addrr_ns(struct dnspacket *pkt, const struct zone *zone, int auth);

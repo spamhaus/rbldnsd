@@ -26,8 +26,6 @@
 #endif
 
 #include "rbldnsd.h"
-#include "dns.h"
-#include "mempool.h"
 
 struct ip4list {
   ip4addr_t addr, mask;		/* NOTE: _NETWORK_ byte order! */

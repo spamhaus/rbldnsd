@@ -7,10 +7,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <sys/types.h>
-#include <netinet/in.h>
 #include "rbldnsd.h"
-#include "dns.h"
-#include "mempool.h"
 
 definedstype(generic, DSTF_DNREV|DSTF_ZERODN, "generic simplified bind-format");
 
@@ -28,12 +25,10 @@ struct dataset {
   unsigned a;		/* entries allocated (only when loading) */
   struct entry *e;	/* entries */
   unsigned maxlab;	/* max level of labels */
-  struct mempool mp;	/* mempool for domain names and RR data */
 };
 
 static void ds_generic_free(struct dataset *ds) {
   if (ds) {
-    mp_free(&ds->mp);
     if (ds->e) free(ds->e);
     free(ds);
   }
@@ -68,7 +63,7 @@ static int ds_generic_parseany(struct zonedataset *zds, char *s) {
     return -1;
   data[0] = (unsigned char)dsiz;
   dns_dnreverse(data + DNS_MAXDN + 1, data + 1, dsiz);
-  if (!(e->lrdn = mp_dmemdup(&ds->mp, data, dsiz + 1)))
+  if (!(e->lrdn = mp_dmemdup(&zds->zds_mp, data, dsiz + 1)))
     return 0;
 
   skipspace(s);
@@ -93,8 +88,7 @@ static int ds_generic_parseany(struct zonedataset *zds, char *s) {
     ip4addr_t a;
     dtyp = NSQUERY_A | DNS_T_A;
     if (!ip4addr(s, &a, &s)) return -1;
-    a = htonl(a);
-    memcpy(dp, &a, 4);
+    dp[0] = a>>24; dp[1] = a>>16; dp[2] = a>>8; dp[3] = a;
     dsiz = 4;
   }
 
@@ -124,7 +118,7 @@ static int ds_generic_parseany(struct zonedataset *zds, char *s) {
 
   e->dtyp = dtyp;
   dsiz += 4;
-  if (!(e->data = mp_alloc(&ds->mp, dsiz)))
+  if (!(e->data = mp_alloc(&zds->zds_mp, dsiz)))
     return 0;
   memcpy(e->data, data, dsiz);
 

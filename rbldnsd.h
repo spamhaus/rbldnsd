@@ -7,6 +7,7 @@
 #include <stdio.h>
 #include "ip4addr.h"
 #include "dns.h"
+#include "mempool.h"
 
 #if !defined(__GNUC__) && !defined(__attribute__)
 # define __attribute__(x)
@@ -160,6 +161,7 @@ struct zonedataset {	/* zds */
   struct zonens *zds_zns;		/* NS records */
   unsigned char zds_ttl[4];		/* default ttl for a dataset */
   char *zds_subst[10];			/* substitution variables */
+  struct mempool zds_mp;		/* memory pool for all data */
   struct zonedataset *zds_next;		/* next in global list */
 };
 
@@ -225,6 +227,8 @@ void PRINTFLIKE(1,2) dsloaded(const char *fmt, ...);
 int
 readdslines(FILE *f, struct zonedataset *zds,
             int (*dslpfn)(struct zonedataset *zds, char *line, int lineno));
+/* parse $SPECIAL */
+int zds_special(struct zonedataset *zds, char *line);
 
 extern const char def_rr[5];
 

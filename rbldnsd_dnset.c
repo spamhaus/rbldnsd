@@ -8,8 +8,6 @@
 #include <string.h>
 #include <stdlib.h>
 #include "rbldnsd.h"
-#include "dns.h"
-#include "mempool.h"
 
 definedstype(dnset, DSTF_DNREV, "set of (domain name, value) pairs");
 
@@ -31,7 +29,6 @@ struct dataset {
   struct entry *e[2]; /* entries: plain and wildcard */
   unsigned maxlab[2]; /* max level of labels */
   unsigned minlab[2]; /* min level of labels */
-  struct mempool mp; /* mempool for domain names and TXT RRs */
   const char *def_rr; /* default A and TXT RRs */
 };
 
@@ -41,7 +38,6 @@ struct dataset {
 
 static void ds_dnset_free(struct dataset *ds) {
   if (ds) {
-    mp_free(&ds->mp);
     if (ds->e[EP]) free(ds->e[EP]);
     if (ds->e[EW]) free(ds->e[EW]);
     free(ds);
@@ -62,7 +58,7 @@ ds_dnset_parseline(struct zonedataset *zds, char *s, int lineno) {
       dswarn(lineno, "invalid default entry");
       return 1;
     }
-    if (!(ds->def_rr = mp_dmemdup(&ds->mp, rr, size)))
+    if (!(ds->def_rr = mp_dmemdup(&zds->zds_mp, rr, size)))
       return 0;
     return 1;
   }
@@ -99,7 +95,7 @@ ds_dnset_parseline(struct zonedataset *zds, char *s, int lineno) {
       dswarn(lineno, "invalid value");
       return 1;
     }
-    else if (!(rr = mp_dmemdup(&ds->mp, rr, size)))
+    else if (!(rr = mp_dmemdup(&zds->zds_mp, rr, size)))
       return 0;
   }
 
@@ -113,7 +109,7 @@ ds_dnset_parseline(struct zonedataset *zds, char *s, int lineno) {
 
   /* fill up an entry */
   e += ds->n[idx]++;
-  if (!(e->lrdn = (unsigned char*)mp_alloc(&ds->mp, dnlen + 1)))
+  if (!(e->lrdn = (unsigned char*)mp_alloc(&zds->zds_mp, dnlen + 1)))
     return 0;
   e->lrdn[0] = (unsigned char)(dnlen - 1);
   dns_dnreverse(dn, e->lrdn + 1, dnlen);

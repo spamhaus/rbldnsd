@@ -7,7 +7,6 @@
 #include <stdlib.h>
 #include <stdarg.h>
 #include "rbldnsd.h"
-#include "mempool.h"
 
 #define skipspace(s) while(*s == ' ' || *s == '\t') ++s
 
@@ -49,102 +48,6 @@ char *parse_dn(char *s, unsigned char *dn, unsigned *dnlenp) {
   if (dnlenp) *dnlenp = l;
   skipspace(n);
   return n;
-}
-
-static int
-zds_special(struct zonedataset *zds, char *line) {
-
-  if ((line[0] == 's' || line[0] == 'S') &&
-      (line[1] == 'o' || line[1] == 'O') &&
-      (line[2] == 'a' || line[2] == 'A') &&
-      (line[3] == ' ' || line[3] == '\t')) {
-
-    /* SOA record */
-    struct zonesoa *zsoa = &zds->zds_zsoa;
-    unsigned n;
-    unsigned char *bp;
-
-    if (zsoa->zsoa_valid)
-      return 1; /* ignore if already set */
-
-    line += 4;
-    skipspace(line);
-
-    if (!(line = parse_ttl(line, zsoa->zsoa_ttl, zds->zds_ttl))) return 0;
-
-    if (!(line = parse_dn(line, zsoa->zsoa_odn + 1, &n))) return 0;
-    zsoa->zsoa_odn[0] = n;
-    if (!(line = parse_dn(line, zsoa->zsoa_pdn + 1, &n))) return 0;
-    zsoa->zsoa_pdn[0] = n;
-
-    for(n = 0, bp = zsoa->zsoa_n; n < 5; ++n) {
-      if (!(line = parse_uint32(line, bp))) return 0;
-      bp += 4;
-    }
-
-    if (*line) return 0;
-
-    zsoa->zsoa_valid = 1;
-
-    return 1;
-  }
-
-  if ((line[0] == 'n' || line[0] == 'N') &&
-      (line[1] == 's' || line[1] == 'S') &&
-      (line[2] == ' ' || line[2] == '\t')) {
-
-     struct zonens *zns, **znsp;
-     unsigned char dn[DNS_MAXDN+1+1];
-     unsigned n;
-
-     line += 3;
-     skipspace(line);
-
-     if (!(line = parse_ttl(line, dn, zds->zds_ttl))) return 0;
-
-     if (!(line = parse_dn(line, dn + 5, &n))) return 0;
-     dn[4] = (unsigned char)n;
-     n += 5;
-
-     zns = (struct zonens *)emalloc(sizeof(struct zonens) + n);
-     if (!zns) return 0;
-     zns->zns_dn = (unsigned char*)(zns + 1);
-     memcpy(zns->zns_dn, dn, n);
-
-     znsp = &zds->zds_zns;
-     while(*znsp) znsp = &(*znsp)->zns_next;
-     *znsp = zns;
-     zns->zns_next = NULL;
-
-     return 1;
-  }
-
-  if ((line[0] == 't' || line[0] == 'T') &&
-      (line[1] == 't' || line[1] == 'T') &&
-      (line[2] == 'l' || line[2] == 'L') &&
-      (line[3] == ' ' || line[3] == '\t')) {
-    unsigned char ttl[4];
-    line += 4;
-    skipspace(line);
-    if (!(line = parse_ttl(line, ttl, defttl))) return 0;
-    if (*line) return 0;
-    memcpy(zds->zds_ttl, ttl, 4);
-    return 1;
-  }
-
-  if (line[0] >= '0' && line[0] <= '9' &&
-      (line[1] == ' ' || line[1] == '\t')) {
-    /* substitution vars */
-    unsigned n = line[0] - '0';
-    if (zds->zds_subst[n]) return 1; /* ignore second assignment */
-    line += 2;
-    skipspace(line);
-    if (!*line) return 0;
-    if (!(zds->zds_subst[n] = estrdup(line))) return 0;
-    return 1;
-  }
-
-  return 0;
 }
 
 int
