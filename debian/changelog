@@ -1,3 +1,12 @@
+rbldnsd (0.992pre5) unstable; urgency=low
+
+  * add an ability to specify A value but inherit default
+    TXT value:
+    entry :addr:  - specific A, no TXT
+    entry :addr   - specific A, default TXT
+
+ -- Michael Tokarev <mjt@corpit.ru>  Mon,  1 Mar 2004 23:23:44 +0300
+
 rbldnsd (0.992pre4) unstable; urgency=low
 
   * reviewed statistics again:

@@ -46,6 +46,11 @@ Never news are at top.
    with everything optional (so -t defttl works too, as
    well as -t ::1d).
 
+ - feature/expectation_fix: add an ability to specify A
+   but inherit default TXT value for an entry:
+    entry :addr:  - specific A, no TXT
+    entry :addr   - specific A, default TXT
+
 0.991 (30 Nov 2003)
 
  - in order to be able to overrite both SOA and NS records

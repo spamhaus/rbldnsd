@@ -80,7 +80,7 @@ char *parse_dn(char *s, unsigned char *dn, unsigned *dnlenp);
  * where first 4 bytes is ip in network byte order.
  * Note this routine uses 4 bytes BEFORE str (it's safe to call it after
  * readdslines() */
-int parse_a_txt(int lineno, char *str, const char **rrp, const char def_a[4]);
+int parse_a_txt(int lineno, char *str, const char **rrp, const char *def_rr);
 
 typedef void ds_startfn_t(struct dataset *ds);
 typedef int ds_linefn_t(struct dataset *ds, char *line, int lineno);

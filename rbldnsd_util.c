@@ -145,8 +145,9 @@ int readdslines(FILE *f, struct dataset *ds) {
 #undef buf
 }
 
-int parse_a_txt(int lineno, char *str, const char **rrp, const char def_a[4]) {
+int parse_a_txt(int lineno, char *str, const char **rrp, const char *def_rr) {
   char *rr;
+  static char rrbuf[4+256];	/*XXX static buffer */
   if (*str == ':') {
     ip4addr_t a;
     int bits = ip4addr(str + 1, &a, &str);
@@ -157,20 +158,27 @@ int parse_a_txt(int lineno, char *str, const char **rrp, const char def_a[4]) {
     if (bits == 8)
       a |= IP4A_LOOPBACK; /* only last digit in 127.0.0.x */
     SKIPSPACE(str);
-    if (*str == ':') {
+    if (*str == ':') {	/* A+TXT */
       ++str;
       SKIPSPACE(str);
+      rr = (unsigned char*)str - 4;
+      PACK32(rr, a);
     }
     else if (*str) {
       dswarn(lineno, "unrecognized value for an entry");
       return 0;
     }
-    rr = (unsigned char*)str - 4;
-    PACK32(rr, a);
+    else {	/* only A - take TXT from default entry */
+      unsigned tlen = strlen(def_rr+4);	/* tlen is <= 255 */
+      rr = rrbuf;
+      memcpy(rr+4, def_rr+4, tlen+1);
+      *rrp = rr;
+      return tlen + 5;
+    }
   }
   else {
     rr = (unsigned char*)str - 4;
-    memcpy(rr, def_a, 4);
+    memcpy(rr, def_rr, 4);
   }
   if (*str) {
     unsigned len = strlen(str);
