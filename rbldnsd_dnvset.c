@@ -1,5 +1,5 @@
 /* $Id$
- * Zone type which consists of a set of (possible wildcarded)
+ * Dataset type which consists of a set of (possible wildcarded)
  * domain names together with (A,TXT) result for each.
  */
 
@@ -11,7 +11,7 @@
 #include "dns.h"
 #include "mempool.h"
 
-definezonetype(dnvset, NSQUERY_A_TXT, "set of (domain name, value) pairs");
+definedstype(dnvset, "set of (domain name, value) pairs");
 
 struct entry {
   const unsigned char *dn;	/* key, mp-allocated */
@@ -19,11 +19,11 @@ struct entry {
   const char *r_txt;		/* TXT RR, mp-allocated */
 };
 
-/* zone data and operations is the same as in rbldnsd_dnset,
+/* dataset and operations is the same as in rbldnsd_dnset,
  * except of instead array of just domain names we store array
  * of structures for each entry.  Also, we allow duplicated entries. */
 
-struct zonedata {
+struct dataset {
   unsigned n[2]; /* number of entries */
   unsigned a[2]; /* entries allocated (used only when loading) */
   struct entry *e[2]; /* entries: plain and wildcard */
@@ -38,17 +38,17 @@ struct zonedata {
 #define EP 0
 #define EW 1
 
-static void dnvset_free(struct zonedata *z) {
-  if (z) {
-    mp_free(&z->mp);
-    if (z->e[EP]) free(z->e[EP]);
-    if (z->e[EW]) free(z->e[EW]);
-    free(z);
+static void ds_dnvset_free(struct dataset *ds) {
+  if (ds) {
+    mp_free(&ds->mp);
+    if (ds->e[EP]) free(ds->e[EP]);
+    if (ds->e[EW]) free(ds->e[EW]);
+    free(ds);
   }
 }
 
 static int
-dnvset_parseline(struct zonedata *z, char *line, int lineno, int llines) {
+ds_dnvset_parseline(struct dataset *ds, char *line, int lineno) {
   char *p;
   ip4addr_t a;
   unsigned char dn[DNS_MAXDN];
@@ -56,13 +56,14 @@ dnvset_parseline(struct zonedata *z, char *line, int lineno, int llines) {
   unsigned idx, labels;
   int not;
 
-  if (!llines && line[0] == ':') {
+  if (line[0] == ':') {
     if (!addrtxt(line, &a, &p)) {
-      zwarn(lineno, "invalid default entry");
+      dswarn(lineno, "invalid default entry");
       return 1;
     }
-    if (a) z->r_a = a;
-    if (p && !(z->r_txt = mp_edstrdup(&z->mp, p)))
+    if (a) ds->r_a = a;
+    if (!p) ds->r_txt = NULL;
+    else if (!(ds->r_txt = mp_edstrdup(&ds->mp, p)))
       return 0;
     return 1;
   }
@@ -81,7 +82,7 @@ dnvset_parseline(struct zonedata *z, char *line, int lineno, int llines) {
   else if (line[0] == '*' && line[1] == '.') { idx = EW; line += 2; }
   else idx = EP;
   if (!dns_ptodn(line, dn, DNS_MAXDN)) {
-    zwarn(lineno, "invalid domain name");
+    dswarn(lineno, "invalid domain name");
     return 1;
   }
   dns_dntol(dn, dn);
@@ -89,51 +90,48 @@ dnvset_parseline(struct zonedata *z, char *line, int lineno, int llines) {
     a = 0;
   else {
     if (!addrtxt(p, &a, &p)) {
-      zwarn(lineno, "invalid value");
+      dswarn(lineno, "invalid value");
       return 1;
     }
     if (!a)
-      a = z->r_a;
+      a = ds->r_a;
   }
 
-  e = z->e[idx];
-  if (z->n[idx] >= z->a[idx]) {
-    z->a[idx] = z->a[idx] ? z->a[idx] << 1 : 64;
-    e = (struct entry *)erealloc(e, z->a[idx] * sizeof(*e));
+  e = ds->e[idx];
+  if (ds->n[idx] >= ds->a[idx]) {
+    ds->a[idx] = ds->a[idx] ? ds->a[idx] << 1 : 64;
+    e = trealloc(struct entry, e, ds->a[idx]);
     if (!e) return 0;
-    z->e[idx] = e;
+    ds->e[idx] = e;
   }
-  e += z->n[idx]++;
+  e += ds->n[idx]++;
   e->r_a = a;
   if (not) e->r_txt = NULL;
-  else if (!p) e->r_txt = z->r_txt;
-  else if (!(e->r_txt = mp_edstrdup(&z->mp, p))) return 0;
-  if (!(e->dn = (const unsigned char*)mp_estrdup(&z->mp, dn)))
+  else if (!p) e->r_txt = ds->r_txt;
+  else if (!(e->r_txt = mp_edstrdup(&ds->mp, p))) return 0;
+  if (!(e->dn = (const unsigned char*)mp_estrdup(&ds->mp, dn)))
     return 0;
   labels = dns_dnlabels(dn);
-  if (z->maxlab[idx] < labels) z->maxlab[idx] = labels;
-  if (z->minlab[idx] > labels) z->minlab[idx] = labels;
+  if (ds->maxlab[idx] < labels) ds->maxlab[idx] = labels;
+  if (ds->minlab[idx] > labels) ds->minlab[idx] = labels;
 
   return 1;
 }
 
-static struct zonedata *dnvset_alloc() {
-  struct zonedata *z = (struct zonedata *)emalloc(sizeof(*z));
-  if (z) {
-    memset(z, 0, sizeof(*z));
-    z->minlab[EP] = z->minlab[EW] = 255;
-  }
-  return z;
+static struct dataset *ds_dnvset_alloc() {
+  struct dataset *ds = tzalloc(struct dataset);
+  if (ds)
+    ds->minlab[EP] = ds->minlab[EW] = 255;
+  return ds;
 }
 
-static int
-dnvset_load(struct zonedata *z, FILE *f) {
-  z->r_a = R_A_DEFAULT;
-  z->r_txt = NULL;
-  return readzlines(f, z, dnvset_parseline);
+static int ds_dnvset_load(struct zonedataset *zds, FILE *f) {
+  zds->zds_ds->r_a = R_A_DEFAULT;
+  zds->zds_ds->r_txt = NULL;
+  return readdslines(f, zds, ds_dnvset_parseline);
 }
 
-static int dnvset_lt(const struct entry *a, const struct entry *b) {
+static int ds_dnvset_lt(const struct entry *a, const struct entry *b) {
   int r = strcmp(a->dn, b->dn);
   return
      r < 0 ? 1 :
@@ -141,33 +139,33 @@ static int dnvset_lt(const struct entry *a, const struct entry *b) {
      a->r_a < b->r_a;
 }
 
-static int dnvset_finish(struct zonedata *z) {
+static int ds_dnvset_finish(struct dataset *ds) {
   unsigned r;
   for(r = 0; r < 2; ++r) {
-    if (!z->n[r]) continue;
+    if (!ds->n[r]) continue;
 
 #   define QSORT_TYPE struct entry
-#   define QSORT_BASE z->e[r]
-#   define QSORT_NELT z->n[r]
-#   define QSORT_LT(a,b) dnvset_lt(a,b)
+#   define QSORT_BASE ds->e[r]
+#   define QSORT_NELT ds->n[r]
+#   define QSORT_LT(a,b) ds_dnvset_lt(a,b)
 #   include "qsort.c"
 
     /* we make all the same DNs point to one string for faster searches */
     { register struct entry *e, *t;
-      for(e = z->e[r], t = e + z->n[r] - 1; e < t; ++e)
+      for(e = ds->e[r], t = e + ds->n[r] - 1; e < t; ++e)
         if (e[0].dn != e[1].dn && strcmp(e[0].dn, e[1].dn) == 0)
           e[1].dn = e[0].dn;
     }
 #define dnvset_eeq(a,b) a.dn == b.dn && rrs_equal(a,b)
-    REMOVE_DUPS(struct entry, z->e[r], z->n[r], dnvset_eeq);
-    SHRINK_ARRAY(struct entry, z->e[r], z->n[r], z->a[r]);
+    REMOVE_DUPS(struct entry, ds->e[r], ds->n[r], dnvset_eeq);
+    SHRINK_ARRAY(struct entry, ds->e[r], ds->n[r], ds->a[r]);
   }
-  zloaded("e/w=%u/%u", z->n[EP], z->n[EW]);
+  dsloaded("e/w=%u/%u", ds->n[EP], ds->n[EW]);
   return 1;
 }
 
 static const struct entry *
-dnvset_find(const struct entry *e, int b, const unsigned char *q) {
+ds_dnvset_find(const struct entry *e, int b, const unsigned char *q) {
   int a = 0, m, r;
   while(a <= b) {
     if (!(r = strcmp(e[(m = (a + b) >> 1)].dn, q))) {
@@ -184,7 +182,7 @@ dnvset_find(const struct entry *e, int b, const unsigned char *q) {
 }
 
 static int
-dnvset_query(const struct zonedata *const z, struct dnspacket *p,
+ds_dnvset_query(const struct dataset *const ds, struct dnspacket *p,
              const unsigned char *const query, unsigned labels, unsigned qtyp)
 {
   const unsigned char *dn = query;
@@ -192,22 +190,22 @@ dnvset_query(const struct zonedata *const z, struct dnspacket *p,
   char name[DNS_MAXDOMAIN+1];
   if (!labels)
     return 0;
-  if (labels > z->maxlab[EP] || labels < z->minlab[EP] ||
-      !(e = dnvset_find(z->e[EP], z->n[EP] - 1, dn))) {
+  if (labels > ds->maxlab[EP] || labels < ds->minlab[EP] ||
+      !(e = ds_dnvset_find(ds->e[EP], ds->n[EP] - 1, dn))) {
     /* try wildcard; require at least 1 label on the left */
     do
       --labels, dn += 1 + *dn;
-    while(labels > z->maxlab[EW]);
+    while(labels > ds->maxlab[EW]);
     for(;;) {
-      if (labels < z->minlab[EW]) return 0;
-      if ((e = dnvset_find(z->e[EW], z->n[EW]-1, dn)) != NULL) break;
+      if (labels < ds->minlab[EW]) return 0;
+      if ((e = ds_dnvset_find(ds->e[EW], ds->n[EW]-1, dn)) != NULL) break;
       dn += 1 + *dn;
       --labels;
     }
-    t = z->e[EW] + z->n[EW];
+    t = ds->e[EW] + ds->n[EW];
   }
   else
-    t = z->e[EP] + z->n[EP];
+    t = ds->e[EP] + ds->n[EP];
 
   if (!e->r_a) return 0;
 
@@ -217,7 +215,7 @@ dnvset_query(const struct zonedata *const z, struct dnspacket *p,
   do {
     if (qtyp & NSQUERY_A)
       addrec_a(p, e->r_a);
-    if (z->r_txt && qtyp & NSQUERY_TXT)
+    if (ds->r_txt && qtyp & NSQUERY_TXT)
       addrec_txt(p, e->r_txt, name);
   } while(++e < t && e->dn == dn);
 

@@ -1,5 +1,5 @@
 /* $Id$
- * ip4vset zonetype: IP4 addresses (ranges), with A and TXT
+ * ip4vset dataset type: IP4 addresses (ranges), with A and TXT
  * values for every individual entry.  More flexible than
  * ip4set but requires more memory.
  */
@@ -11,7 +11,7 @@
 #include "dns.h"
 #include "mempool.h"
 
-definezonetype(ip4vset, NSQUERY_A_TXT, "set of (ip4, value) pairs");
+definedstype(ip4vset, "set of (ip4, value) pairs");
 
 struct entry {
   ip4addr_t addr;	/* key */
@@ -19,7 +19,7 @@ struct entry {
   const char *r_txt;	/* result: txt (mempool) */
 };
 
-struct zonedata {
+struct dataset {
   unsigned n[4];	/* counts */
   unsigned a[4];	/* allocated (only for loading) */
   struct entry *e[4];	/* entries */
@@ -34,34 +34,35 @@ struct zonedata {
 #define E16 2
 #define E08 3
 
-static void ip4vset_free(struct zonedata *z) {
-  if (z) {
-    mp_free(&z->mp);
-    if (z->e[E32]) free(z->e[E32]);
-    if (z->e[E24]) free(z->e[E24]);
-    if (z->e[E16]) free(z->e[E16]);
-    if (z->e[E08]) free(z->e[E08]);
-    free(z);
+static void ds_ip4vset_free(struct dataset *ds) {
+  if (ds) {
+    mp_free(&ds->mp);
+    if (ds->e[E32]) free(ds->e[E32]);
+    if (ds->e[E24]) free(ds->e[E24]);
+    if (ds->e[E16]) free(ds->e[E16]);
+    if (ds->e[E08]) free(ds->e[E08]);
+    free(ds);
   }
 }
 
 static int
-ip4vset_addent(struct zonedata *z, unsigned idx, ip4addr_t a, unsigned count,
-               ip4addr_t r_a, const char *r_txt) {
-  struct entry *e = z->e[idx];
+ds_ip4vset_addent(struct dataset *ds, unsigned idx,
+                  ip4addr_t a, unsigned count,
+                  ip4addr_t r_a, const char *r_txt) {
+  struct entry *e = ds->e[idx];
   ip4addr_t step = 1 << (idx << 3);
 
-  if (z->n[idx] + count > z->a[idx]) {
-    do z->a[idx] = z->a[idx] ? z->a[idx] << 1 : 64;
-    while(z->n[idx] + count > z->a[idx]);
-    e = (struct entry*)erealloc(e, z->a[idx] * sizeof(*e));
+  if (ds->n[idx] + count > ds->a[idx]) {
+    do ds->a[idx] = ds->a[idx] ? ds->a[idx] << 1 : 64;
+    while(ds->n[idx] + count > ds->a[idx]);
+    e = trealloc(struct entry, e, ds->a[idx]);
     if (!e)
       return 0;
-    z->e[idx] = e;
+    ds->e[idx] = e;
   }
 
-  e += z->n[idx];
-  z->n[idx] += count;
+  e += ds->n[idx];
+  ds->n[idx] += count;
   for(; count--; a += step, ++e) {
     e->addr = a;
     e->r_a = r_a;
@@ -72,20 +73,21 @@ ip4vset_addent(struct zonedata *z, unsigned idx, ip4addr_t a, unsigned count,
 }
 
 static int
-ip4vset_parseline(struct zonedata *z, char *line, int lineno, int llines) {
+ds_ip4vset_parseline(struct dataset *ds, char *line, int lineno) {
   ip4addr_t a, b;
   char *p;
   ip4addr_t r_a;
   const char *r_txt;
   int not;
 
-  if (!llines && line[0] == ':') {
+  if (line[0] == ':') {
     if (!addrtxt(line, &a, &p)) {
-      zwarn(lineno, "invalid default entry");
+      dswarn(lineno, "invalid default entry");
       return 1;
     }
-    if (a) z->r_a = a;
-    if (p && (z->r_txt = mp_edstrdup(&z->mp, p)) == NULL)
+    if (a) ds->r_a = a;
+    if (!p) ds->r_txt = NULL;
+    else if (!(ds->r_txt = mp_edstrdup(&ds->mp, p)))
       return 0;
     return 1;
   }
@@ -99,49 +101,46 @@ ip4vset_parseline(struct zonedata *z, char *line, int lineno, int llines) {
     not = 0;
   if (!ip4parse_range(line, &a, &b, &p) ||
       (*p != '\0' && *p != ' ' && *p != '\t' && *p != '#' && *p != ':')) {
-    zwarn(lineno, "invalid address");
+    dswarn(lineno, "invalid address");
     return 1;
   }
   if (not)
     r_a = 0;
   else {
     if (!addrtxt(p, &r_a, &p)) {
-      zwarn(lineno, "invalid value");
+      dswarn(lineno, "invalid value");
       return 1;
     }
     if (!r_a)
-      r_a = z->r_a;
+      r_a = ds->r_a;
   }
 
   if (not) r_txt = NULL;
-  else if (!p) r_txt = z->r_txt;
-  else if (!(r_txt = mp_edstrdup(&z->mp, p))) return 0;
+  else if (!p) r_txt = ds->r_txt;
+  else if (!(r_txt = mp_edstrdup(&ds->mp, p))) return 0;
 
-#define fn(idx,start,count) ip4vset_addent(z, idx, start, count, r_a, r_txt)
+#define fn(idx,start,count) ds_ip4vset_addent(ds, idx, start, count, r_a, r_txt)
   ip4range_expand(a, b, fn);
 }
 
-static int ip4vset_load(struct zonedata *z, FILE *f) {
-  z->r_a = R_A_DEFAULT;
-  z->r_txt = NULL;
-  return readzlines(f, z, ip4vset_parseline);
+static int ds_ip4vset_load(struct zonedataset *zds, FILE *f) {
+  zds->zds_ds->r_a = R_A_DEFAULT;
+  zds->zds_ds->r_txt = NULL;
+  return readdslines(f, zds, ds_ip4vset_parseline);
 }
 
-static struct zonedata *ip4vset_alloc() {
-  struct zonedata *z = (struct zonedata *)emalloc(sizeof(*z));
-  if (z)
-    memset(z, 0, sizeof(*z));
-  return z;
+static struct dataset *ds_ip4vset_alloc() {
+  return tzalloc(struct dataset);
 }
 
-static int ip4vset_finish(struct zonedata *z) {
+static int ds_ip4vset_finish(struct dataset *ds) {
   unsigned r;
   for(r = 0; r < 4; ++r) {
-    if (!z->n[r]) continue;
+    if (!ds->n[r]) continue;
 
 #   define QSORT_TYPE struct entry
-#   define QSORT_BASE z->e[r]
-#   define QSORT_NELT z->n[r]
+#   define QSORT_BASE ds->e[r]
+#   define QSORT_NELT ds->n[r]
 #   define QSORT_LT(a,b) \
        a->addr < b->addr ? 1 : \
        a->addr > b->addr ? 0 : \
@@ -149,16 +148,16 @@ static int ip4vset_finish(struct zonedata *z) {
 #   include "qsort.c"
 
 #define ip4vset_eeq(a,b) a.addr == b.addr && rrs_equal(a,b)
-    REMOVE_DUPS(struct entry, z->e[r], z->n[r], ip4vset_eeq);
-    SHRINK_ARRAY(struct entry, z->e[r], z->n[r], z->a[r]);
+    REMOVE_DUPS(struct entry, ds->e[r], ds->n[r], ip4vset_eeq);
+    SHRINK_ARRAY(struct entry, ds->e[r], ds->n[r], ds->a[r]);
   }
-  zloaded("e32/24/16/8=%u/%u/%u/%u",
-          z->n[E32], z->n[E24], z->n[E16], z->n[E08]);
+  dsloaded("e32/24/16/8=%u/%u/%u/%u",
+          ds->n[E32], ds->n[E24], ds->n[E16], ds->n[E08]);
   return 1;
 }
 
 static const struct entry *
-ip4vset_find(const struct entry *e, int b, ip4addr_t q) {
+ds_ip4vset_find(const struct entry *e, int b, ip4addr_t q) {
   int a = 0, m;
   while(a <= b) {
     if (e[(m = (a + b) >> 1)].addr == q) {
@@ -174,20 +173,51 @@ ip4vset_find(const struct entry *e, int b, ip4addr_t q) {
 }
 
 static int
-ip4vset_query(const struct zonedata *const z, struct dnspacket *p,
-              const unsigned char *const query, unsigned labels, unsigned qtyp)
-{
+ds_ip4vset_find_masked(const struct entry *e, int b,
+                       ip4addr_t q, ip4addr_t mask) {
+  int a = 0, m;
+  while(a <= b) {
+    if ((e[(m = (a + b) >> 1)].addr & mask) == q) return 1;
+    else if ((e[m].addr & mask) < q) a = m + 1;
+    else b = m - 1;
+  }
+  return 0;
+}
+
+static int
+ds_ip4vset_query(const struct dataset *const ds, struct dnspacket *p,
+                 const unsigned char *const query, unsigned labels,
+                 unsigned qtyp) {
   ip4addr_t q, f;
   const struct entry *e, *t;
   const char *ipsubst;
 
-  if (labels != 4 || !(q = dntoip4addr(query)))
+  if (labels > 4 || !(labels = dntoip4addr(query, &q))) return 0;
+
+  if (labels < 4) {
+    /* we can't return NXDOMAIN for 3.2.1.bl.example.com -
+     * e.g. if 4.3.2.1.bl.example.com exists */
+    ip4addr_t m = ip4mask(labels * 8);
+    unsigned n = E32;
+    do 
+      if (ds_ip4vset_find_masked(ds->e[n], ds->n[n] - 1, q, m))
+        return 1;
+    while (++n < 4 - labels);
+    while(n <= E08) {
+      q &= m;
+      if (ds_ip4vset_find(ds->e[n], ds->n[n] - 1, q)) return 1;
+      m <<= 8;
+      ++n;
+    }
     return 0;
+  }
+
+  /* valid 4-octets IP found */
 
 #define try(i,mask) \
- (z->n[i] && \
-  (t = z->e[i] + z->n[i], \
-   e = ip4vset_find(z->e[i], z->n[i] - 1, (f = q & mask))) != NULL)
+ (ds->n[i] && \
+  (t = ds->e[i] + ds->n[i], \
+   e = ds_ip4vset_find(ds->e[i], ds->n[i] - 1, (f = q & mask))) != NULL)
 
   if (!try(E32, 0xffffffff) &&
       !try(E24, 0xffffff00) &&

@@ -8,7 +8,6 @@
 #include <sys/types.h>
 #include <netinet/in.h>
 #include "rbldnsd.h"
-#include "rbldnsd_zones.h"
 #include "dns.h"
 
 /* DNS packet:
@@ -34,6 +33,8 @@
  * next two bytes are query class (IN, HESIOD etc)
  */
 
+static int add_soa(struct dnspacket *p, const struct zone *zone, int auth);
+
 int replypacket(struct dnspacket *p, unsigned qlen, const struct zone *zone) {
 
   /* parsing incoming query.  Untrusted data read directly from the network.
@@ -46,14 +47,14 @@ int replypacket(struct dnspacket *p, unsigned qlen, const struct zone *zone) {
 
   unsigned qcls, qtyp;			/* query qclass and qtype */
   unsigned qlab;			/* number of labels in qDN */
-  unsigned char qdn[DNS_MAXDN];		/* lowercased version of qDN */
 
 #define DNS_MAXLAB (DNS_MAXDN/2)	/* maximum number of labels in a DN */
-  unsigned char *qlp[DNS_MAXLAB];	/* labels: pointers to qdn[] */
-  int nmatch, nfound;
+  unsigned char *qlp[DNS_MAXLAB];	/* labels: pointers to p->qdn[] */
 
   register unsigned char *const q = p->p;	/* start of query */
   unsigned char *x;
+
+  int found;
 
   x = q + qlen - 5;	/* last possible qDN zero terminator position */
   /* qlen isn't needed anymore, it'll be used as length of qDN below */
@@ -68,7 +69,7 @@ int replypacket(struct dnspacket *p, unsigned qlen, const struct zone *zone) {
 
   {	/* parse and lowercase query DN, count labels */
     register unsigned char *s = q + 12;	/* orig src DN in question (<= x) */
-    register unsigned char *d = qdn;	/* dest lowercased ptr */
+    register unsigned char *d = p->qdn;	/* dest lowercased ptr */
     register unsigned char *e;		/* end of current label */
     qlab = 0;
     while((qlen = (*d++ = *s++)) != 0) { /* loop by DN lables */
@@ -77,26 +78,26 @@ int replypacket(struct dnspacket *p, unsigned qlen, const struct zone *zone) {
       do *d++ = dns_dnlc(*s);	/* lowercase current label */
       while (++s < e);		/* ..until it's end */
     }
-    qlen = d - qdn;	/* d points past the end of qdn now */
-    x = s;	/* x isn't needed anymore, it now points past the qDN */
+    qlen = d - p->qdn;	/* d points past the end of qdn now */
+
+    /* s is end of qdn. decode qtype and qclass, and prepare for an answer */
+    qtyp = ((unsigned)(s[0]) << 8) | s[1];
+    qcls = ((unsigned)(s[2]) << 8) | s[3];
+    p->c = p->sans = s + 4; /* answers will start here */
   }
-  
+ 
   /* from now on, we see (almost?) valid dns query, should reply */
 
-  qtyp = ((unsigned)(x[0]) << 8) | x[1];
-  qcls = ((unsigned)(x[2]) << 8) | x[3];
-  p->c = p->sans = x + 4; /* answers will start here */
-  p->nans = 0;
-
 #define refuse(code) (q[2] = 0x84, q[3] = (code), (p->sans - q))
+#define setnonauth(q) (q[2] &= ~0x04)
 
   /* construct reply packet */
   /* identifier already in place */
   /* flags will be set up later */
   /* q[4:5] (qdcount) already set up in query */
-  q[6] = q[7] = 0; /* ancount */
-  q[8] = q[9] = 0; /* nscount */
-  q[10] = q[11] = 0; /* arcount */
+  q[6] = q[7] = 0; /* ancount (<255) */
+  q[8] = q[9] = 0; /* nscount (<255) */
+  q[10] = q[11] = 0; /* arcount (<255) */
 
   if (qcls != DNS_C_IN && qcls != DNS_C_ANY)
     return refuse(DNS_R_FORMERR);
@@ -108,53 +109,82 @@ int replypacket(struct dnspacket *p, unsigned qlen, const struct zone *zone) {
   case DNS_T_TXT: qtyp = NSQUERY_TXT; break;
   case DNS_T_NS:  qtyp = NSQUERY_NS; break;
   case DNS_T_SOA: qtyp = NSQUERY_SOA; break;
-  /* XXX this is an ugly hack, for now.
-   * The real question is what to do with other query types,
-   * esp. NS and SOA. */
-  case DNS_T_AAAA:  qtyp = NSQUERY_OTHER; break;
-  case DNS_T_PTR:   qtyp = NSQUERY_OTHER; break;
-  case DNS_T_CNAME: qtyp = NSQUERY_OTHER; break;
-  default: return refuse(DNS_R_REFUSED);
+  case DNS_T_MX:  qtyp = NSQUERY_MX; break;
+  default:
+    if (qtyp != DNS_T_INVALID && qtyp < DNS_T_TSIG)
+      qtyp = NSQUERY_OTHER;
+    else
+      return refuse(DNS_R_REFUSED);
   }
 
   q[2] = 0x80; /* 0x81?! */
   if (qcls == DNS_C_IN) q[2] |= 0x04; /* AA */
   q[3] = DNS_R_NOERROR;
 
-  nmatch = nfound = 0;
+  /* find matching zone */
+  for(;; zone = zone->z_next) {
+    if (!zone) /* not authoritative */
+      return refuse(DNS_R_REFUSED);
 
-  for(; zone; zone = zone->next) {
-    register const struct zonedatalist *zdl;
+    if (zone->z_dnlab > qlab) continue;
+    x = qlp[qlab - zone->z_dnlab];
+    if (zone->z_dnlen != qlen - (x - p->qdn)) continue;
+    if (memcmp(zone->z_dn, x, zone->z_dnlen) != 0) continue;
 
-    if (!zone->loaded) continue;
-    if (zone->dnlab > qlab) continue;
-    x = qlp[qlab - zone->dnlab];
-    if (zone->dnlen != qlen - (x - qdn)) continue;
-    if (memcmp(zone->dn, x, zone->dnlen) != 0) continue;
+    if (!zone->z_stamp)	/* do not answer if not loaded */
+      return refuse(DNS_R_SERVFAIL);
 
-    *x = 0;	/* terminate dn to end at zone base dn */
-    for(zdl = zone->dlist; zdl; zdl = zdl->next) {
-      /* XXX the same hack as above, so we'll return positive
-       * answer with zero records in answer section
-      if (zdl->set->qfilter & qtyp) { */
-        nmatch = 1;	/* at least one zone with this data types */
-        if (zdl->set->queryfn(zdl->set->data, p, qdn, qlab - zone->dnlab, qtyp))
-          nfound = 1;	/* positive answer */
-      }
-    *x = zone->dn[0];	/* restore qdn */
-
+    break;
   }
 
-  if (nfound) {
-    q[6] = p->nans >> 8; q[7] = p->nans;
-    return p->c - q;
+  /* found a zone, query it */
+
+  { /* first, initialize DN compression */
+    struct dnsdnptr *ptr = p->compr.ptr;
+    unsigned len = zone->z_dnlen;
+    unsigned qpos = (p->sans - 4 - len) - p->p;
+    const unsigned char *dn = zone->z_dn;
+    while(*dn) {
+      ptr->dnlen = len; len -= *dn + 1;
+      ptr->qpos = qpos; qpos += *dn + 1;
+      ptr->dnp = dn; dn += *dn + 1;
+      ++ptr;
+    }
+    p->compr.cptr = ptr;
+    p->compr.cdnp = p->compr.dnbuf;
   }
-  else if (nmatch) {
-    q[2] = 0x84; q[3] = DNS_R_NXDOMAIN;
-    return p->sans - q;
+  
+  qlab -= zone->z_dnlab;
+  found = qlab == 0;	/* no NXDOMAIN if it's a query for the zone base DN */
+  *x = '\0';	/* terminate dn to end at zone base dn */
+  { register const struct zonedatalist *zdl;
+    for(zdl = zone->z_zdl; zdl; zdl = zdl->zdl_next)
+      if (zdl->zdl_queryfn(zdl->zdl_ds, p, p->qdn, qlab, qtyp))
+        found = 1;	/* positive answer */
   }
-  else
-    return refuse(DNS_R_REFUSED);
+  *x = zone->z_dn[0];	/* restore qdn */
+
+  /* XXXXXXXXXXX check logic here!!! */
+  /* Notes.
+   *  - If query is zone's dn itself (qlab == 0), we can't return NXDOMAIN,
+   *    since it cleanly does exists.  At best we can return positive answer
+   *    with zero RRs.
+   *  - SOA is special.  I'm not sure whenever it's ok to return positive
+   *    reply with 0 RRs for SOA qieries to base DN - maybe REFUSE is better?
+   *    At least, DJB's rbldns refuses SOA and NS requests altogether.
+   *  - ANY query and SOA/NS: if there is no SOA/NS specified?  Refuse?!
+   *  - Also, SOA of base zone should be added to ADDITIONAL section for
+   *    every answer (except of base dn's SOA itself)
+   */
+  if (!found) { /* not found, and query isn't base DN */
+    add_soa(p, zone, 1); /* for negative query, add SOA to AUTHORITY */
+    q[3] = DNS_R_NXDOMAIN;
+  }
+  else if (!qlab && qtyp & NSQUERY_SOA)
+    add_soa(p, zone, 0); /* query to base dn, ANY or SOA => add SOA to ANSWER */
+  else if (!q[7]) /* positive reply, 0 answers => add SOA if any to AUTHORITY */
+    add_soa(p, zone, 1);
+  return p->c - q;
 }
 
 /* check whenever a given RR is already in the packet
@@ -171,21 +201,138 @@ static int aexists(const struct dnspacket *p, unsigned typ,
   return 0;
 }
 
+#define fit(p, bytes) ((p)->c + (bytes) <= (p)->p + sizeof((p)->p))
+
+/* adds 8 bytes */
+#define addrr_rrstart(p,type,ttl)			\
+    *p->c++ = type>>8; *p->c++ = type;			\
+    *p->c++ = DNS_C_IN>>8; *p->c++ = DNS_C_IN;		\
+    memcpy(p->c, ttl, 4); p->c += 4
+
+/* adds 10 bytes */
+#define addrr_start(p,type,ttl)					\
+    *p->c++ = 192; *p->c++ = 12; /* jump after header */	\
+    addrr_rrstart(p,type,ttl)
+
+static int
+add_dn(struct dnspacket *p, const unsigned char *dn, unsigned dnlen) {
+  struct dnsdnptr *ptr;
+  while(*dn) {
+    for(ptr = p->compr.ptr; ptr < p->compr.cptr; ++ptr) {
+      if (ptr->dnlen != dnlen || memcmp(ptr->dnp, dn, dnlen) != 0)
+        continue;
+      if (!fit(p, 2)) return 0;
+      dnlen = 0xc000 + ptr->qpos;
+      *p->c++ = dnlen >> 8; *p->c++ = dnlen;
+      return 1;
+    }
+    if (!fit(p, *dn + 1))
+      return 0;
+    if (dnlen < 128 &&
+        p->compr.cdnp + dnlen <= p->compr.dnbuf + sizeof(p->compr.dnbuf) &&
+        ptr < p->compr.ptr + DNS_MAXDN/2) {
+      ptr->dnp = p->compr.cdnp; p->compr.cdnp += dnlen;
+      ptr->dnlen = dnlen;
+      ptr->qpos = p->c - p->p;
+      ++p->compr.cptr;
+    }
+    memcpy(p->c, dn, *dn + 1);
+    p->c += *dn + 1;
+    dnlen -= *dn + 1;
+    dn += *dn + 1;
+  }
+  if (!fit(p, 1)) return 0;
+  *p->c++ = '\0';
+  return 1;
+}
+
+static int add_soa(struct dnspacket *p, const struct zone *zone, int auth) {
+  unsigned char *c;
+  unsigned char *rstart;
+  unsigned dsz;
+  if (!zone->z_zsoa.zsoa_valid) {
+    if (!auth)
+      setnonauth(p->p); /* non-auth answer as we can't fit the record */
+    return 0;
+  }
+  c = p->c; /* save curpos in case RR will not fit */
+  if (add_dn(p, zone->z_dn, zone->z_dnlen) && fit(p, 8 + 2)) {
+    /* 8 bytes */
+    addrr_rrstart(p, DNS_T_SOA,
+            (auth ? zone->z_zsoa.zsoa_n + 16 : (unsigned char*)&defttl_nbo));
+    rstart = p->c;
+    p->c += 2;
+    if (add_dn(p, zone->z_zsoa.zsoa_odn + 1, zone->z_zsoa.zsoa_odn[0]) &&
+        add_dn(p, zone->z_zsoa.zsoa_pdn + 1, zone->z_zsoa.zsoa_pdn[0]) &&
+        fit(p, 20)) {
+      memcpy(p->c, &zone->z_zsoa.zsoa_n, 20);
+      p->c += 20;
+      dsz = (p->c - rstart) - 2;
+      rstart[0] = dsz >> 8; rstart[1] = dsz;
+      p->p[auth ? 9 : 7]++;
+      return 1;
+    }
+  }
+  p->c = c; /* restore */
+  setnonauth(p->p); /* non-auth answer as we can't fit the record */
+  return 0;
+}
+
+int addrec_ns(struct dnspacket *p, 
+              const unsigned char *nsdn, unsigned nsdnlen) {
+  unsigned char *c = p->c;
+  if (fit(p, 10 + 2)) {
+    addrr_start(p, DNS_T_NS, &defttl_nbo); /* 10 bytes */
+    p->c += 2;
+    if (add_dn(p, nsdn, nsdnlen)) {
+      nsdnlen = (p->c - c) - 12;
+      c[10] = nsdnlen>>8; c[11] = nsdnlen;
+      p->p[7] += 1;
+      return 1;
+    }
+  }
+  p->c = c;
+  setnonauth(p->p); /* non-auth answer as we can't fit the record */
+  return 0;
+}
+
+int addrec_mx(struct dnspacket *p, 
+              const unsigned char prio[2],
+              const unsigned char *mxdn, unsigned mxdnlen) {
+  unsigned char *c = p->c;
+  unsigned char *rstart;
+  if (fit(p, 10 + 2 + 2)) {
+    addrr_start(p, DNS_T_MX, &defttl_nbo); /* 10 bytes */
+    rstart = p->c;
+    p->c += 2;
+    *p->c++ = prio[0]; *p->c++ = prio[1];
+    if (add_dn(p, mxdn, mxdnlen) && fit(p, 2)) {
+      mxdnlen = (p->c - rstart) - 2;
+      rstart[0] = mxdnlen>>8; rstart[1] = mxdnlen;
+      p->p[7] += 1;
+      return 1;
+    }
+  }
+  p->c = c;
+  setnonauth(p->p); /* non-auth answer as we can't fit the record */
+  return 0;
+}
+
+
 /* add a new record into answer, check for dups.
  * We just ignore any data that exceeds packet size */
 int addrec_any(struct dnspacket *p, unsigned dtp,
                const void *data, unsigned dsz) {
-  if (p->c + 12 + dsz >= p->p + sizeof(p->p)) return 0;
-  if (aexists(p, dtp, data, dsz)) return 0;
-  p->nans++;
-  *p->c++ = 192; *p->c++ = 12; /* jump after header */
-  *p->c++ = dtp >> 8; *p->c++ = dtp; /* dtype */
-  *p->c++ = DNS_C_IN>>8; *p->c++ = DNS_C_IN; /* class */
-  *p->c++ = defttl>>24; *p->c++ = defttl>>16;
-  *p->c++ = defttl>>8; *p->c++ = defttl;
+  if (aexists(p, dtp, data, dsz)) return 1;
+  if (!fit(p, 12 + dsz)) {
+    setnonauth(p->p); /* non-auth answer as we can't fit the record */
+    return 0;
+  }
+  addrr_start(p, dtp, &defttl_nbo); /* 10 bytes */
   *p->c++ = dsz>>8; *p->c++ = dsz; /* dsize */
   memcpy(p->c, data, dsz);
   p->c += dsz;
+  p->p[7] += 1; /* increment numanswers */
   return 1;
 }
 
@@ -200,8 +347,11 @@ addrec_txt(struct dnspacket *p, const char *txt, const char *subst) {
   unsigned sl;
   char sb[256];
   char *lp, *s, *const e = sb + 254;
-  if (!txt) return 0;
-  if (p->c + 13 >= p->p + sizeof(p->p)) return 0;
+  if (!txt) return 1;
+  if (!fit(p, 14)) {
+    setnonauth(p->p);
+    return 0;
+  }
   lp = sb + 1;
   if (!subst) subst = "$";
   while(lp < e) {
@@ -214,8 +364,11 @@ addrec_txt(struct dnspacket *p, const char *txt, const char *subst) {
     lp += sl;
     if (!*s) break;
     sl = strlen(subst);
-    if (lp + sl > e)
-      sl = e - lp;
+    if (lp + sl > e) { /* does not fit */
+      /* sl = e - lp; */
+      setnonauth(p->p);
+      return 0;
+    }
     memcpy(lp, subst, sl);
     lp += sl;
     txt = s + 1;
@@ -249,6 +402,6 @@ void logreply(const struct dnspacket *pkt, const char *ip, FILE *flog) {
   c = pkt->p[3];
   fprintf(flog, "%s/%u/%d\n",
           codename(c, dns_rcodename(c), "rcode", cbuf),
-          pkt->nans, pkt->c - pkt->p);
+          pkt->p[7], pkt->c - pkt->p);
 
 }

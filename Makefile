@@ -46,7 +46,7 @@ RBLDNSD_SRCS = rbldnsd.c rbldnsd_zones.c rbldnsd_packet.c \
   rbldnsd_ip4set.c rbldnsd_ip4vset.c \
   rbldnsd_dnset.c rbldnsd_dnvset.c \
   rbldnsd_util.c
-RBLDNSD_HDRS = rbldnsd.h rbldnsd_zones.h
+RBLDNSD_HDRS = rbldnsd.h
 RBLDNSD_OBJS = $(RBLDNSD_SRCS:.c=.o) librbldnsd.a
 
 MISC = rbldnsd.8 qsort.c Makefile NEWS CHANGES WirehubDynablock2rbldnsd.pl
@@ -111,17 +111,14 @@ dns_dntol.o: dns_dntol.c dns.h
 dns_dnlen.o: dns_dnlen.c dns.h
 dns_dnlabels.o: dns_dnlabels.c dns.h
 dns_dnreverse.o: dns_dnreverse.c dns.h
-dns_findcode.o: dns_findcode.c dns.h
 dns_findname.o: dns_findname.c dns.h
 ip4parse.o: ip4parse.c ip4addr.h
 ip4atos.o: ip4atos.c ip4addr.h
 ip4mask.o: ip4mask.c ip4addr.h
 mempool.o: mempool.c mempool.h
 rbldnsd.o: rbldnsd.c rbldnsd.h ip4addr.h dns.h mempool.h
-rbldnsd_zones.o: rbldnsd_zones.c dns.h rbldnsd.h ip4addr.h \
- rbldnsd_zones.h
-rbldnsd_packet.o: rbldnsd_packet.c rbldnsd.h ip4addr.h dns.h \
- rbldnsd_zones.h
+rbldnsd_zones.o: rbldnsd_zones.c dns.h rbldnsd.h ip4addr.h
+rbldnsd_packet.o: rbldnsd_packet.c rbldnsd.h ip4addr.h dns.h
 rbldnsd_generic.o: rbldnsd_generic.c rbldnsd.h ip4addr.h dns.h \
  mempool.h qsort.c
 rbldnsd_ip4set.o: rbldnsd_ip4set.c rbldnsd.h ip4addr.h dns.h qsort.c
@@ -133,6 +130,4 @@ rbldnsd_dnvset.o: rbldnsd_dnvset.c rbldnsd.h ip4addr.h dns.h mempool.h \
  qsort.c
 rbldnsd_util.o: rbldnsd_util.c rbldnsd.h ip4addr.h dns.h mempool.h
 ip4rangetest.o: ip4rangetest.c ip4addr.h rbldnsd.h dns.h
-dns_rcodes.o: dns_rcodes.c dns.h
-dns_types.o: dns_types.c dns.h
-dns_classes.o: dns_classes.c dns.h
+dns_nametab.o: dns_nametab.c dns.h

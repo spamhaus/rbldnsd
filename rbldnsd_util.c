@@ -9,12 +9,98 @@
 #include "rbldnsd.h"
 #include "mempool.h"
 
+#define skipspace(s) while(*s == ' ' || *s == '\t') ++s
+
+#define digit(c) ((c) >= '0' && (c) <= '9')
+#define d2n(c) ((c) - '0') 
+
+char *parse_uint32(unsigned char *s, u_int32_t *np) {
+  unsigned n = 0;
+  if (!digit(*s))
+    return NULL;
+  do { 
+    if (n > 0xffffffffu / 10) return 0;
+    if (n * 10 > 0xffffffffu - d2n(*s)) return 0;
+    n = n * 10 + d2n(*s++);
+  } while(digit(*s));
+  *np = n;
+  skipspace(s);
+  return s;
+}
+
+char *parse_dn(char *s, unsigned char **dnp, unsigned *dnlenp, char **bufp) {
+  char *n = s;
+  unsigned l;
+  while(*n && *n != ' ' && *n != '\t') ++n;
+  if (*n) *n++ = '\0';
+  if (!*s) return NULL;
+  if ((l = dns_ptodn(s, *bufp, DNS_MAXDN)) == 0)
+    return NULL;
+  dns_dntol(*bufp, *bufp);
+  if (dnlenp) *dnlenp = l;
+  if (dnp) *dnp = *bufp;
+  *bufp += l;
+  skipspace(n);
+  return n;
+}
+
+static int
+zds_special(struct zonedataset *zds, char *line) {
+
+  if ((line[0] == 's' || line[0] == 'S') &&
+      (line[1] == 'o' || line[1] == 'O') &&
+      (line[2] == 'a' || line[2] == 'A') &&
+      (line[3] == ' ' || line[3] == '\t')) {
+
+    /* SOA record */
+    struct zonesoa *zsoa = &zds->zds_zsoa;
+    unsigned n;
+    u_int32_t v;
+    char *bp;
+
+    if (zsoa->zsoa_valid)
+      return 1; /* ignore if already set */
+
+    line += 4;
+    skipspace(line);
+
+    bp = zsoa->zsoa_odn + 1;
+    if (!(line = parse_dn(line, NULL, &n, &bp))) return 0;
+    zsoa->zsoa_odn[0] = n;
+    bp = zsoa->zsoa_pdn + 1;
+    if (!(line = parse_dn(line, NULL, &n, &bp))) return 0;
+    zsoa->zsoa_pdn[0] = n;
+
+    for(n = 0, bp = zsoa->zsoa_n; n < 5; ++n) {
+      if (!(line = parse_uint32(line, &v))) return 0;
+      *bp++ = v >> 24; *bp++ = v >> 16; *bp++ = v >> 8; *bp++ = v;
+    }
+
+    if (*line) return 0;
+
+    zsoa->zsoa_valid = 1;
+
+    return 1;
+  }
+
+#if 0
+  if ((line[0] == 't' || line[0] == 'T') &&
+      (line[1] == 't' || line[1] == 'T') &&
+      (line[1] == 'l' || line[1] == 'L') &&
+      (line[1] == ' ' || line[1] == '\t')) {
+    /* ttl in a zone */
+    return 0;
+  }
+#endif
+
+  return 0;
+}
+
 int
-readzlines(FILE *f,struct zonedata *z,
-           int (*zlpfn)(struct zonedata *z,
-                        char *line, int lineno, int llines)) {
+readdslines(FILE *f, struct zonedataset *zds,
+            int (*dslpfn)(struct dataset *ds, char *line, int lineno)) {
   char buf[512], *line, *eol;
-  int lineno = 0, llineno = 0, noeol = 0;
+  int lineno = 0, noeol = 0;
   while(fgets(buf, sizeof(buf), f)) {
     eol = buf + strlen(buf) - 1;
     if (eol < buf) /* can this happen? */
@@ -29,7 +115,7 @@ readzlines(FILE *f,struct zonedata *z,
       --eol;
     else {
       if (!feof(f))
-        zwarn(lineno, "long line (truncated)");
+        dswarn(lineno, "long line (truncated)");
       noeol = 1; /* mark it to be read above */
     }
     /* skip whitespace */
@@ -39,8 +125,17 @@ readzlines(FILE *f,struct zonedata *z,
     while(eol >= line && (*eol == ' ' || *eol == '\t'))
       --eol;
     eol[1] = '\0';
+    if (line[0] == '$' ||
+        ((line[0] == '#' || line[0] == ':') && line[1] == '$')) {
+      int r = zds_special(zds, line[0] == '$' ? line + 1 : line + 2);
+      if (!r)
+        dswarn(lineno, "invalid or unrecognized special entry");
+      else if (r < 0)
+        return 0;
+      continue;
+    }
     if (line[0] && line[0] != '#')
-      if (!zlpfn(z, line, lineno, llineno++))
+      if (!dslpfn(zds->zds_ds, line, lineno))
         return 0;
   }
   return 1;
@@ -63,13 +158,17 @@ static const unsigned char *dnotoa(const unsigned char *q, unsigned *ap) {
 
 /* parse DN (as in 4.3.2.1.in-addr.arpa) to ip4addr_t */
 
-ip4addr_t dntoip4addr(const unsigned char *q) {
+unsigned dntoip4addr(const unsigned char *q, ip4addr_t *ap) {
   ip4addr_t a = 0, o;
   if ((q = dnotoa(q, &o)) == NULL) return 0; a |= o;
+  if (!*q) { *ap = a << 24; return 1; }
   if ((q = dnotoa(q, &o)) == NULL) return 0; a |= o << 8;
+  if (!*q) { *ap = a << 16; return 2; }
   if ((q = dnotoa(q, &o)) == NULL) return 0; a |= o << 16;
+  if (!*q) { *ap = a << 8; return 3; }
   if ((q = dnotoa(q, &o)) == NULL) return 0; a |= o << 24;
-  return *q == 0 ? a : 0;
+  if (!*q) { *ap = a; return 4; }
+  return 0;
 }
 
 int addrtxt(char *str, ip4addr_t *ap, char **txtp) {
@@ -105,6 +204,13 @@ void *emalloc(unsigned size) {
   return ptr;
 }
 
+void *ezalloc(unsigned size) {
+  void *ptr = calloc(1, size);
+  if (!ptr)
+    oom();
+  return ptr;
+}
+
 void *erealloc(void *ptr, unsigned size) {
   void *nptr = realloc(ptr, size);
   if (!nptr)
@@ -130,10 +236,22 @@ char *mp_estrdup(struct mempool *mp, const char *str) {
   return (char*)str;
 }
 
+void *mp_ememdup(struct mempool *mp, const void *buf, unsigned len) {
+  buf = mp_memdup(mp, buf, len);
+  if (!buf) oom();
+  return (void*)buf;
+}
+
 const char *mp_edstrdup(struct mempool *mp, const char *str) {
   str = mp_dstrdup(mp, str);
   if (!str) oom();
   return str;
+}
+
+const void *mp_edmemdup(struct mempool *mp, const void *buf, unsigned len) {
+  buf = mp_dmemdup(mp, buf, len);
+  if (!buf) oom();
+  return buf;
 }
 
 /* what a mess... this routine is to work around various snprintf

@@ -56,7 +56,7 @@ void error(int errnum, const char *fmt, ...) {
   _exit(1);
 }
 
-unsigned defttl = 2048;		/* default record TTL */
+u_int32_t defttl_nbo = 2048;	/* default record TTL */
 static int recheck = 60;	/* interval between checks for reload */
 static int accept_in_cidr;	/* accept 127.0.0.1/8-style CIDRs */
 static int initialized;		/* 1 when initialized */
@@ -77,7 +77,7 @@ static int satoi(const char *s) {
 static void logmemusage() {
   if (logmemtms) {
     struct mallinfo mi = mallinfo();
-    zlog(LOG_INFO, 0,
+    dslog(LOG_INFO, 0,
        "memory usage: "
        "arena=%d/%d ord=%d free=%d keepcost=%d mmaps=%d/%d",
        mi.arena, mi.ordblks, mi.uordblks, mi.fordblks, mi.keepcost,
@@ -111,7 +111,7 @@ static int do_reload(struct zone *zonelist) {
     etm = times(&tms) - etm;
     utm = tms.tms_utime - utm;
 #define sec(tm) tm/HZ, (etm*100/HZ)%100
-    zlog(LOG_INFO, 0, "zones (re)loaded: %lu.%lue/%lu.%luu sec",
+    dslog(LOG_INFO, 0, "zones (re)loaded: %lu.%lue/%lu.%luu sec",
          sec(etm), sec(utm));
 #undef sec
   }
@@ -144,7 +144,7 @@ static void NORETURN usage(int exitcode) {
 "syntax, repeated names constitute the same zone.\n"
 "Available zone types:\n"
 , progname, version, progname);
-  printzonetypes(stdout);
+  printdstypes(stdout);
   printf(
 "netlist is a comma-separated list of CIDR network ranges or hosts,\n"
 "possible negated, 127.0.0.1,!127/8 (0/0 added implicitly)\n"
@@ -250,7 +250,7 @@ static int init(int argc, char **argv, struct zone **zonep) {
     case 't':
       if ((c = satoi(optarg)) < 0)
         error(0, "invalid ttl (-t) value `%.50s'", optarg);
-      defttl = c;
+      defttl_nbo = c;
       break;
     case 'c':
       if ((c = satoi(optarg)) < 0)
@@ -270,6 +270,8 @@ static int init(int argc, char **argv, struct zone **zonep) {
   if (!(argc -= optind))
     error(0, "no zone(s) to service specified (-h for help)");
   argv += optind;
+
+  defttl_nbo = htonl(defttl_nbo);
 
   if (nodaemon)
     logto = LOGTO_STDOUT;
@@ -379,7 +381,7 @@ static int init(int argc, char **argv, struct zone **zonep) {
   if (!do_reload(*zonep))
     error(0, "zone loading errors, aborting");
   initialized = 1;
-  zlog(LOG_INFO, 0, "version %s started", version);
+  dslog(LOG_INFO, 0, "version %s started", version);
 
   if (!nodaemon) {
     if (fork() > 0) exit(0);
@@ -438,7 +440,7 @@ static void setup_signals() {
 #ifndef NOSTATS
 static void logstats(struct dnsstats *s, int reset) {
   time_t t = time(NULL);
-  zlog(LOG_INFO, 0,
+  dslog(LOG_INFO, 0,
     "stats for %ldsec (num/in/out/ans): "
     "tot=%u/%u/%u/%u "
     "ok=%u/%u/%u/%u "
@@ -488,7 +490,7 @@ int main(int argc, char **argv) {
       sigset_t ssorig;
       sigprocmask(SIG_BLOCK, &ssblock, &ssorig);
       if (signalled & SIGNALLED_TERM) {
-        zlog(LOG_INFO, 0, "terminating");
+        dslog(LOG_INFO, 0, "terminating");
         logstats(&stats, 0);
         logmemusage();
         return 0;
@@ -528,7 +530,7 @@ int main(int argc, char **argv) {
     switch(pkt.p[3]) {
     case DNS_R_NOERROR:
       stats.nrep += 1; stats.irep += q; stats.orep += r;
-      stats.arep += pkt.nans;
+      stats.arep += pkt.p[7]; /* arcount */
       break;
     case DNS_R_NXDOMAIN:
       stats.nnxd += 1; stats.inxd += q; stats.onxd += r;
@@ -567,7 +569,7 @@ int ip4parse_range(const char *s, ip4addr_t *a1p, ip4addr_t *a2p, char **np) {
 
 void oom() {
   if (initialized)
-    zlog(LOG_ERR, 0, "out of memory loading zone (zone will be empty)");
+    dslog(LOG_ERR, 0, "out of memory loading zone (zone will be empty)");
   else
     error(0, "out of memory");
 }

@@ -34,7 +34,8 @@ struct mempool_cfull { /* pseudo-chunk: one entry into full list */
 void mp_init(struct mempool *mp) {
   mp->mp_chunk = mp->mp_fullc = NULL;
   mp->mp_nallocs = mp->mp_datasz = 0;
-  mp->mp_laststr = NULL;
+  mp->mp_lastbuf = NULL;
+  mp->mp_lastlen = 0;
 }
 
 void *mp_alloc(struct mempool *mp, unsigned size) {
@@ -106,22 +107,29 @@ void mp_free(struct mempool *mp) {
   mp_init(mp);
 }
 
+void *mp_memdup(struct mempool *mp, const void *buf, unsigned len) {
+  void *b = (char*)mp_alloc(mp, len);
+  if (b)
+    memcpy(b, buf, len);
+  return b;
+}
+
 char *mp_strdup(struct mempool *mp, const char *str) {
-  unsigned l = strlen(str) + 1;
-  char *s = (char*)mp_alloc(mp, l);
-  if (s)
-    memcpy(s, str, l);
-  return s;
+  return (char*)mp_memdup(mp, str, strlen(str) + 1);
 }
 
 /* string pool: a pool of _constant_ strings, with minimal
  * elimination of dups (only last request is checked)
  */
 
+const void *mp_dmemdup(struct mempool *mp, const void *buf, unsigned len) {
+  if (mp->mp_lastlen == len && memcmp(mp->mp_lastbuf, buf, len) == 0)
+    return mp->mp_lastbuf;
+  else if ((buf = mp_memdup(mp, buf, len)) != NULL)
+    mp->mp_lastbuf = buf, mp->mp_lastlen = len;
+  return buf;
+}
+
 const char *mp_dstrdup(struct mempool *mp, const char *str) {
-  if (mp->mp_laststr && strcmp(mp->mp_laststr, str) == 0)
-    return mp->mp_laststr;
-  else if ((str = mp_strdup(mp, str)) != NULL)
-    mp->mp_laststr = str;
-  return str;
-}   
+  return (const char*)mp_dmemdup(mp, str, strlen(str) + 1);
+}

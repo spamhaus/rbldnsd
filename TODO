@@ -2,18 +2,27 @@ $Id$
 
 TODO list for rbldnsd, in no particular order.
 
- * AAAA, CNAME, PTR and other types of records, and NS and SOA
-   revisited.  It seems rbldnsd should return some definitive
-   answer to ALL query tyes (maybe except of AXFR or the like),
-   and should "propagate" NS/SOA from zone.example.com to all
-   2.0.0.127.zone.example.com.  At least BIND does that.  Hmm.
-   Either way, it shouldn't return NXDOMAIN for zone.example.com
-   NS or SOA query even if there's no generic records for that.
-   SOA should be returned with every answer it seems.
+ * recheck whenever SOA behaviour is correct
+
+ * allow specifying different TTLs for different records in generic dataset,
+   for SOAs and per dataset.
+
+ * review logging.  It should be possible to specify which packets
+   (qtype, rcode, bad etc) to log in addition to filtering by client's IP.
+
+ * in dn[v]set and generic, do not return NXDOMAIN for e.g. com.bl.example.com
+   if spammer.com.bl.example.com exists.
+   
+ * rewrite all 3 name-based datasets to use reversed domain names and only
+   one lookup.
+
+ * pre-calculate query's IP address (for ip4[v]set) and reverse DN (for
+   name-based datasets) before calling query procedures, based on dataset
+   flags.
 
  * maybe multi-children environment.  Seems to be unnecessary.
 
- * review all names to be consistent
+ * review all names to be consistent (partially done)
 
  * implement TCP mode (in separate process, to reduce number of syscalls)
 

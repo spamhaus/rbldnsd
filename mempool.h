@@ -12,14 +12,17 @@ struct mempool { /* free-once memory pool.  All members are private */
   struct mempool_chunk *mp_fullc; /* list of full chunks */
   unsigned mp_nallocs;		/* number of allocs so far */
   unsigned mp_datasz;		/* size of allocated data */
-  const char *mp_laststr;	/* last allocated string */
+  const char *mp_lastbuf;	/* last allocated string */
+  unsigned mp_lastlen;		/* length of lastbuf */
 };
 
 void mp_init(struct mempool *mp);
 void *mp_alloc(struct mempool *mp, unsigned size);
 void mp_free(struct mempool *mp);
 char *mp_strdup(struct mempool *mp, const char *str);
+void *mp_memdup(struct mempool *mp, const void *buf, unsigned len);
 const char *mp_dstrdup(struct mempool *mp, const char *str);
-/* dstrdup trying to pack repeated strings together */
+const void *mp_dmemdup(struct mempool *mp, const void *buf, unsigned len);
+/* dstrdup, dmemdup trying to pack repeated strings together */
 
 #endif

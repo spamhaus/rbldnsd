@@ -3,7 +3,48 @@ $Id$
 This file describes user-visible changes in rbldnsd.
 Never news are at top.
 
-0.84 (not yet released):
+0.89
+
+ many changes.  "Expirience" release...
+
+ Incompatible changes:
+
+ - generic zone does not understand SOA records anymore - SOA now may be
+   specified in every zone data file as $SOA.
+
+ - rbldnsd now matches BIND's runtime behaviour as close as possible.  In
+   particular, rbldnsd now replies to any query type (except of AXFR and
+   the like), giving positive reply if requested name exists.  Also, it now
+   will reply to queries like 0.0.127.bl.example.com (note partial IP)
+   positively with zero answers (certainly, such domain does exists if
+   e.g. 127.0.0.2 is listed).  Additionally, rbldnsd now inserts SOA
+   record (if available) to every answer that contains no answer section
+   (this way, it is possible to specify negative caching ttl for example).
+
+ - order of zones in command line is now important again.  Rbldnsd will
+   stop searching at first matching zone found, so if a superzone specified
+   before some of it's subzone, subzone will never be consulted.  This may
+   change again in the future.
+
+ Changes:
+
+ - much improved manual page, including new "bugs" section and usage of
+   proper (I hope) terms (in particular, "zone" changed to "dataset" where
+   appropriate)
+
+ - default values for ip4vset and dnvset may be specified in any line of
+   data file, and applies to all subsequent entries
+ 
+ - major code cleanups and some redesigns, to follow BIND's behaviour
+
+ - generic dataset may now handle MX records too.
+
+ - proper domain name compression implemented (SOA, NS, MX values)
+
+ - SOA serial value may be set to be dataset's modification timestamp
+   (just specify serial to be 0 and rbldnsd will set it automatically)
+
+0.84 (not released):
 
  - return positive result with zero records to AAAA, PTR and CNAME
    queries.  Hack for now, but this way rbldnsd may finally be used
