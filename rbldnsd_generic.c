@@ -185,52 +185,120 @@ static void ds_generic_finish(struct dataset *ds) {
   dsloaded("e=%u", dsd->n);
 }
 
-static int
-ds_generic_query(const struct dataset *ds, const struct dnsqinfo *qi,
-                 struct dnspacket *pkt) {
-  const struct dsdata *dsd = ds->ds_dsd;
-  const unsigned char *dn = qi->qi_dn;
-  const struct entry *e = dsd->e, *t;
-  unsigned qlen0 = qi->qi_dnlen0;
-  const unsigned char *d;
-  int a = 0, b = dsd->n - 1, m, r;
-
-  if (qi->qi_dnlab > dsd->maxlab || qi->qi_dnlab < dsd->minlab || b < 0)
-    return 0;
-
+static const struct entry *
+ds_generic_find(const struct entry *e, int b, const unsigned char *dn, unsigned qlen0) {
+  int a = 0, m, r;
+  const struct entry *t;
+  --b;
   for(;;) {
     if (a > b) return 0;
     t = e + (m = (a + b) >> 1);
     if (t->ldn[0] < qlen0) a = m + 1;
     else if (t->ldn[0] > qlen0) b = m - 1;
-    else if (!(r = memcmp(t->ldn + 1, dn, qlen0))) break;
+    else if (!(r = memcmp(t->ldn + 1, dn, qlen0))) return t;
     else if (r < 0) a = m + 1;
     else b = m - 1;
   }
+}
 
-  /* find first entry with the DN in question */
-  dn = (t--)->ldn;
-  while(t >= e && t->ldn == dn)
-    --t;
-  e = t + 1;
+static void
+ds_generic_add_rr(struct dnspacket *pkt, unsigned dtyp, const unsigned char *d) {
+  switch(dtyp) {
+  case NSQUERY_A:
+    addrr_any(pkt, DNS_T_A, d + 4, 4, d);
+    break;
+  case NSQUERY_TXT:
+    addrr_any(pkt, DNS_T_TXT, d + 4, (unsigned)(d[4]) + 1, d);
+    break;
+  case NSQUERY_MX:
+    addrr_any(pkt, DNS_T_MX, d + 5, (unsigned)(d[4]) + 2, d);
+    break;
+  }
+}
 
-  t = dsd->e + dsd->n;
-  do {
-    if (!(qi->qi_tflag & e->dtyp))
-      continue;
-    d = e->data;
-    switch(e->dtyp) {
-    case NSQUERY_A:
-      addrr_any(pkt, DNS_T_A, d + 4, 4, d);
-      break;
-    case NSQUERY_TXT:
-      addrr_any(pkt, DNS_T_TXT, d + 4, (unsigned)(d[4]) + 1, d);
-      break;
-    case NSQUERY_MX:
-      addrr_any(pkt, DNS_T_MX, d + 5, (unsigned)(d[4]) + 2, d);
-      break;
+static void
+ds_generic_add_rrs(struct dnspacket *pkt, const struct entry *e, const struct entry *l) {
+  /* this routine should randomize order of the RRs when placing them
+   * into the resulting packet.  Currently, we use plain "dumb" round-robin,
+   * that is, given N RRs, we chose some M in between, based on a single
+   * sequence nn, and will return M..N-1 records first, and 0..M-1 records
+   * second.  Dumb, dumb, I know, but this is very simple to implement!.. ;) */
+  static unsigned nn;
+  const struct entry *m = (l - e > 1) ? e + nn++ % (l - e) : e;
+  const struct entry *t;
+  for(t = m; t < l; ++t) ds_generic_add_rr(pkt, t->dtyp, t->data);
+  for(t = e; t < m; ++t) ds_generic_add_rr(pkt, t->dtyp, t->data);
+}
+
+static int
+ds_generic_query(const struct dataset *ds, const struct dnsqinfo *qi,
+                 struct dnspacket *pkt) {
+  const struct dsdata *dsd = ds->ds_dsd;
+  const unsigned char *dn = qi->qi_dn;
+  const struct entry *e, *t, *l;
+  unsigned qt = qi->qi_tflag;
+
+  if (qi->qi_dnlab > dsd->maxlab || qi->qi_dnlab < dsd->minlab)
+    return 0;
+
+  e = dsd->e;
+  t = ds_generic_find(e, dsd->n, qi->qi_dn, qi->qi_dnlen0);
+  if (!t)
+    return 0;
+
+  /* find first and last entries with the DN and qtype in question */
+  dn = t->ldn;
+  if (qt == NSQUERY_ANY) {
+    /* ANY query, we want all records regardless of type;
+     * but "randomize" each type anyway */
+    do --t;
+    while(t >= e && t->ldn == dn);
+    l = e + dsd->n;
+    e = t + 1;
+    t = e + 1;
+    qt = e->dtyp;
+    for(;;) {
+      if (t >= l || t->ldn != dn) {
+        ds_generic_add_rrs(pkt, e, t);
+        break;
+      }
+      else if (t->dtyp != qt) {
+	qt = t->dtyp;
+        ds_generic_add_rrs(pkt, e, t);
+        e = t;
+      }
+      ++t;
     }
-  } while(++e < t && e->ldn == dn);
+  }
+  else if (qt == NSQUERY_OTHER)
+    return 1; /* we have nothing of this type */
+  else if (t->dtyp > qt) { /* search backward */
+    do if (--t < e || t->ldn != dn || t->dtyp < qt) return 1;
+    while (t->dtyp > qt);
+    l = t + 1;
+    do --t;
+    while(t >= e && t->ldn == dn && t->dtyp == qt);
+    ds_generic_add_rrs(pkt, t + 1, l);
+  }
+  else if (t->dtyp < qt) { /* search forward */
+    l = e + dsd->n;
+    do if (++t >= l || t->ldn != dn || t->dtyp > qt) return 1;
+    while(t->dtyp < qt);
+    e = t;
+    do ++t;
+    while(t < l && t->ldn == dn && t->dtyp == qt);
+    ds_generic_add_rrs(pkt, e, t);
+  }
+  else { /* we're here, find boundaries */
+    l = t;
+    do --t;
+    while(t >= e && t->ldn == dn && t->dtyp == qt);
+    e = t + 1;
+    t = dsd->e + dsd->n;
+    do ++l;
+    while(l < t && l->ldn == dn && l->dtyp == qt);
+    ds_generic_add_rrs(pkt, e, l);
+  }
   return 1;
 }
 

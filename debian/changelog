@@ -4,7 +4,11 @@ rbldnsd (0.990pre0) unstable; urgency=low
     are several of them) with the same (smallest) TTL.
     Problem spotted by Victor Duchovny, MorganStanley.
 
- -- Michael Tokarev <mjt@corpit.ru>  Wed, 19 Nov 2003 19:49:29 +0300
+  * "randomize" order of RRs of the same type in `generic'
+    dataset. The randomization is dumb, but it is better
+    than nothing anyway.  Suggested by Furio Ercolessi.
+
+ -- Michael Tokarev <mjt@corpit.ru>  Wed, 19 Nov 2003 21:41:10 +0300
 
 rbldnsd (0.99) unstable; urgency=medium
 
