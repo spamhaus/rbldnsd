@@ -73,6 +73,7 @@ int replypacket(struct dnspacket *p, unsigned qlen, const struct zone *zone) {
     qlab = 0;
     while((qlen = (*d++ = *s++)) != 0) { /* loop by DN lables */
       if (qlen > DNS_MAXLABEL || (e = s + qlen) > x) return 0;
+      ++qlab;			/* yet another label */
       do *d++ = dns_dnlc(*s);	/* lowercase current label */
       while (++s < e);		/* ..until it's end */
     }
