@@ -606,46 +606,45 @@ static void logstats(int reset) {
   struct dnsstats tot = gstats;
   char name[DNS_MAXDOMAIN+1];
   struct zone *z;
-  for (z = zonelist; z; z = z->z_next) {
+
+#define C "%" PRI_DNSCNT
+#define CC "/%" PRI_DNSCNT
+  for(z = zonelist; z; z = z->z_next) {
 #define add(x) tot.x += z->z_stats.x
     add(nnxd); add(inxd); add(onxd);
-    add(nrep); add(irep); add(orep); add(arep);
+    add(nrep); add(irep); add(orep);
     add(nerr); add(ierr); add(oerr);
 #undef add
-  }
-#define C PRI_DNSCNT
-  dslog(LOG_INFO, 0,
-    "stats for %ldsec (num/in/out/ans): "
-    "tot=%" C "/%" C "/%" C "/%" C " "
-    "ok=%" C "/%" C "/%" C "/%" C " "
-    "nxd=%" C "/%" C "/%" C " "
-    "err=%" C "/%" C "/%" C,
-    (long)d,
-    tot.nrep + tot.nnxd + tot.nerr,
-    tot.irep + tot.inxd + tot.ierr,
-    tot.orep + tot.onxd + tot.oerr,
-    tot.arep,
-    tot.nrep, tot.irep, tot.orep, tot.arep,
-    tot.nnxd, tot.inxd, tot.onxd,
-    tot.nerr, tot.ierr, tot.oerr);
-  for(z = zonelist; z; z = z->z_next) {
     dns_dntop(z->z_dn, name, sizeof(name));
     dslog(LOG_INFO, 0,
-      "stats for %ldsecs zone %.60s (num/in/out/ans): "
-      "tot=%" C "/%" C "/%" C "/%" C " "
-      "ok=%" C "/%" C "/%" C "/%" C " "
-      "nxd=%" C "/%" C "/%" C " "
-      "err=%" C "/%" C "/%" C "",
+      "stats for %ldsecs zone %.60s (num/in/out): "
+      "tot=" C CC CC " "
+      "ok="  C CC CC " "
+      "nxd=" C CC CC " "
+      "err=" C CC CC "",
       (long)d, name,
       z->z_stats.nrep + z->z_stats.nnxd + z->z_stats.nerr,
       z->z_stats.irep + z->z_stats.inxd + z->z_stats.ierr,
       z->z_stats.orep + z->z_stats.onxd + z->z_stats.oerr,
-      z->z_stats.arep,
-      z->z_stats.nrep, z->z_stats.irep, z->z_stats.orep, z->z_stats.arep,
+      z->z_stats.nrep, z->z_stats.irep, z->z_stats.orep,
       z->z_stats.nnxd, z->z_stats.inxd, z->z_stats.onxd,
       z->z_stats.nerr, z->z_stats.ierr, z->z_stats.oerr);
   }
+  dslog(LOG_INFO, 0,
+    "stats for %ldsec (num/in/out): "
+    "tot=" C CC CC " "
+    "ok="  C CC CC " "
+    "nxd=" C CC CC " "
+    "err=" C CC CC,
+    (long)d,
+    tot.nrep + tot.nnxd + tot.nerr,
+    tot.irep + tot.inxd + tot.ierr,
+    tot.orep + tot.onxd + tot.oerr,
+    tot.nrep, tot.irep, tot.orep,
+    tot.nnxd, tot.inxd, tot.onxd,
+    tot.nerr, tot.ierr, tot.oerr);
 #undef C
+#undef CC
   if (reset) {
     for(z = zonelist; z; z = z->z_next)
       memset(&z->z_stats, 0, sizeof(z->z_stats));
@@ -654,7 +653,7 @@ static void logstats(int reset) {
   }
 }
 #else
-# define logstats(z,r)
+# define logstats(r)
 #endif
 
 static void reopenlog(void) {
@@ -732,7 +731,6 @@ static void request(int fd) {
   switch(pkt.p_buf[3]) {
   case DNS_R_NOERROR:
     sp->nrep += 1; sp->irep += q; sp->orep += r;
-    sp->arep += pkt.p_buf[7]; /* arcount */
     break;
   case DNS_R_NXDOMAIN:
     sp->nnxd += 1; sp->inxd += q; sp->onxd += r;

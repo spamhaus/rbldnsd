@@ -213,9 +213,9 @@ struct dnsstats {
   /* n - number of requests;
    * i - number of bytes read
    * o - number of bytes written
-   * a - number of answers */
+   */
   dnscnt_t nnxd, inxd, onxd;		/* NXDOMAINs */
-  dnscnt_t nrep, irep, orep, arep;	/* OK replies */
+  dnscnt_t nrep, irep, orep;		/* OK replies */
   dnscnt_t nerr, ierr, oerr;		/* other errors (REFUSED, FORMERR...) */
 };
 
