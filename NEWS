@@ -3,6 +3,19 @@ $Id$
 This file describes user-visible changes in rbldnsd.
 Never news are at top.
 
+0.97
+
+ - bugfix: in some rare cases, dnset missed one RR for a
+   DN with multiple RRs.  Spotted by Matthew Sullivan, SORBS.net
+
+ - bugfix: rbldnsd didn't return NS records for base DN query
+   if qtype=ANY.  Also, SOA now will be first in reply, not last.
+
+ - optimization for `combined' dataset: try to not remove stats
+   (possible collected by previous loads) for subzones on reloads
+   (i.e. ip4set keeps approx. number of records in a set to avoid
+   many malloc() calls)
+
 0.96 (29 May 2003)
 
  - fixed alignment bug in mempool.c that caused allocation slip
