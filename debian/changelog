@@ -1,9 +1,12 @@
-rbldnsd (0.98pre) unstable; urgency=low
+rbldnsd (0.97a) unstable; urgency=low
 
   * recognize and ignore "in" in `generic' dataset, as in:
      example.com 1D IN A 127.0.0.1
+  * do not truncate addresses in CIDR like 1.2.3.4/24 to 1.2.3.0/24
+    in ip4range()
+  * fix a bug in ip4set_parse(): propagate error return properly
 
- -- Michael Tokarev <mjt@corpit.ru>  Sun, 13 Jul 2003 03:19:56 +0400
+ -- Michael Tokarev <mjt@corpit.ru>  Fri,  1 Aug 2003 13:43:28 +0400
 
 rbldnsd (0.97) unstable; urgency=low
 

@@ -3,6 +3,19 @@ $Id$
 This file describes user-visible changes in rbldnsd.
 Never news are at top.
 
+0.97a (1 Aug 2003)
+
+ - bugfix: ip4parse_range(): invalid addresses was not marked as such,
+   which may result in various crashes when parsing bogus datafiles.
+   Note this is remotely exploitable bug: if you grab data from a remote
+   system, invalid data may crash you server.  DNS operations (query
+   handling etc) aren't affected by this bug, it is in dataset parsing
+   code.
+
+ - feature: recognize and ignore "IN" classname in `generic' dataset,
+   so it is now possible to have
+     @ IN A 127.0.0.1
+
 0.97 (13 Jul 2003)
 
  - feature: added per-basezone statistic counters
