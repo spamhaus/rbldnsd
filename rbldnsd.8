@@ -324,6 +324,20 @@ Specifies TTL (time-to-live) value for all records in current dataset.
 See also \fB\-t\fR option.  \fB$TTL\fR special overrides \fB\-t\fR value
 on a per-dataset basis.
 
+.IP "\fB$MAXRANGE4\fR \fIrange-size\fR"
+Specifies maximum size of IPv4 range allowed for IPv4\-based datasets.
+If an entry covers more IP addresses than \fIrange-size\fR, it will
+be ignored (and a warning will be logged).  \fIrange-size\fR may be
+specified as a number of hosts, like 256, or as network prefix lenght,
+like /24 (the two are the same):
+.nf
+  $MAXRANGE4 /24
+  $MAXRANGE4 256
+.fi
+This constraint is active for a dataset it is specified in, and can
+be owerwritten (by subsequent $MAXRANGE statement) by a smaller value,
+but can not be increased.
+
 .IP "\fB$\fIn\fR \fItext\fR"
 (\fIn\fR is a single digit).
 Specifies a substitution variable for use as $\fIn\fR placeholders.
@@ -470,14 +484,16 @@ and a series of sections, each of which defines one (nested) dataset
 and several subzones of the base zone, for which this dataset should
 be consulted.  New (nested) dataset starts with a line
 .nf
-  $DATASET \fItype\fR \fIsubzone\fR \fIsubzone\fR...
+  $DATASET \fItype\fR[:\fIname\fR] \fIsubzone\fR \fIsubzone\fR...
 .fi
 and all subsequent lines up to the end of current file or to next
-$DATASET line are interpreted as a part of dataset of type \fItype\fR.
-Note that combined datasets cannot be nested.  Every \fIsubzone\fR will
-always be relative to the base zone name specified on command line.
-If \fIsubzone\fR specified as single character "@", dataset will be
-connected to the base zone itself.
+$DATASET line are interpreted as a part of dataset of type \fItype\fR,
+with optional \fIname\fR (name is used for logging purposes only,
+and the whole ":\fIname\fR" (without quotes or square brackets)
+part is optional).  Note that combined datasets cannot be nested.
+Every \fIsubzone\fR will always be relative to the base zone name
+specified on command line.  If \fIsubzone\fR specified as single
+character "@", dataset will be connected to the base zone itself.
 .IP
 This dataset type aims to simplify subzone maintenance, in order to
 be able to include several subzones in one file for easy data transfer,
@@ -494,25 +510,25 @@ itself includes proxies and relays but not multihops:
   $SOA 1w ns1.ex.com admin.ex.com 0 2h 2h 1w 1h
   # list of open proxies,
   # in `proxies' subzone and in base zone
-  $DATASET ip4set proxies @
+  $DATASET ip4set:proxy proxies @
   :2:Open proxy, see http://bl.ex.com/proxy/$
   127.0.0.2
   127.0.0.10
   # list of open relays,
   # in `relays' subzone and in base zone
-  $DATASET ip4set relays @
+  $DATASET ip4set:relay relays @
   :3:Open relay, see http://bl.ex.com/relay/$
   127.0.0.2
   127.0.2.10
   # list of optputs of multistage relays,
   # in `multihop' subzone only
-  $DATASET ip4set multihop
+  $DATASET ip4set:multihop-relay multihop
   :4:Multihop open relay, see http://bl.ex.com/relay/$
   127.0.0.2
   127.0.9.12
   # for the base zone and all subzones,
   # include several additional records
-  $DATASET generic proxies relays multihop @
+  $DATASET generic:common proxies relays multihop @
   @ A 127.0.0.8
   www A 127.0.0.8
   @ MX 10 mx.ex.com
@@ -618,16 +634,68 @@ period.
 .SH NOTES
 
 .PP
-All keys specified in dataset files are always relative to
-the zone base DN.  In contrast, all the values (NS and SOA
-records, MX records in generic dataset) are absolute.  This
-is different from BIND behaviour, where trailing dot indicates
-whenever this is an absolute or relative DN.  Trailing dots
-in domain names are ignored by \fBrbldnsd\fR.
+When creating a data file for \fBrbldnsd\fR (and for anything
+else, it is a general advise), it is a good idea to create the
+data in temporary file and rename the temp file when all is
+done.  \fINever\fR try to write to the main file directly,
+it is possible that at the same time, \fBrbldnsd\fR will try
+to read it and will get incomplete data as the result.  The
+same applies to copying data using \fBcp\fR(1) utility and
+similar (including \fBscp\fR(1)), that performs copying over
+existing data.  Even if you're sure noone is reading the data
+while you're copying or generating it, imagine what will happen
+if you will not be able to complete the process for whatever
+reason (interrupt, filesystem full, endless number of other
+reasons...).  In most cases is better to keep older but correct
+data instead of leaving incomplete/corrupt data in place.
+.PP
+Right:
+.nf
+  scp remote:data target.tmp && mv target.tmp target
+.fi
+\fIWrong\fR:
+.nf
+  scp remote:data target
+.fi
+Right:
+.nf
+  ./generate.pl > target.tmp && mv target.tmp target
+.fi
+\fIWrong\fR:
+.nf
+  ./generate.pl > target
+.fi
+.PP
+From this point of view, \fBrsync\fR(1) command seems
+to be safe, as it \fIalways\fR creates temporary file
+and renames it to the destination only when all is ok
+(but note the \-\-partial option, which is good for
+downloading something but may be wrong to transfer
+data files \-\- usually you don't want partial files
+to be loaded).  In contrast, \fBscp\fR(1) command is
+\fInot\fR safe, as it performs direct copying.  You
+may still use \fBscp\fR(1) in a safe manner, as shown
+in the example above.
 
 .PP
-Several zones may be served by
-.BR rbldnsd ,
+Also try to eliminate a case when two (or more) processes
+performs data copying/generation at the same time to the
+same destination.  When your data is generated by a cron
+job, use file locking (create separate lock file (which
+should never be removed) and flock/fcntl it in exclusive
+mode without waiting, exiting if lock fails) before
+attempting to do other file manipulation.
+
+.PP
+All \fIkeys\fR specified in dataset files are always relative
+to the zone base DN.  In contrast, all the \fIvalues\fR (NS
+and SOA records, MX records in generic dataset) are absolute.
+This is different from BIND behaviour, where trailing dot
+indicates whenever this is an absolute or relative DN.
+Trailing dots in domain names are ignored by \fBrbldnsd\fR.
+
+.PP
+Several zones may be served by \fBrbldnsd\fR,
 every zone may consist of several datasets.  There are numerous
 ways to combine several data files into several zones.  For
 example, suppose you have a list of dialup ranges in file
@@ -744,8 +812,8 @@ e.g. in `generic' and `dnset' datasets) when loading, to speed
 up lookup operations.  This isn't a problem in most cases.
 
 .PP
-There is no TCP mode.  If a resource record does not fit UDP
-packet (512 bytes), it will be silently ignored.  For most
+There is no TCP mode.  If a resource record does not fit in
+UDP packet (512 bytes), it will be silently ignored.  For most
 usages, this isn't a problem, because there should be only a
 few RRs in an answer, and because one record is usually sufficient
 to decide whenever a given entry is "listed" or not.
@@ -797,7 +865,7 @@ will log a warning when such truncation occurs.
 
 .SH VERSION
 
-This manpage corresponds to \fBrbldnsd\fR version \fB0.98\fR.
+This manpage corresponds to \fBrbldnsd\fR version \fB0.993\fR.
 
 .SH AUTHOR
 
