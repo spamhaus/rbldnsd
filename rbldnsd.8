@@ -175,6 +175,14 @@ entries will be represented by a CNAME to `excluded' name, so such name
 should not be present in a data set).  In this mode, \fBrbldnsd\fR ignores
 \fB\-r\fR (root directory) option.
 
+.IP \fB\-v\fR
+Do not show exact version information in response to version.bind CH TXT
+queries (by default \fBrbldnsd\fR responds to such queries since version
+0.98).  With single \fB\-v\fR, \fBrbldnsd\fR will only return "rbldnsd"
+to the caller, without the version number.  Second \fB\-v\fR disables
+providing any information in response to such requests, i.e. \fBrbldnsd\fR
+will return REFUSE code.
+
 .SH "DATASET TYPES AND FORMATS"
 
 .PP
