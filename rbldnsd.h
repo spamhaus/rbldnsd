@@ -91,11 +91,11 @@ ds_queryfn_t(const struct dataset *ds, const struct dnsqinfo *qi,
 typedef void
 ds_dumpfn_t(const struct dataset *ds, const unsigned char *odn, FILE *f);
 
-#define NSQUERY_TXT	(1u<<0)
-#define NSQUERY_A	(1u<<1)
-#define NSQUERY_NS	(1u<<2)
-#define NSQUERY_SOA	(1u<<3)
-#define NSQUERY_MX	(1u<<4)
+#define NSQUERY_SOA	(1u<<0)
+#define NSQUERY_NS	(1u<<1)
+#define NSQUERY_A	(1u<<2)
+#define NSQUERY_MX	(1u<<3)
+#define NSQUERY_TXT	(1u<<4)
 #define NSQUERY_OTHER	(1u<<5)
 #define NSQUERY_ANY	0xffffu
 
