@@ -1,9 +1,10 @@
-rbldnsd (0.84p1) unstable; urgency=low
+rbldnsd (0.84p2) unstable; urgency=low
 
   * rewrote query parsing routine to be much more accurate (see
     version 0.83 change entry) and a bit faster.
+  * cleanups, cleanups.
 
- -- Michael Tokarev <mjt@corpit.ru>  Sun, 20 Apr 2003 21:24:55 +0400
+ -- Michael Tokarev <mjt@corpit.ru>  Tue, 29 Apr 2003 03:56:52 +0400
 
 rbldnsd (0.83) unstable; urgency=high
 
