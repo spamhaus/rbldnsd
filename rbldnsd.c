@@ -101,8 +101,8 @@ static void logmemusage() {
 static int init(int argc, char **argv, struct zone **zonep) {
   int c;
   char *p;
-  char *user = "rbldns", *bindaddr = "";
-  char *root = NULL, *workdir = NULL, *pidfile = NULL;
+  char *user = NULL, *bindaddr = "";
+  char *rootdir = NULL, *workdir = NULL, *pidfile = NULL;
   FILE *fpid = NULL;
   uid_t uid = 0;
   gid_t gid = 0;
@@ -121,7 +121,7 @@ static int init(int argc, char **argv, struct zone **zonep) {
   while((c = getopt(argc, argv, "u:r:b:w:t:c:p:nel:h")) != EOF)
     switch(c) {
     case 'u': user = optarg; break;
-    case 'r': root = optarg; break;
+    case 'r': rootdir = optarg; break;
     case 'b': bindaddr = optarg; break;
     case 'w': workdir = optarg; break;
     case 'p': pidfile = optarg; break;
@@ -159,7 +159,7 @@ static int init(int argc, char **argv, struct zone **zonep) {
     error(errno, "unable to create listening socket");
   memset(&sin, 0, sizeof(sin));
   sin.sin_family = AF_INET;
-  if (bindaddr && *bindaddr) {
+  if (*bindaddr) {
     if ((p = strchr(bindaddr, ':')) != NULL)
       *p++ = '\0';
     if (*bindaddr && ip4addr(bindaddr, &saddr, NULL))
@@ -203,14 +203,19 @@ static int init(int argc, char **argv, struct zone **zonep) {
       break;
   while ((c -= (c >> 5)) >= 1024);
 
-  if ((p = strchr(user, ':')) != NULL)
+  if (!user && !(uid = getuid()))
+    user = "rbldns";
+
+  if (user && (p = strchr(user, ':')) != NULL)
     *p++ = '\0';
-  if ((c = satoi(user)) >= 0)
+  if (!user)
+    p = NULL;
+  else if ((c = satoi(user)) >= 0)
     uid = c, gid = c;
   else {
     struct passwd *pw = getpwnam(user);
     if (!pw)
-      error(0, "invalid user `%.50s' specified", user);
+      error(0, "unknown user `%s'", user);
     uid = pw->pw_uid;
     gid = pw->pw_gid;
     endpwent();
@@ -223,7 +228,7 @@ static int init(int argc, char **argv, struct zone **zonep) {
     else {
       struct group *gr = getgrnam(p);
       if (!gr)
-        error(0, "invalid group `%.50s' specified", p);
+        error(0, "unknown group `%s'", p);
       gid = gr->gr_gid;
       endgrent();
     }
@@ -233,13 +238,14 @@ static int init(int argc, char **argv, struct zone **zonep) {
   if (pidfile && (fpid = fopen(pidfile, "w")) == NULL)
     error(errno, "unable to write pidfile");
 
-  if (root && (chdir(root) < 0 || chroot(root) < 0))
-    error(errno, "unable to chroot");
+  if (rootdir && (chdir(rootdir) < 0 || chroot(rootdir) < 0))
+    error(errno, "unable to chroot to %.50s", rootdir);
   if (workdir && chdir(workdir) < 0)
     error(errno, "unable to chdir to %.50s", workdir);
 
-  if (setgroups(1, &gid) < 0 || setgid(gid) < 0 || setuid(uid) < 0)
-    error(errno, "unable to setuid(%d:%d)", uid, gid);
+  if (user)
+    if (setgroups(1, &gid) < 0 || setgid(gid) < 0 || setuid(uid) < 0)
+      error(errno, "unable to setuid(%d:%d)", uid, gid);
 
   *zonep = NULL;
   for(c = 0; c < argc; ++c)

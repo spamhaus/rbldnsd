@@ -1,5 +1,7 @@
 rbldnsd (0.83p1) unstable; urgency=low
 
+  * allow to run as non-root; little cleanups
+
   * added statistic counters (SIGUSR1/USR2/exit) - disable with -DNOSTATS
 
   * added meminfo logging via mallinfo - disable with -DNOMEMINFO
