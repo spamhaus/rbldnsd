@@ -538,7 +538,7 @@ int main(int argc, char **argv) {
     }
 
     sinl = sizeof(sin);
-    q = recvfrom(fd, pkt.p, sizeof(pkt.p), 0, (struct sockaddr *)&sin, &sinl);
+    q = recvfrom(fd, pkt.p_buf, sizeof(pkt.p_buf), 0, (struct sockaddr *)&sin, &sinl);
     if (q <= 0)			/* interrupted? */
       continue;
     if (qryfilt && !ip4list_match(qryfilt, sin.sin_addr.s_addr))
@@ -555,10 +555,10 @@ int main(int argc, char **argv) {
     if (flog && (!logfilt || ip4list_match(logfilt, sin.sin_addr.s_addr)))
       logreply(&pkt, ip4atos(ntohl(sin.sin_addr.s_addr)), flog, flushlog);
 #ifndef NOSTATS
-    switch(pkt.p[3]) {
+    switch(pkt.p_buf[3]) {
     case DNS_R_NOERROR:
       stats.nrep += 1; stats.irep += q; stats.orep += r;
-      stats.arep += pkt.p[7]; /* arcount */
+      stats.arep += pkt.p_buf[7]; /* arcount */
       break;
     case DNS_R_NXDOMAIN:
       stats.nnxd += 1; stats.inxd += q; stats.onxd += r;
@@ -570,7 +570,7 @@ int main(int argc, char **argv) {
 #endif
 
     /* finally, send a reply */
-    while(sendto(fd, pkt.p, r, 0, (struct sockaddr *)&sin, sizeof(sin)) < 0)
+    while(sendto(fd, pkt.p_buf, r, 0, (struct sockaddr *)&sin, sizeof(sin)) < 0)
       if (errno != EINTR) break;
 
   }
