@@ -1,5 +1,8 @@
 rbldnsd (0.993p1) unstable; urgency=low
 
+  * ignore incomplete last lines (lines w/o end-of-line
+    terminator) in data files
+
   * fixed query logging (-l) with background reloading
     (missing fflush() before fork() and exit())
 
@@ -19,7 +22,7 @@ rbldnsd (0.993p1) unstable; urgency=low
 
   * some hooks, to build custom versions (rbldnsd_hooks.[ch])
 
- -- Michael Tokarev <mjt@corpit.ru>  Thu,  1 Apr 2004 01:52:41 +0400
+ -- Michael Tokarev <mjt@corpit.ru>  Wed,  9 Jun 2004 20:31:24 +0400
 
 rbldnsd (0.992) unstable; urgency=low
 

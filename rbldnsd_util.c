@@ -115,9 +115,12 @@ int readdslines(FILE *f, struct dataset *ds) {
     ++lineno;
     if (*eol == '\n')
       --eol;
+    else if (feof(f)) {
+      dswarn(lineno, "incomplete last line (ignored)");
+      break;
+    }
     else {
-      if (!feof(f))
-        dswarn(lineno, "long line (truncated)");
+      dswarn(lineno, "long line (truncated)");
       noeol = 1; /* mark it to be read above */
     }
     /* skip whitespace */
