@@ -37,7 +37,9 @@ unsigned ip4range(const char *s, ip4addr_t *ap, ip4addr_t *bp, char **np);
 const char *ip4atos(ip4addr_t a);
 
 /* convert #bits into mask */
-ip4addr_t ip4mask(unsigned bits);
+/* note: works for bits < 32 only! */
+extern const ip4addr_t ip4addr_cidr_netmasks[33];
+#define ip4mask(bits) ip4addr_cidr_netmasks[bits]
 
 #define IP4A_LOOPBACK 0x7f000000
 

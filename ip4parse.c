@@ -60,14 +60,6 @@ unsigned ip4cidr(const char *s, ip4addr_t *ap, char **np) {
   return cret(bits, np, s);
 }
 
-
-ip4addr_t ip4mask(unsigned bits) {
-  ip4addr_t mask;
-  for(mask = 0; bits; --bits)
-    mask = (mask >> 1) | 0x80000000;
-  return mask;
-}
-
 /* parse ip4 range or CIDR in `s',
  * store start in *a1p and end in *a2p,
  * return
