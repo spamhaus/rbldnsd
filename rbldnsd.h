@@ -48,9 +48,12 @@ struct dnsdncompr {
 
 struct dnspacket {		/* private structure */
   unsigned char p[DNS_MAXPACKET]; /* packet buffer */
-  unsigned char qdn[DNS_MAXDN];	/* query DN, lowercased */
   unsigned char *c;		/* current pointer */
   unsigned char *sans;		/* start of answers */
+  unsigned char qdn[DNS_MAXDN];	/* query DN, lowercased */
+  unsigned char qdnr[DNS_MAXDN]; /* part of qdn after zone dn, reversed */
+  ip4addr_t qip4;		/* query as an IP4 */
+  unsigned qip4octets;		/* number of valid octets in qip4 */
   struct dnsdncompr compr;	/* DN compression state */
 };
 
@@ -77,6 +80,7 @@ ds_queryfn_t(const struct dataset *const ds, struct dnspacket *p,
 
 struct dataset_type {	/* dst */
   const char *dst_name;		/* name of the type */
+  unsigned dst_flags;		/* how to pass arguments to queryfn */
   ds_queryfn_t *dst_queryfn;	/* routine to perform query */
   ds_allocfn_t *dst_allocfn;	/* allocation routine */
   ds_loadfn_t *dst_loadfn;	/* routine to load ds data */
@@ -85,15 +89,19 @@ struct dataset_type {	/* dst */
   const char *dst_descr;    	/* short description of a ds type */
 };
 
+/* dst_flags */
+#define DSTF_IP4REV	0x01	/* ip4 set */
+#define DSTF_DNREV	0x02	/* reverse query DN */
+
 #define declaredstype(t) extern const struct dataset_type dataset_##t##_type
-#define definedstype(t, descr) \
+#define definedstype(t, flags, descr) \
  static ds_allocfn_t ds_##t##_alloc; \
  static ds_queryfn_t ds_##t##_query; \
  static ds_loadfn_t ds_##t##_load; \
  static ds_finishfn_t ds_##t##_finish; \
  static ds_freefn_t ds_##t##_free; \
  const struct dataset_type dataset_##t##_type = { \
-   #t, /* name */ \
+   #t, /* name */ flags, \
    ds_##t##_query, ds_##t##_alloc, ds_##t##_load, \
    ds_##t##_finish, ds_##t##_free, \
    descr }
@@ -147,6 +155,7 @@ struct zone {	/* zone, list of zones */
   unsigned char *z_dn;		/* domain name */
   unsigned z_dnlen;		/* length of dn */
   unsigned z_dnlab;		/* number of dn labels */
+  unsigned z_dstflags;		/* flags of all datasets */
   struct zonedatalist *z_zdl;	/* list of datas */
   struct zonesoa z_zsoa;	/* SOA record */
   struct zone *z_next;		/* next in list */

@@ -191,8 +191,9 @@ struct zone *addzone(struct zone *zonelist, const char *spec) {
   zdl->zdl_next = NULL;
   p = estrdup(p+1);
   zdl->zdl_zds = newzonedataset(p);
-  zdl->zdl_queryfn = zdl->zdl_zds->zds_type->dst_queryfn;
   free(p);
+  zdl->zdl_queryfn = zdl->zdl_zds->zds_type->dst_queryfn;
+  zone->z_dstflags |= zdl->zdl_zds->zds_type->dst_flags;
 
   return zonelist;
 }

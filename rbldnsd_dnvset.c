@@ -11,7 +11,7 @@
 #include "dns.h"
 #include "mempool.h"
 
-definedstype(dnvset, "set of (domain name, value) pairs");
+definedstype(dnvset, 0, "set of (domain name, value) pairs");
 
 struct entry {
   const unsigned char *dn;	/* key, mp-allocated */

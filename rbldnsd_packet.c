@@ -132,38 +132,54 @@ int replypacket(struct dnspacket *p, unsigned qlen, const struct zone *zone) {
     if (zone->z_dnlen != qlen - (x - p->qdn)) continue;
     if (memcmp(zone->z_dn, x, zone->z_dnlen) != 0) continue;
 
-    if (!zone->z_stamp)	/* do not answer if not loaded */
-      return refuse(DNS_R_SERVFAIL);
-
     break;
   }
 
   /* found a zone, query it */
+  if (!zone->z_stamp)	/* do not answer if not loaded */
+    return refuse(DNS_R_SERVFAIL);
 
-  { /* first, initialize DN compression */
+  *x = '\0';	/* terminate dn to end at zone base dn */
+  qlab -= zone->z_dnlab;
+  qlen -= zone->z_dnlen;
+  found = qlab == 0;	/* no NXDOMAIN if it's a query for the zone base DN */
+
+  /* initialize various query variations */
+  if (zone->z_dstflags & DSTF_IP4REV) /* ip4 address */
+    p->qip4octets = qlab && qlab <= 4 ? dntoip4addr(p->qdn, &p->qip4) : 0;
+  if (zone->z_dstflags & DSTF_DNREV) { /* reverse qdn */
+    unsigned char *d = p->qdnr + qlen;
+    d[1] = '\0';
+    x = p->qdn;
+    while((qlen = *x) != 0) {
+      ++qlen;
+      d -= qlen;
+      memcpy(d, x, qlen);
+      x += qlen;
+    }
+  }
+
+  { /* initialize DN compression */
     struct dnsdnptr *ptr = p->compr.ptr;
     unsigned len = zone->z_dnlen;
     unsigned qpos = (p->sans - 4 - len) - p->p;
-    const unsigned char *dn = zone->z_dn;
-    while(*dn) {
-      ptr->dnlen = len; len -= *dn + 1;
-      ptr->qpos = qpos; qpos += *dn + 1;
-      ptr->dnp = dn; dn += *dn + 1;
+    x = zone->z_dn;
+    while(*x) {
+      ptr->dnlen = len; len -= *x + 1;
+      ptr->qpos = qpos; qpos += *x + 1;
+      ptr->dnp = x; x += *x + 1;
       ++ptr;
     }
     p->compr.cptr = ptr;
     p->compr.cdnp = p->compr.dnbuf;
   }
-  
-  qlab -= zone->z_dnlab;
-  found = qlab == 0;	/* no NXDOMAIN if it's a query for the zone base DN */
-  *x = '\0';	/* terminate dn to end at zone base dn */
+
+  /* search the datasets */
   { register const struct zonedatalist *zdl;
     for(zdl = zone->z_zdl; zdl; zdl = zdl->zdl_next)
       if (zdl->zdl_queryfn(zdl->zdl_ds, p, p->qdn, qlab, qtyp))
         found = 1;	/* positive answer */
   }
-  *x = zone->z_dn[0];	/* restore qdn */
 
   /* XXXXXXXXXXX check logic here!!! */
   /* Notes.

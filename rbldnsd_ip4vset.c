@@ -11,7 +11,7 @@
 #include "dns.h"
 #include "mempool.h"
 
-definedstype(ip4vset, "set of (ip4, value) pairs");
+definedstype(ip4vset, DSTF_IP4REV, "set of (ip4, value) pairs");
 
 struct entry {
   ip4addr_t addr;	/* key */
@@ -186,33 +186,36 @@ ds_ip4vset_find_masked(const struct entry *e, int b,
 
 static int
 ds_ip4vset_query(const struct dataset *const ds, struct dnspacket *p,
-                 const unsigned char *const query, unsigned labels,
+                 const unsigned char *const UNUSED query, unsigned labels,
                  unsigned qtyp) {
-  ip4addr_t q, f;
+  ip4addr_t q = p->qip4;
+  ip4addr_t f;
   const struct entry *e, *t;
   const char *ipsubst;
 
-  if (labels > 4 || !(labels = dntoip4addr(query, &q))) return 0;
+  if (p->qip4octets != 4) {
+    unsigned n;
 
-  if (labels < 4) {
+    if (!(labels = p->qip4octets)) return 0;
+
     /* we can't return NXDOMAIN for 3.2.1.bl.example.com -
      * e.g. if 4.3.2.1.bl.example.com exists */
-    ip4addr_t m = ip4mask(labels * 8);
-    unsigned n = E32;
+    f = ip4mask(labels * 8);
+    n = E32;
     do 
-      if (ds_ip4vset_find_masked(ds->e[n], ds->n[n] - 1, q, m))
+      if (ds_ip4vset_find_masked(ds->e[n], ds->n[n] - 1, q, f))
         return 1;
     while (++n < 4 - labels);
     while(n <= E08) {
-      q &= m;
+      q &= f;
       if (ds_ip4vset_find(ds->e[n], ds->n[n] - 1, q)) return 1;
-      m <<= 8;
+      f <<= 8;
       ++n;
     }
     return 0;
   }
 
-  /* valid 4-octets IP found */
+  /* valid 4-octets IP */
 
 #define try(i,mask) \
  (ds->n[i] && \

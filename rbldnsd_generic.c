@@ -12,7 +12,7 @@
 #include "dns.h"
 #include "mempool.h"
 
-definedstype(generic, "generic simplified bind-format");
+definedstype(generic, 0, "generic simplified bind-format");
 
 struct entry {
   const unsigned char *dn; /* mp-allocated */

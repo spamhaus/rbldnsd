@@ -13,7 +13,7 @@
 #include "rbldnsd.h"
 #include "dns.h"
 
-definedstype(ip4set, "set of ip4 addresses");
+definedstype(ip4set, DSTF_IP4REV, "set of ip4 addresses");
 
 struct dataset {
   ip4addr_t r_a;	/* A RR */
@@ -154,30 +154,34 @@ ds_ip4set_find_masked(const ip4addr_t *e, int b, ip4addr_t q, ip4addr_t mask) {
 
 static int
 ds_ip4set_query(const struct dataset *const ds, struct dnspacket *p,
-                const unsigned char *const query, unsigned labels,
+                const unsigned char *const UNUSED query, unsigned labels,
                 unsigned qtyp) {
-  ip4addr_t q;
-  if (labels > 4 || !(labels = dntoip4addr(query, &q))) return 0;
+  ip4addr_t q = p->qip4;
 
-  if (labels < 4) {
+  if (p->qip4octets < 4) {
+    ip4addr_t f;
+    unsigned n;
+
+    if (!(labels = p->qip4octets)) return 0;
+
     /* we can't return NXDOMAIN for 3.2.1.bl.example.com -
      * e.g. if 4.3.2.1.bl.example.com exists */
-    ip4addr_t m = ip4mask(labels * 8);
-    unsigned n = E32;
+    f = ip4mask(labels * 8);
+    n = E32;
     do
-      if (ds_ip4set_find_masked(ds->e[n], ds->n[n] - 1, q, m))
+      if (ds_ip4set_find_masked(ds->e[n], ds->n[n] - 1, q, f))
         return 1;
     while (++n < 4 - labels);
     while(n <= E08) {
-      q &= m;
+      q &= f;
       if (ds_ip4set_find(ds->e[n], ds->n[n] - 1, q)) return 1;
-      m <<= 8;
+      f <<= 8;
       ++n;
     }
     return 0;
   }
 
-  /* valid 4-octets IP found */
+  /* valid 4-octets IP */
 
 #define try(i,mask) \
     (ds->n[i] && ds_ip4set_find(ds->e[i], ds->n[i] - 1, q & mask))

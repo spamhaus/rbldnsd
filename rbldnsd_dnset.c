@@ -11,7 +11,7 @@
 #include "dns.h"
 #include "mempool.h"
 
-definedstype(dnset, "set of domain names");
+definedstype(dnset, 0, "set of domain names");
 
 /*
  * We store all domain names in a sorted array, using binary
