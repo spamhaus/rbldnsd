@@ -9,4 +9,6 @@ Package: rbldnsd
 Architecture: any
 Depends: ${shlibs:Depends}
 Description: small and fast DNSBL nameserver daemon
- <insert long description, indented with spaces>
+ Rbldnsd is a small authoritate-only DNS nameserver
+ designed to serve DNS-based blocklists (DNSBLs).
+ It may handle IP-based and name-based blocklists.
