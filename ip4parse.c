@@ -155,21 +155,26 @@ int main(int argc, char **argv) {
     bits = ip4cidr(argv[i], &a, &np);
     if (!bits)
       printf(" cidr: err tail=`%s'\n", np);
-    else
+    else {
       printf(" cidr: bits=%u ip=" IPFMT " tail=`%s'\n",
              bits, octets(a), np);
-    b = ~ip4mask(bits);
-    if (a & b) puts("err");
+      b = ~ip4mask(bits);
+      if (a & b) puts(" err");
+    }
 
     bits = ip4range(s, &a, &b, NULL);
     if (!bits) printf(" range: err\n");
-    else
+    else {
+      a &= ip4mask(bits);
       printf(" range: " IPFMT "-" IPFMT "\n", octets(a), octets(b));
+    }
     bits = ip4range(s, &a, &b, &np);
     if (!bits) printf(" range: err tail=`%s'\n", np);
-    else
+    else {
+      a &= ip4mask(bits);
       printf(" range: " IPFMT "-" IPFMT " tail=`%s'\n",
              octets(a), octets(b), np);
+    }
 
    }
   return 0;
