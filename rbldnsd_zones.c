@@ -36,7 +36,7 @@ static struct {
 void printdstypes(FILE *f) {
   unsigned i;
   for (i = 0; i < sizeof(dataset_types)/sizeof(dataset_types[0]); ++i)
-    fprintf(f, " %s %s\n",
+    fprintf(f, " %s - %s\n",
             dataset_types[i]->dst_name, dataset_types[i]->dst_descr);
 }
 

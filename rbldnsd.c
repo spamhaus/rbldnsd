@@ -124,7 +124,7 @@ static int do_reload(struct zone *zonelist) {
 static void NORETURN usage(int exitcode) {
    printf(
 "%s: rbl dns daemon version %s\n"
-"Usage is: %s [options] zone...\n"
+"Usage is: %s [options] zonespec...\n"
 "where options are:\n"
 " -u user[:group] - run as this user:group (rbldns)\n"
 " -r rootdir - chroot to this directory\n"
@@ -144,7 +144,7 @@ static void NORETURN usage(int exitcode) {
 " -s - print memory usage and (re)load time info on zone reloads\n"
 "each zone specified using `name:type:file,file...'\n"
 "syntax, repeated names constitute the same zone.\n"
-"Available zone types:\n"
+"Available dataset types:\n"
 , progname, version, progname);
   printdstypes(stdout);
   printf(
