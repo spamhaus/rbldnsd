@@ -165,11 +165,11 @@ static void NORETURN usage(int exitcode) {
 }
 
 static volatile int signalled;
-#define SIGNALLED_ALRM	0x01
-#define SIGNALLED_HUP	0x02
-#define SIGNALLED_USR1	0x04
-#define SIGNALLED_USR2	0x08
-#define SIGNALLED_TERM	0x10
+#define SIGNALLED_RELOAD	0x01
+#define SIGNALLED_RELOG		0x02
+#define SIGNALLED_STATS		0x04
+#define SIGNALLED_ZEROSTATS	0x08
+#define SIGNALLED_TERM		0x10
 
 static int init(int argc, char **argv, struct zone **zonep) {
   int c;
@@ -372,7 +372,7 @@ static int init(int argc, char **argv, struct zone **zonep) {
         version, ip4atos(sinaddr), ntohs(sin.sin_port))
 #endif
   if (quickstart)
-    signalled = SIGNALLED_ALRM;	/* zones will be (re)loaded after fork */
+    signalled = SIGNALLED_RELOAD;	/* zones will be loaded after fork */
   else if (!do_reload(*zonep))
     error(0, "zone loading errors, aborting");
   else
@@ -399,13 +399,23 @@ static int init(int argc, char **argv, struct zone **zonep) {
 
 static void sighandler(int sig) {
   switch(sig) {
-  case SIGALRM: alarm(recheck); signalled |= SIGNALLED_ALRM; break;
-  case SIGHUP: signalled |= SIGNALLED_HUP; break;
-  case SIGUSR1: signalled |= SIGNALLED_USR1; break;
-  case SIGUSR2: signalled |= SIGNALLED_USR2; break;
+  case SIGHUP:
+    signalled |= SIGNALLED_RELOG|SIGNALLED_RELOAD;
+    break;
+  case SIGALRM:
+    alarm(recheck);
+    signalled |= SIGNALLED_RELOAD;
+    break;
+  case SIGUSR1:
+    signalled |= SIGNALLED_STATS;
+    break;
+  case SIGUSR2:
+    signalled |= SIGNALLED_STATS|SIGNALLED_ZEROSTATS;
+    break;
   case SIGTERM:
   case SIGINT:
     signalled |= SIGNALLED_TERM;
+    break;
   }
 }
 
@@ -511,13 +521,13 @@ int main(int argc, char **argv) {
         logmemusage();
         return 0;
       }
-      if (signalled & (SIGNALLED_USR1|SIGNALLED_USR2)) {
-        logstats(&stats, signalled & SIGNALLED_USR2);
+      if (signalled & SIGNALLED_STATS) {
+        logstats(&stats, signalled & SIGNALLED_ZEROSTATS);
         logmemusage();
       }
-      if ((signalled & SIGNALLED_HUP) && logfile)
+      if ((signalled & SIGNALLED_RELOG) && logfile)
         flog = reopenlog(flog, logfile);
-      if (signalled & (SIGNALLED_HUP|SIGNALLED_ALRM))
+      if (signalled & SIGNALLED_RELOAD)
         do_reload(zonelist);
       signalled = 0;
       sigprocmask(SIG_SETMASK, &ssorig, NULL);

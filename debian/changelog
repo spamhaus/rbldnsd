@@ -1,5 +1,6 @@
 rbldnsd (0.91pre) unstable; urgency=low
 
+  * made SIGNALLED_* names action-, not signal-dependant
   * allow compilation without IPv6 (-DNOIPv6)
   * free addrinfo structure for bind address (not a real leak: it used once)
   * rotate nameserver records (simple cyclic rotation)
