@@ -1,5 +1,6 @@
 rbldnsd (0.83p1) unstable; urgency=low
 
+  * changed slightly "zone loaded" message
   * added minimal access control (-a netlist option)
   * added query log filter (-L netlist option), and added logging of
     timestamps.
@@ -13,7 +14,7 @@ rbldnsd (0.83p1) unstable; urgency=low
   * added meminfo logging via mallinfo (-m option) - disable with -DNOMEMINFO
   * fixed invocation w/o -b (bind address): rbldnsd wasn't work w/o -b at all
 
- -- Michael Tokarev <mjt@corpit.ru>  Thu, 17 Apr 2003 04:30:27 +0400
+ -- Michael Tokarev <mjt@corpit.ru>  Sat, 19 Apr 2003 02:08:45 +0400
 
 rbldnsd (0.82) unstable; urgency=low
 
