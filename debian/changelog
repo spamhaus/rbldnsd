@@ -4,7 +4,11 @@ rbldnsd (0.993) unstable; urgency=low
 
   * cleaned up debian/rules a bit per recommendations from Sanvila
 
- -- Michael Tokarev <mjt@corpit.ru>  Thu,  1 Jul 2004 15:53:21 +0400
+  * fixed a bug when rbldnsd was using 0.0.0.0 as A value instead
+    of a real IP address (when construct like ":127.0.0.2" is specified),
+    introduced in 0.992
+
+ -- Michael Tokarev <mjt@corpit.ru>  Thu,  1 Jul 2004 20:08:12 +0400
 
 rbldnsd (0.993p2) unstable; urgency=low
 

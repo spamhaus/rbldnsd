@@ -176,6 +176,7 @@ int parse_a_txt(char *str, const char **rrp, const char *def_rr,
     else {	/* only A - take TXT from default entry */
       unsigned tlen = strlen(def_rr+4);	/* tlen is <= 255 */
       rr = rrbuf;
+      PACK32(rr, a);
       memcpy(rr+4, def_rr+4, tlen+1);
       *rrp = rr;
       return tlen + 5;
