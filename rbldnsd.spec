@@ -35,6 +35,8 @@ cp -p debian/rbldnsd.default $RPM_BUILD_ROOT/etc/sysconfig/rbldnsd
 cp -p debian/rbldnsd.init $RPM_BUILD_ROOT/etc/init.d/rbldnsd
 chmod +x $RPM_BUILD_ROOT/etc/init.d/rbldnsd
 
+chmod -x WirehubDynablock2rbldnsd.pl # no Depends: on perl et al
+
 %clean
 rm -rf $RPM_BUILD_ROOT
 
