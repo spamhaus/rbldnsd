@@ -79,9 +79,14 @@ ds_ip4trie_addnode(struct dsdata *dsd, ip4addr_t prefix, unsigned bits,
     if (node->bits > bits || !prefixmatch(node->prefix, prefix, node->bits)) {
       struct node *newnode;
       ip4addr_t diff = (prefix ^ node->prefix) & ip4mask(bits);
-      unsigned cbits = 0;
-      while((diff & ip4mask(cbits+1)) == 0)
-	++cbits;
+      unsigned cbits;
+      if (!diff)
+        cbits = bits;
+      else {
+        cbits = 0;
+        while((diff & ip4mask(cbits+1)) == 0)
+          ++cbits;
+      }
       ++dsd->nnodes;
       if (!(newnode = createnode(mp, prefix & ip4mask(cbits), cbits)))
 	return NULL;
