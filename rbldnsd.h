@@ -22,7 +22,7 @@ extern char *progname; /* limited to 32 chars */
 extern int logto;
 #define LOGTO_STDOUT 0x01
 #define LOGTO_SYSLOG 0x02
-void PRINTFLIKE(2,3) error(int errnum, const char *fmt, ...);
+void PRINTFLIKE(2,3) NORETURN error(int errnum, const char *fmt, ...);
 
 extern unsigned defttl;
 

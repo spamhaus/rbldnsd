@@ -57,7 +57,7 @@ static int satoi(const char *s) {
   return *s ? -1 : n;
 }
 
-static void usage(int exitcode) {
+static void NORETURN usage(int exitcode) {
    printf(
 "%s: rbl dns daemon version " VERSION "\n"
 "Usage is: %s [options] zone...\n"
