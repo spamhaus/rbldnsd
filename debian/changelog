@@ -16,9 +16,10 @@ rbldnsd (0.993p1) unstable; urgency=low
 
   * bugfix: incorect (opposite) evaluation of maxttl.
     Fix by Bradley Baetz  bradley.baetz at optusnet.com.au
-  * 
 
- -- Michael Tokarev <mjt@corpit.ru>  Wed, 31 Mar 2004 17:54:40 +0400
+  * some hooks, to build custom versions (rbldnsd_hooks.[ch])
+
+ -- Michael Tokarev <mjt@corpit.ru>  Thu,  1 Apr 2004 01:52:41 +0400
 
 rbldnsd (0.992) unstable; urgency=low
 

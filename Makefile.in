@@ -56,8 +56,8 @@ LIB_GSRC = $(LIBDNS_GSRC) $(LIBIP4_GSRC)
 RBLDNSD_SRCS = rbldnsd.c rbldnsd_zones.c rbldnsd_packet.c \
   rbldnsd_ip4set.c rbldnsd_ip4tset.c rbldnsd_ip4trie.c rbldnsd_dnset.c \
   rbldnsd_generic.c rbldnsd_combined.c \
-  rbldnsd_util.c
-RBLDNSD_HDRS = rbldnsd.h
+  rbldnsd_hooks.c rbldnsd_util.c
+RBLDNSD_HDRS = rbldnsd.h rbldnsd_hooks.h
 RBLDNSD_OBJS = $(RBLDNSD_SRCS:.c=.o) lib$(NAME).a
 
 MISC = configure $(NAME).8 qsort.c Makefile.in dns_maketab.awk $(NAME).spec \

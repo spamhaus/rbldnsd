@@ -23,6 +23,7 @@
 #include <setjmp.h>
 #include <sys/wait.h>
 #include "rbldnsd.h"
+#include "rbldnsd_hooks.h"
 
 #ifndef NOSELECT_H
 # include <sys/select.h>
@@ -155,6 +156,10 @@ static int do_reload(void) {
   if (!r)
     return 1;
 
+#ifdef do_hook_reload
+  hook_reload(zonelist);
+#endif
+
   ip = ssprintf(ibuf, sizeof(ibuf), "zones reloaded");
 #ifndef NOTIMES
   etm = times(&tms) - etm;
@@ -182,7 +187,7 @@ static int do_reload(void) {
 static void NORETURN usage(int exitcode) {
    const struct dstype **dstp;
    printf(
-"%s: rbl dns daemon version %s\n"
+"%s: rbl dns daemon version %s%s\n"
 "Usage is: %s options zonespec...\n"
 "where options are:\n"
 " -u user[:group] - run as this user:group (rbldns)\n"
@@ -213,11 +218,14 @@ static void NORETURN usage(int exitcode) {
 " -a (experimental) - _omit_ AUTH section when constructing reply,\n"
 "  do not return list of auth nameservers in default replies, only\n"
 "  return NS info when explicitly asked\n"
+#ifdef do_hook_getopt
+" -H local_hook_options - process custom options (for custom builds)\n"
+#endif
 " -d - dump all zones in BIND format to standard output and exit\n"
 "each zone specified using `name:type:file,file...'\n"
 "syntax, repeated names constitute the same zone.\n"
 "Available dataset types:\n"
-, progname, version, progname);
+, progname, version, hook_info, progname);
   for(dstp = ds_types; *dstp; ++dstp)
     printf(" %s - %s\n", (*dstp)->dst_name, (*dstp)->dst_descr);
   exit(exitcode);
@@ -392,7 +400,7 @@ static void init(int argc, char **argv) {
 
   if (argc <= 1) usage(1);
 
-  while((c = getopt(argc, argv, "u:r:b:w:t:c:p:nel:qs:h46dvaf")) != EOF)
+  while((c = getopt(argc, argv, "u:r:b:w:t:c:p:nel:qs:h46dvafH:")) != EOF)
     switch(c) {
     case 'u': user = optarg; break;
     case 'r': rootdir = optarg; break;
@@ -468,6 +476,14 @@ break;
     case 'v': show_version = nover++ ? NULL : "rbldnsd"; break;
     case 'a': lazy = 1; break;
     case 'f': forkon = 1; break;
+    case 'H':
+#ifdef do_hook_getopt
+      if (hook_getopt(optarg) != 0)
+        error(0, "error processing custom option `%s'", optarg);
+      break;
+#else
+      error(0, "no custom option processing is compiled in");
+#endif
     case 'h': usage(0);
     default: error(0, "type `%.50s -h' for help", progname);
     }
@@ -578,6 +594,9 @@ break;
   for(c = 0; c < argc; ++c)
     zonelist = addzone(zonelist, argv[c]);
   init_zones_caches(zonelist);
+#ifdef do_hook_init
+  if (hook_init(zonelist) != 0) error(0, "error processing init hook");
+#endif
 
   if (!quickstart && !do_reload())
     error(0, "zone loading errors, aborting");
