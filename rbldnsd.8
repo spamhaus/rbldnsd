@@ -22,8 +22,8 @@ service to a client which is "listed" in some blocklist.
 .PP
 .B rbldnsd
 is not a general\-purpose nameserver.  It will answer to
-A and TXT (and SOA if such RRs are specified) queries,
-and has limited ability to answer to NS and MX queries.
+A and TXT (and SOA and NS if such RRs are specified) queries,
+and has limited ability to answer to some other types of queries.
 
 .PP
 .B rbldnsd
@@ -196,7 +196,7 @@ a line starting with hash character is not ignored \- to be able to
 reuse zone files of DJB's rbldns).  After dollar sign, keyword is
 expected, to mean one of the following:
 
-.IP "\fB$SOA\fR \fIorigindn persondn serial refresh retry expire minttl"
+.IP "\fB$SOA\fR \fIttl origindn persondn serial refresh retry expire minttl"
 Specifies SOA (Start Of Authority) record for all zones using this
 dataset.  Only first SOA record is interpreted.  This is the only way
 to specify SOA \- by default,
@@ -209,17 +209,28 @@ queries or not).
 .IP
 If \fIserial\fR value specified is zero, timestamp of most recent
 modified file will be substituted as \fIserial\fR.
+.IP
+If \fIttl\fR field is zero, default ttl (\fB\-t\fR option or last \fB$TTL\fR
+value, see below) will be used.
+
+.IP "\fB$NS\fR \fIttl\fR \fInameserverdn\fR"
+Specifies NS (Name Server) record for all zones using this dataset.
+For any given zone (which may consists from several datasets), only
+first 20 NS records will be recognized.  If \fIttl\fR is zero, default
+ttl will be used.
 
 .IP "\fB$TTL\fR \fItime-to-live\fR"
-(planned)
+Specifies TTL (time-to-live) value for all records in current dataset.
+See also \fB\-t\fR option.  \fB$TTL\fR special overrides \fB\-t\fR value
+on a per-dataset basis.
 
 .PP
 The following dataset types are available:
 
 .IP \fBip4set\fR
-A set of IP addresses or CIDR address ranges, with common A and TXT
-values.  IP addresses are specified one per line, by an IP address
-prefix (initial octets), complete IP address, CIDR range, or IP
+A set of IP addresses or CIDR address ranges, with together with A and
+TXT resulting values.  IP addresses are specified one per line, by an IP
+address prefix (initial octets), complete IP address, CIDR range, or IP
 prefix range (two IP prefixes or complete addresses delimited by
 a dash, inclusive).  Examples, to specify 127.0.0.0/24:
 .nf
@@ -247,87 +258,59 @@ as "suffix", as value of last \fIspecified\fR octet of the first boundary
 prefix (127.16.0\-31 is treated as 127.16.0.0\-127.16.31.255, i.e.
 127.16.0.0/19).
 .IP
+After an IP address range, A and TXT values for a given entry may be specified.
+If none given, default values in current scope (see below) applies.  If value
+starts with a colon, it is interpreted as a pair of A record and TXT template,
+delimited by colon (:127.0.0.2:This entry is listed).  If value does not start
+with colon, it is interpreted as TXT template only, with A record defaults to
+default A value in current scope.
+.IP
 Every IP address that fits within any of specified ranges is "listed", and
 .B rbldnsd
 will respond to reverse queries against it within specified zone with
-positive results.
-.IP
-\fIFirst\fR non\-comment line of a file, if started with a colon (:),
-specifies A value and TXT template to return (see below).  If none
-specified, \fBrbldnsd\fR will return 127.0.0.2 for matching A queries
-and no record for matching TXT queries.  If TXT record template is
-specified and contains occurences of of dollar sign ($), every such
-occurence is replaced with an IP address in question, so singe TXT
-template may be used to e.g. refer to a webpage for an additional
-information for a specific IP address.
-.IP
-Any additional text after IP address or range is
-ignored by \fBrbldnsd\fR.
-.IP
-This is the most compact effective type: queries are very
-fast and memory requiriments are less than of other types.
-
-.IP \fBip4vset\fR
-A set of IP addresses or CIDR ranges, similar to \fBi4set\fR, with
-ability to specify individual A values and TXT templates for every
-entry (in additional to defaults).  Every line contains single IP
-address, IP address prefix (initial octets), CIDR range, or inclusive
-range of two IP prefixes or addresses (separated by a dash), which
-is optionally folloved by A value and TXT template in the same form
-as default values specified in first line that starts with colon
-sign (see below).
-.IP
-If an entry starts with an exclamation sign (!), this is
+positive results.  In contrast, if an entry starts with an exclamation
+sign (!), this is
 .I exclusion
-entry, i.e. corresponding address range is excluded from
-being listed.  This may be used to specify large range
-except some individual addresses, in a compact form.
+entry, i.e. corresponding address range is excluded from being listed
+(and any value for this record is ignored).  This may be used to specify
+large range except some individual addresses, in a compact form.
 .IP
-Default values line may be specified at any place in a file, and
-applies to all subsequent entries up to the end of a file or to
-next default values.
-.IP
-This zone type may be used in place of \fBip4set\fR, but memory
-requiriments are at least 3 times more than of \fBip4set\fR.
+If a line starts with a colon (:), this line specifies defaul A value
+and TXT template to return (see below) for all subsequent entries up
+to end of current file.  If no default entry specified, and no value
+specified for a given record, \fBrbldnsd\fR will return 127.0.0.2 for
+matching A queries and no record for matching TXT queries.  If TXT
+record template is specified and contains occurences of of dollar sign
+($), every such occurence is replaced with an IP address in question,
+so singe TXT template may be used to e.g. refer to a webpage for an
+additional information for a specific IP address.
 
 .IP \fBdnset\fR
-Set of domain names.  Similar to \fBip4set\fR, but instead of
-IP addresses, data consists of domain names (\fInot\fR in reverse
-form).  One domain name per line, possible starting with wildcard
-(either with star\-dot (*.) or just a dot).  Again, if first
-non\-comment line starts with colon, it is interpreted as
-default A value and TXT template.  In TXT template, every
-occurence of dollar sign is replaced with domain name in
-question.  For example, given query a.b.bl.example.com for
-zone bl.example.com and TXT template http://example.com/$,
-resulting TXT will be http://example.com/a.b if domain name
-a.b is listed.
+Set of (possible wildcarded) domain names with assotiated A and TXT values.
+Similar to \fBip4set\fR, but instead of IP addresses, data consists of
+domain names (\fInot\fR in reverse form).  One domain name per line,
+possible starting with wildcard (either with star\-dot (*.) or just a dot).
+Entry starting with exclamation sign is exclusion.  Default value for
+all subsequent lines may be specified by a line starting with a colon.
 .IP
 This zone type may be used instead of \fBip4set\fR,
 provided all CIDR ranges are expanded and reversed (but in
 this case, TXT template will be expanded differently).
 Any text in line after domain name is ignored.
 
-.IP \fBdnvset\fR
-Set of domain names similar to \fBdnset\fR, with an ability to
-specify A and TXT values for every record line in \fBip4vset\fR,
-and to specify exceptions by starting domain name with an
-exclamation sign.  Requires more memory than \fBdnset\fR.
-Default values may be specified several times, line for \fBip4vset\fR.
-
 .IP \fBgeneric\fR
 Generic type, simplified bind\-style format.  Every record
 should be on one line (line continuations are not supported),
 and should be specified completely (i.e. all domain names in
 values should be fully\-qualified, entry name may not be omitted).
-No wildcards are accepted.  Only A, TXT, NS and MX records
+No wildcards are accepted.  Only A, TXT, and MX records
 are recognized.  Examples:
 .IP
 .nf
  # bl.ex.com
  # specify some values for current zone
- @ NS ns1.ex.com
- @ NS ns2.ex.com
+ $NS 0 ns1.ex.com
+ $NS 0 ns2.ex.com
  www A 127.0.0.1
  about TXT "ex.com combined blocklist"
 .nf
@@ -339,12 +322,10 @@ specified as following:
 .nf
   :127.0.0.2:Blacklisted: http://example.com/bl?$
 .fi
-If first non\-comment line starts with a colon, it specifies
-default A and TXT for all entries in this file (which does
-not have specific values for zone formats that allows to
-specify individual values).  Similar format is used to
-specify values for individual records, e.g. for \fBip4vset\fR
-type:
+If a line starts with a colon, it specifies default A and TXT for all
+subsequent entries in this file.  Similar format is used to
+specify values for individual records, with the A value (enclosed by
+colons) being optional:
 .nf
   127.0.0.2 :127.0.0.2:Blacklisted: http://example.com/bl?$
 .fi
@@ -371,8 +352,8 @@ specified.
 
 .PP
 In TXT template, any occurence of dollar sign is replaced
-with original query string (or IP address) when formatting
-resulting TXT record.
+with an entry listed (IP address for ip4set or a domain name
+for dnset) when formatting resulting TXT record.
 
 .SH SIGNALS
 
