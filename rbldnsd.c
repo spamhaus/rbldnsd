@@ -30,6 +30,12 @@
 #ifndef NI_WITHSCOPEID
 # define NI_WITHSCOPEID 0
 #endif
+#ifndef NI_MAXHOST
+# define NI_MAXHOST 1025
+#endif
+#ifndef NI_MAXSERV
+# define NI_MAXSERV 32
+#endif
 
 const char *version = VERSION;
 char *progname; /* limited to 32 chars */
@@ -135,8 +141,10 @@ static void NORETURN usage(int exitcode) {
 " -w workdir - working directory with zone files\n"
 " -b address - bind to (listen on) this address\n"
 " -P port - listen on this port\n"
+#ifndef NOIPv6
 " -4 - use IPv4 socket type\n"
 " -6 - use IPv6 socket type\n"
+#endif
 " -t ttl - TTL value set in answers (2048)\n"
 " -e - enable CIDR ranges where prefix is not on the range boundary\n"
 "  (by default ranges such 127.0.0.1/8 will be rejected)\n"
@@ -171,11 +179,16 @@ static int init(int argc, char **argv, struct zone **zonep) {
   FILE *fpid = NULL;
   uid_t uid = 0;
   gid_t gid = 0;
-  struct addrinfo hints, *aires, *ai;
   int fd;
   int nodaemon = 0, quickstart = 0;
   unsigned ttl = 2048;
+#ifndef NOIPv6
+  struct addrinfo hints, *aires, *ai;
   char host[NI_MAXHOST], serv[NI_MAXSERV];
+#else
+  struct sockaddr_in sin;
+  ip4addr_t sinaddr;
+#endif
 
   if ((progname = strrchr(argv[0], '/')) != NULL)
     argv[0] = ++progname;
@@ -184,10 +197,12 @@ static int init(int argc, char **argv, struct zone **zonep) {
 
   if (argc <= 1) usage(1);
 
+#ifndef NOIPv6
   memset(&hints, 0, sizeof(hints));
   hints.ai_family = AF_UNSPEC;
   hints.ai_socktype = SOCK_DGRAM;
   hints.ai_flags = AI_PASSIVE;
+#endif
 
   while((c = getopt(argc, argv, "u:r:b:P:w:t:c:p:nel:qsh46")) != EOF)
     switch(c) {
@@ -195,8 +210,13 @@ static int init(int argc, char **argv, struct zone **zonep) {
     case 'r': rootdir = optarg; break;
     case 'b': bindaddr = optarg; break;
     case 'P': port = optarg; break;
+#ifndef NOIPv6
     case '4': hints.ai_family = AF_INET; break;
     case '6': hints.ai_family = AF_INET6; break;
+#else
+    case '4': break;
+    case '6': error(0, "IPv6 support isn't compiled in");
+#endif
     case 'w': workdir = optarg; break;
     case 'p': pidfile = optarg; break;
     case 't':
@@ -233,6 +253,7 @@ static int init(int argc, char **argv, struct zone **zonep) {
     logto = LOGTO_STDOUT | LOGTO_SYSLOG;
   }
 
+#ifndef NOIPv6
   c = getaddrinfo(bindaddr, port, &hints, &aires);
   if (!bindaddr) bindaddr = "*";
   if (c != 0)
@@ -247,9 +268,45 @@ static int init(int argc, char **argv, struct zone **zonep) {
               host, sizeof(host),
               serv, sizeof(serv),
               NI_NUMERICHOST|NI_WITHSCOPEID|NI_NUMERICSERV);
-
   if (bind(fd, ai->ai_addr, ai->ai_addrlen) < 0)
     error(errno, "unable to bind to [%s]/%s", host, serv);
+  freeaddrinfo(aires);
+#else	/* NOIPv6 */
+  memset(&sin, 0, sizeof(sin));
+  sin.sin_family = AF_INET;
+  if ((c = satoi(port)) < 0 || c > 0xffff) {
+    struct servent *se = getservbyname(port, "udp");
+    if (!se)
+      error(0, "unknown service %.50s/udp", port);
+    sin.sin_port = se->s_port;
+    endservent();
+  }
+  else
+    sin.sin_port = htons(c);
+  if (bindaddr) {
+    if (!ip4addr(bindaddr, &sinaddr, NULL)) {
+      struct hostent *he = gethostbyname(bindaddr);
+      if (!he
+          || he->h_addrtype != AF_INET
+          || he->h_length != 4
+          || !he->h_addr_list[0])
+        error(0, "%.50s: unknown host", bindaddr);
+      memcpy(&sin.sin_addr, he->h_addr_list[0], 4);
+      sinaddr = ntohl(sin.sin_addr.s_addr);
+      endhostent();
+    }
+    else
+      sin.sin_addr.s_addr = htonl(sinaddr);
+  }
+  else
+    sinaddr = 0;
+  fd = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
+  if (fd < 0)
+    error(errno, "unable to create listening socket");
+  if (bind(fd, (struct sockaddr *)&sin, sizeof(sin)) < 0)
+    error(errno, "unable to bind to [%s]:%d",
+          ip4atos(sinaddr), ntohs(sin.sin_port));
+#endif
 
   c = 65536;
   do
@@ -305,9 +362,15 @@ static int init(int argc, char **argv, struct zone **zonep) {
   for(c = 0; c < argc; ++c)
     *zonep = addzone(*zonep, argv[c]);
 
+#ifndef NOIPv6
 #define logstarted() \
   dslog(LOG_INFO, 0, "version %s started (listening on [%s]:%s)", \
         version, host, serv)
+#else
+#define logstarted() \
+  dslog(LOG_INFO, 0, "version %s started (listening on [%s]:%d)", \
+        version, ip4atos(sinaddr), ntohs(sin.sin_port))
+#endif
   if (quickstart)
     signalled = SIGNALLED_ALRM;	/* zones will be (re)loaded after fork */
   else if (!do_reload(*zonep))
@@ -414,7 +477,11 @@ int main(int argc, char **argv) {
   struct dnsstats stats;
   FILE *flog;
   int q, r;
+#ifndef NOIPv6
   struct sockaddr_storage sa;
+#else
+  struct sockaddr_in sa;
+#endif
   socklen_t salen;
   struct dnspacket pkt;
   int flushlog = 0;

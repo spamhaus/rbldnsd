@@ -1,5 +1,7 @@
 rbldnsd (0.91pre) unstable; urgency=low
 
+  * allow compilation without IPv6 (-DNOIPv6)
+  * free addrinfo structure for bind address (not a real leak: it used once)
   * rotate nameserver records (simple cyclic rotation)
   * do not reallocate memory for dataset headers on every reload
   * fixed glitch in dnset - min DN labels was always 0 (tiny speedup only)

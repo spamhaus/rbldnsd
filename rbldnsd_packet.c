@@ -462,17 +462,31 @@ addrr_a_txt(struct dnspacket *pkt, unsigned qtflag,
 void logreply(const struct dnspacket *pkt,
               const struct sockaddr *peeraddr, int peeraddrlen,
               FILE *flog, int flushlog) {
-  char cbuf[DNS_MAXDOMAIN + NI_MAXHOST + 50];
+#ifndef NOIPv6
+# ifndef NI_MAXHOST
+#  define IPSIZE 1025
+# else
+#  define IPSIZE NI_MAXHOST
+# endif
+#else
+# define IPSIZE 16
+#endif
+  char cbuf[DNS_MAXDOMAIN + IPSIZE + 50];
   char *cp = cbuf;
   const unsigned char *const q = pkt->p_sans - 4;
 
   cp += sprintf(cp, "%lu ", (unsigned long)time(NULL));
+#ifndef NOIPv6
   if (getnameinfo(peeraddr, peeraddrlen,
                   cp, NI_MAXHOST, NULL, 0,
                   NI_NUMERICHOST|NI_WITHSCOPEID) == 0)
     cp += strlen(cp);
   else
     *cp++ = '?';
+#else
+  strcpy(cp, ip4atos(ntohl(((struct sockaddr_in*)peeraddr)->sin_addr.s_addr)));
+  cp += strlen(cp);
+#endif
   *cp++ = ' ';
   cp += dns_dntop(pkt->p_buf + p_hdrsize, cp, DNS_MAXDOMAIN);
   cp += sprintf(cp, " %s %s: %s/%u/%d\n",
