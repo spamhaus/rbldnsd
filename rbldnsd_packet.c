@@ -69,7 +69,7 @@ static int addrr_ns(struct dnspacket *pkt, const struct zone *zone, int auth);
 
 static unsigned char *
 parsequery(register const unsigned char *q, unsigned qlen,
-           struct dnsquery *qry, unsigned char **lptr) {
+           struct dnsquery *qry) {
 
   /* parsing incoming query.  Untrusted data read directly from the network.
    * q is a buffer ptr - data that was read (DNS_MAXPACKET max).
@@ -101,7 +101,7 @@ parsequery(register const unsigned char *q, unsigned qlen,
   q += p_hdrsize;		/* start of qDN */
   d = qry->q_dn;		/* destination lowercased DN */
   while((*d = *q) != 0) {	/* loop by DN lables */
-    lptr[qlab++] = d++;		/* another label */
+    qry->q_lptr[qlab++] = d++;	/* another label */
     e = q + *q + 1;		/* end of this label */
     if (*q > DNS_MAXLABEL	/* too long label? */
         || e > x)		/* or it ends past packet? */
@@ -123,17 +123,39 @@ parsequery(register const unsigned char *q, unsigned qlen,
   return (unsigned char*)q + 4;	/* answers will start here */
 }
 
+const struct zone *
+findqzone(const struct zone *zone,
+          unsigned dnlen, unsigned dnlab, unsigned char *const *const dnlptr,
+          struct dnsqueryinfo *qi) {
+  const unsigned char *q;
+
+  for(;; zone = zone->z_next) {
+    if (!zone) return NULL;
+    if (zone->z_dnlab > dnlab) continue;
+    q = dnlptr[dnlab - zone->z_dnlab];
+    if (memcmp(zone->z_dn, q, zone->z_dnlen - 1)) continue;
+    break;
+  }
+  qi->qi_dn = dnlptr[0];
+  qi->qi_dnlptr = dnlptr;
+  qi->qi_dnlab = dnlab - zone->z_dnlab;
+  qi->qi_dnlen0 = dnlen - zone->z_dnlen;
+  if (zone->z_dstflags & DSTF_IP4REV) /* ip4 address */
+    qi->qi_ip4valid = dntoip4addr(qi->qi_dn, qi->qi_dnlab, &qi->qi_ip4);
+
+  return zone;
+}
+
 /* construct reply to a query. */
 int replypacket(struct dnspacket *pkt, unsigned qlen, const struct zone *zone) {
 
   struct dnsquery qry;			/* query structure */
+  struct dnsqueryinfo qi;		/* query info structure */
   unsigned char *const h = pkt->p_buf;	/* packet's header */
-  unsigned qlab;
-  unsigned char *lptr[DNS_MAXLABELS];
   const struct zonedatalist *zdl;
   int found;
 
-  if (!(pkt->p_cur = pkt->p_sans = parsequery(h, qlen, &qry, lptr)))
+  if (!(pkt->p_cur = pkt->p_sans = parsequery(h, qlen, &qry)))
     return 0;
 
   /* from now on, we see (almost?) valid dns query, should reply */
@@ -159,40 +181,27 @@ int replypacket(struct dnspacket *pkt, unsigned qlen, const struct zone *zone) {
   else if (qry.q_class != DNS_C_ANY)
     return refuse(DNS_R_FORMERR);
   switch(qry.q_type) {
-  case DNS_T_ANY: qry.q_tflag = NSQUERY_ANY; break;
-  case DNS_T_A:   qry.q_tflag = NSQUERY_A;   break;
-  case DNS_T_TXT: qry.q_tflag = NSQUERY_TXT; break;
-  case DNS_T_NS:  qry.q_tflag = NSQUERY_NS;  break;
-  case DNS_T_SOA: qry.q_tflag = NSQUERY_SOA; break;
+  case DNS_T_ANY: qi.qi_tflag = NSQUERY_ANY; break;
+  case DNS_T_A:   qi.qi_tflag = NSQUERY_A;   break;
+  case DNS_T_TXT: qi.qi_tflag = NSQUERY_TXT; break;
+  case DNS_T_NS:  qi.qi_tflag = NSQUERY_NS;  break;
+  case DNS_T_SOA: qi.qi_tflag = NSQUERY_SOA; break;
   default:
     if (qry.q_type >= DNS_T_TSIG)
       return refuse(DNS_R_NOTIMPL);
-    qry.q_tflag = NSQUERY_OTHER;
+    qi.qi_tflag = NSQUERY_OTHER;
   }
   h[p_f2] = DNS_R_NOERROR;
 
   /* find matching zone */
-  qlab = qry.q_dnlab;
-  qlen = qry.q_dnlen;
-  for(;; zone = zone->z_next) {
-    unsigned char *q;
-    if (!zone) /* not authoritative */
-      return refuse(DNS_R_REFUSED);
-    if (zone->z_dnlab > qlab) continue;
-    q = lptr[qlab - zone->z_dnlab];
-    if (zone->z_dnlen != qlen - (q - qry.q_dn)) continue;
-    if (memcmp(zone->z_dn, q, zone->z_dnlen)) continue;
-    *q = '\0'; /* terminate at base zone */
-    break;
-  }
+  zone = findqzone(zone, qry.q_dnlen, qry.q_dnlab, qry.q_lptr, &qi);
+  if (!zone) /* not authoritative */
+    return refuse(DNS_R_REFUSED);
 
   /* found matching zone */
+
   if (!zone->z_stamp)	/* do not answer if not loaded */
     return refuse(DNS_R_SERVFAIL);
-
-  /* initialize query */
-  qry.q_dnlen = (qlen -= zone->z_dnlen - 1);
-  qry.q_dnlab -= zone->z_dnlab;
 
   { /* initialize DN compression */
     /* start at zone DN, not at query DN, as qDN may contain
@@ -210,23 +219,19 @@ int replypacket(struct dnspacket *pkt, unsigned qlen, const struct zone *zone) {
     pkt->p_dncompr.cptr = ptr;
   }
 
-  /* initialize various query variations */
-  if (zone->z_dstflags & DSTF_IP4REV) /* ip4 address */
-    qry.q_ip4valid = dntoip4addr(qry.q_dn, &qry.q_ip4);
-
   /* search the datasets */
   found = 0;
   for(zdl = zone->z_zdl; zdl; zdl = zdl->zdl_next)
-    if (zdl->zdl_queryfn(zdl->zdl_zds, &qry, pkt))
+    if (zdl->zdl_queryfn(zdl->zdl_zds, &qi, pkt))
       found = 1;	/* positive answer */
 
-  if (qry.q_dnlab == 0) {	/* query to base zone: SOA and NS only */
+  if (qi.qi_dnlab == 0) {	/* query to base zone: SOA and NS only */
 
     found = 1;
 
-    if (found && (qry.q_tflag & NSQUERY_NS) && !addrr_ns(pkt, zone, 0))
+    if (found && (qi.qi_tflag & NSQUERY_NS) && !addrr_ns(pkt, zone, 0))
       found = 0;
-    if (found && (qry.q_tflag & NSQUERY_SOA) && !addrr_soa(pkt, zone, 0))
+    if (found && (qi.qi_tflag & NSQUERY_SOA) && !addrr_soa(pkt, zone, 0))
       found = 0;
     if (!found) {
       pkt->p_cur = pkt->p_sans;

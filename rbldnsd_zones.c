@@ -16,11 +16,7 @@
 
 static struct zonedataset *zonedatasets;
 
-static struct {
-  const struct zonedataset *zds;
-  const char *fname;
-  int warns;
-} curloading;
+struct zonedataset *zds_loading;
 
 static void
 vdslog(int level, int lineno, const char *fmt, va_list ap) {
@@ -33,15 +29,20 @@ vdslog(int level, int lineno, const char *fmt, va_list ap) {
     return;
   else
     l = pl = 0;
-  if (curloading.zds) {
-    l += ssprintf(buf + l, sizeof(buf) - l, "%s:%.50s: ",
-                  curloading.zds->zds_type->dst_name, curloading.zds->zds_spec);
-    if (curloading.fname) {
-      l += ssprintf(buf + l, sizeof(buf) - l, "%.60s",
-                    curloading.fname);
+  if (zds_loading) {
+    l += ssprintf(buf + l, sizeof(buf) - l, "%s:%.60s:",
+                  zds_loading->zds_type->dst_name, zds_loading->zds_spec);
+    if (zds_loading->zds_subset)
+      l += ssprintf(buf + l, sizeof(buf) - l, "%s:",
+                    zds_loading->zds_subset->zds_type->dst_name);
+    if (zds_loading->zds_fname) {
+      l += ssprintf(buf + l, sizeof(buf) - l, " %.60s",
+                    zds_loading->zds_fname);
       l += ssprintf(buf + l, sizeof(buf) - l,
                     lineno ? "(%d): " : ": ", lineno);
     }
+    else
+      l += ssprintf(buf + l, sizeof(buf) - l, " ");
   }
   l += vssprintf(buf + l, sizeof(buf) - l, fmt, ap);
   if (logto & LOGTO_SYSLOG) {
@@ -64,7 +65,7 @@ void dslog(int level, int lineno, const char *fmt, ...) {
 #define MAXWARN 5
 
 void dswarn(int lineno, const char *fmt, ...) {
-  if (++curloading.warns <= MAXWARN) { /* prevent syslog flood */
+  if (++zds_loading->zds_warn <= MAXWARN) { /* prevent syslog flood */
     va_list ap;
     va_start(ap, fmt);
     dslog(LOG_WARNING, lineno, fmt, ap);
@@ -73,19 +74,24 @@ void dswarn(int lineno, const char *fmt, ...) {
 }
 
 void dsloaded(const char *fmt, ...) {
-  char buf[128];
   va_list ap;
-  struct tm *tm = gmtime(&curloading.zds->zds_stamp);
-  if (curloading.warns > MAXWARN)
+  zds_loading->zds_fname = NULL;
+  if (zds_loading->zds_warn > MAXWARN)
     dslog(LOG_WARNING, 0, "%d more warnings suppressed",
-         curloading.warns - MAXWARN);
+          zds_loading->zds_warn - MAXWARN);
   va_start(ap, fmt);
-  vsnprintf(buf, sizeof(buf), fmt, ap);
+  if (zds_loading->zds_subset)
+     vdslog(LOG_INFO, 0, fmt, ap);
+  else {
+    struct tm *tm = gmtime(&zds_loading->zds_stamp);
+    char buf[128];
+    vsnprintf(buf, sizeof(buf), fmt, ap);
+    dslog(LOG_INFO, 0, "%04d%02d%02d %02d%02d%02d: %s",
+          tm->tm_year + 1900, tm->tm_mon + 1, tm->tm_mday,
+          tm->tm_hour, tm->tm_min, tm->tm_sec,
+          buf);
+  }
   va_end(ap);
-  dslog(LOG_INFO, 0, "%04d%02d%02d %02d%02d%02d: %s",
-       tm->tm_year + 1900, tm->tm_mon + 1, tm->tm_mday,
-       tm->tm_hour, tm->tm_min, tm->tm_sec,
-       buf);
 }
 
 static struct zonedataset *newzonedataset(char *spec) {
@@ -109,7 +115,7 @@ static struct zonedataset *newzonedataset(char *spec) {
   dstp = dataset_types;
   while(strcmp(spec, (*dstp)->dst_name))
     if (!*++dstp)
-      error(0, "unknown zone type `%.60s'", spec);
+      error(0, "unknown dataset type `%.60s'", spec);
   zds = (struct zonedataset*)ezalloc(sizeof(struct zonedataset) +
                                      (*dstp)->dst_size);
   zds->zds_type = *dstp;
@@ -133,9 +139,57 @@ static struct zonedataset *newzonedataset(char *spec) {
   return zds;
 }
 
+struct zone *newzone(struct zone **zonelist,
+                     unsigned char *dn, unsigned dnlen,
+                     struct mempool *mp) {
+  struct zone *zone, **zonep, **lastzonep;
+ 
+  zonep = zonelist;
+  lastzonep = NULL;
+
+  for (;;) {
+    if (!(zone = *zonep)) {
+      if (mp)
+        zone = (struct zone *)mp_alloc(mp, sizeof(*zone));
+      else
+        zone = tmalloc(struct zone);
+      if (!zone)
+        return NULL;
+      memset(zone, 0, sizeof(*zone));
+      if (lastzonep) { zone->z_next = *lastzonep; *lastzonep = zone; }
+      else *zonep = zone;
+      memcpy(zone->z_dn, dn, dnlen);
+      zone->z_dnlen = dnlen;
+      zone->z_dnlab = dns_dnlabels(dn);
+      zone->z_zdlp = &zone->z_zdl;
+      break;
+    }
+    else if (zone->z_dnlen == dnlen && memcmp(zone->z_dn, dn, dnlen) == 0)
+      break;
+    else {
+      if (zone->z_dnlen < dnlen &&
+          memcmp(dn + dnlen - zone->z_dnlen, zone->z_dn, zone->z_dnlen) == 0)
+        lastzonep = zonep;
+      zonep = &zone->z_next;
+    }
+  }
+
+  return zone;
+}
+
+void connectzonedataset(struct zone *zone,
+                        struct zonedataset *zds,
+                        struct zonedatalist *zdl) {
+  zdl->zdl_next = NULL;
+  *zone->z_zdlp = zdl;
+  zone->z_zdlp = &zdl->zdl_next;
+  zdl->zdl_zds = zds;
+  zdl->zdl_queryfn = zds->zds_type->dst_queryfn;
+  zone->z_dstflags |= zds->zds_type->dst_flags;
+}
+
 struct zone *addzone(struct zone *zonelist, const char *spec) {
-  struct zone *zone, **zonep;
-  struct zonedatalist *zdl, **zdlp;
+  struct zone *zone;
   char *p;
   char name[DNS_MAXDOMAIN];
   unsigned char dn[DNS_MAXDN];
@@ -148,45 +202,21 @@ struct zone *addzone(struct zone *zonelist, const char *spec) {
   memcpy(name, spec, p - spec);
   name[p - spec] = '\0';
 
-  dnlen = dns_ptodn(name, dn, DNS_MAXDN);
+  dnlen = dns_ptodn(name, dn, sizeof(dn));
   if (!dnlen)
-    error(0, "invalid domain name `%s'", name);
-  dns_dntol(dn, dn);
+    error(0, "invalid domain name `%.80s'", name);
 
-  zonep = &zonelist;
-  for (;;) {
-    if (!(zone = *zonep)) {
-      *zonep = zone = tzalloc(struct zone);
-      zone->z_dn = ememdup(dn, dnlen);
-      zone->z_dnlen = dnlen;
-      zone->z_dnlab = dns_dnlabels(dn);
-      dns_dntop(dn, name, sizeof(name));
-      zone->z_name = estrdup(name);
-      break;
-    }
-    else if (zone->z_dnlen == dnlen && memcmp(zone->z_dn, dn, dnlen) == 0)
-      break;
-    else
-      zonep = &zone->z_next;
-  }
+  zone = newzone(&zonelist, dn, dnlen, NULL);
 
-  zdlp = &zone->z_zdl;
-  while(*zdlp)
-    zdlp = &(*zdlp)->zdl_next;
-
-  zdl = *zdlp = tmalloc(struct zonedatalist);
-  zdl->zdl_next = NULL;
   p = estrdup(p+1);
-  zdl->zdl_zds = newzonedataset(p);
+  connectzonedataset(zone, newzonedataset(p), tmalloc(struct zonedatalist));
   free(p);
-  zdl->zdl_queryfn = zdl->zdl_zds->zds_type->dst_queryfn;
-  zone->z_dstflags |= zdl->zdl_zds->zds_type->dst_flags;
 
   return zonelist;
 }
 
 /* parse $SPECIAL construct */
-int zds_special(struct zonedataset *zds, char *line) {
+int zds_special(struct zonedataset *zds, char *line, int lineno) {
 
   if ((line[0] == 's' || line[0] == 'S') &&
       (line[1] == 'o' || line[1] == 'O') &&
@@ -267,6 +297,7 @@ int zds_special(struct zonedataset *zds, char *line) {
     SKIPSPACE(line);
     if (!(line = parse_ttl_nb(line, ttl, defttl))) return 0;
     if (*line) return 0;
+    if (zds->zds_subset) zds = zds->zds_subset;
     memcpy(zds->zds_ttl, ttl, 4);
     return 1;
   }
@@ -275,12 +306,27 @@ int zds_special(struct zonedataset *zds, char *line) {
       ISSPACE(line[1])) {
     /* substitution vars */
     unsigned n = line[0] - '0';
+    if (zds->zds_subset) zds = zds->zds_subset;
     if (zds->zds_subst[n]) return 1; /* ignore second assignment */
     line += 2;
     SKIPSPACE(line);
     if (!*line) return 0;
     if (!(zds->zds_subst[n] = estrdup(line))) return 0;
     return 1;
+  }
+
+  if ((line[0] == 'D' || line[0] == 'd') &&
+      (line[1] == 'A' || line[1] == 'a') &&
+      (line[2] == 'T' || line[2] == 't') &&
+      (line[3] == 'A' || line[3] == 'a') &&
+      (line[4] == 'S' || line[4] == 's') &&
+      (line[5] == 'E' || line[5] == 'e') &&
+      (line[6] == 'T' || line[6] == 't') &&
+      ISSPACE(line[7]) &&
+      zds->zds_type == &dataset_combined_type) {
+    line += 8;
+    SKIPSPACE(line);
+    return ds_combined_newset(zds, line, lineno);
   }
 
   return 0;
@@ -293,6 +339,8 @@ static void freezonedataset(struct zonedataset *zds) {
   memcpy(zds->zds_ttl, defttl, 4);
   zds->zds_zns = NULL;
   memset(zds->zds_subst, 0, sizeof(zds->zds_subst));
+  zds->zds_warn = 0;
+  zds->zds_subset = NULL;
 }
 
 static int loadzonedataset(struct zonedataset *zds) {
@@ -301,23 +349,23 @@ static int loadzonedataset(struct zonedataset *zds) {
   FILE *f;
 
   freezonedataset(zds);
- 
+
+  zds_loading = zds;
+
   for(zf = zds->zds_zf; zf; zf = zf->zf_next) {
-    curloading.fname = zf->zf_name;
+    zds->zds_fname = zf->zf_name;
     f = fopen(zf->zf_name, "r");
     if (!f) {
       dslog(LOG_ERR, 0, "unable to open file: %s", strerror(errno));
       return 0;
     }
-    zds->zds_linefn = zds->zds_type->dst_linefn;
-    zds->zds_type->dst_startfn(zds->zds_ds);
+    zds->zds_type->dst_startfn(zds);
     if (!readdslines(f, zds)) {
       fclose(f);
       return 0;
     }
     if (ferror(f)) {
-      dslog(LOG_ERR, 0, "error reading file `%.60s': %s",
-           zf->zf_name, strerror(errno));
+      dslog(LOG_ERR, 0, "error reading file: %s", strerror(errno));
       fclose(f);
       return 0;
     }
@@ -325,11 +373,12 @@ static int loadzonedataset(struct zonedataset *zds) {
     if (zf->zf_stamp > stamp)
       stamp = zf->zf_stamp;
   }
-  curloading.fname = NULL;
+  zds->zds_fname = NULL;
   zds->zds_stamp = stamp;
 
-  if (!zds->zds_type->dst_finishfn(zds->zds_ds))
-    return 0;
+  zds->zds_type->dst_finishfn(zds);
+
+  zds_loading = NULL;
 
   return 1;
 }
@@ -388,8 +437,7 @@ int reloadzones(struct zone *zonelist) {
   for(zds = zonedatasets; zds; zds = zds->zds_next) {
     int load = 0;
 
-    memset(&curloading, 0, sizeof(curloading));
-    curloading.zds = zds;
+    zds_loading = zds;
 
     for(zf = zds->zds_zf; zf; zf = zf->zf_next) {
       struct stat st;
@@ -420,19 +468,20 @@ int reloadzones(struct zone *zonelist) {
 
   }
 
-  curloading.zds = NULL;
+  zds_loading = NULL;
 
   if (reloaded) {
 
     for(; zonelist; zonelist = zonelist->z_next) {
-      if (updatezone(zonelist))
-        continue;
-      dslog(LOG_WARNING, 0,
-            "partially loaded zone %.60s will not be serviced",
-             zonelist->z_name);
-      zonelist->z_stamp = 0;
-      zonelist->z_zsoa.zsoa_valid = 0;
-      zonelist->z_nns = 0;
+      if (!updatezone(zonelist)) {
+        char name[DNS_MAXDOMAIN+1];
+	dns_dntop(zonelist->z_dn, name, sizeof(name));
+        dslog(LOG_WARNING, 0,
+              "partially loaded zone %.60s will not be serviced", name);
+        zonelist->z_stamp = 0;
+        zonelist->z_zsoa.zsoa_valid = 0;
+        zonelist->z_nns = 0;
+      }
     }
 
   }
@@ -469,6 +518,6 @@ void dumpzone(const struct zone *z, FILE *f) {
   }
   for (zdl = z->z_zdl; zdl; zdl = zdl->zdl_next) {
     fprintf(f, "$TTL %u\n", unpack32(zdl->zdl_zds->zds_ttl));
-    zdl->zdl_zds->zds_type->dst_dumpfn(zdl->zdl_zds, f);
+    zdl->zdl_zds->zds_type->dst_dumpfn(zdl->zdl_zds, z->z_dn, f);
   }
 }

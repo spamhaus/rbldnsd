@@ -96,6 +96,8 @@ int readdslines(FILE *f, struct zonedataset *zds) {
   char _buf[bufsiz+4], *line, *eol;
 #define buf (_buf+4)  /* keep room for 4 IP octets in addrtxt() */
   int lineno = 0, noeol = 0;
+  struct zonedataset *zdscur = zds;
+  ds_linefn_t *linefn = zdscur->zds_type->dst_linefn;
   while(fgets(buf, bufsiz, f)) {
     eol = buf + strlen(buf) - 1;
     if (eol < buf) /* can this happen? */
@@ -121,45 +123,42 @@ int readdslines(FILE *f, struct zonedataset *zds) {
     eol[1] = '\0';
     if (line[0] == '$' ||
         ((ISCOMMENT(line[0]) || line[0] == ':') && line[1] == '$')) {
-      int r = zds_special(zds, line[0] == '$' ? line + 1 : line + 2);
+      int r = zds_special(zds, line[0] == '$' ? line + 1 : line + 2, lineno);
       if (!r)
         dswarn(lineno, "invalid or unrecognized special entry");
       else if (r < 0)
         return 0;
+      zdscur = zds->zds_subset ? zds->zds_subset : zds;
+      linefn = zdscur->zds_type->dst_linefn;
       continue;
     }
     if (line[0] && !ISCOMMENT(line[0]))
-      if (!zds->zds_linefn(zds, line, lineno))
+      if (!linefn(zdscur, line, lineno))
         return 0;
   }
   return 1;
 #undef buf
 }
 
-/* helper routine for dntoip4addr() */
-
-static const unsigned char *dnotoa(const unsigned char *q, unsigned *ap) {
-  if (*q < 1 || *q > 3) return NULL;
-  if (q[1] < '0' || q[1] > '9') return NULL;
-  *ap = q[1] - '0';
-  if (*q == 1) return q + 2;
-  if (q[2] < '0' || q[2] > '9') return NULL;
-  *ap = *ap * 10 + (q[2] - '0');
-  if (*q == 2) return q + 3;
-  if (q[3] < '0' || q[3] > '9') return NULL;
-  *ap = *ap * 10 + (q[3] - '0');
-  return *ap > 255 ? NULL : q + 4;
-}
-
 /* parse DN (as in 4.3.2.1.in-addr.arpa) to ip4addr_t */
 
-int dntoip4addr(const unsigned char *q, ip4addr_t *ap) {
+int dntoip4addr(const unsigned char *q, unsigned qlab, ip4addr_t *ap) {
   ip4addr_t a = 0, o;
-  if ((q = dnotoa(q, &o)) == NULL) return 0; a |= o;
-  if ((q = dnotoa(q, &o)) == NULL) return 0; a |= o << 8;
-  if ((q = dnotoa(q, &o)) == NULL) return 0; a |= o << 16;
-  if ((q = dnotoa(q, &o)) == NULL) return 0; a |= o << 24;
-  if (*q) return 0;
+  if (qlab != 4) return 0;
+
+#define oct(q,o)					\
+    o = 0;						\
+    switch(*q++) {					\
+    default: return 0;					\
+    case 3: if (!digit(*q)) return 0; o += d2n(*q++);	\
+    case 2: if (!digit(*q)) return 0; o += d2n(*q++);	\
+    case 1: if (!digit(*q)) return 0; o += d2n(*q++);	\
+    }							\
+    if (o > 255) return 0
+  oct(q,o); a |= o;
+  oct(q,o); a |= o << 8;
+  oct(q,o); a |= o << 16;
+  oct(q,o); a |= o << 24;
   *ap = a;
   return 1;
 }

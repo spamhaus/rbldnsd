@@ -10,7 +10,7 @@
 #include "rbldnsd.h"
 
 struct entry {
-  const unsigned char *ldn;	/* DN, mp-allocated; first byte is length */
+  const unsigned char *ldn;	/* DN, first byte is length, w/o EON */
   unsigned dtyp;		/* data (query) type */
     /* last word is DNS RR type, first word is NSQUERY_XX bit */
   unsigned char *data;	/* data, mp-allocated (size depends on qtyp) */
@@ -33,14 +33,14 @@ static void ds_generic_reset(struct dataset *ds) {
   ds->minlab = DNS_MAXDN;
 }
 
-static void ds_generic_start(struct dataset UNUSED *unused_ds) {
+static void ds_generic_start(struct zonedataset UNUSED *unused_zds) {
 }
 
 static int ds_generic_parseany(struct zonedataset *zds, char *s) {
   struct dataset *ds = zds->zds_ds;
   struct entry *e;
   char *t;
-  unsigned dtyp, dsiz;
+  unsigned dtyp, dsiz, dnlab;
   char data[DNS_MAXDN*2+20];
   char *dp;
 
@@ -63,8 +63,9 @@ static int ds_generic_parseany(struct zonedataset *zds, char *s) {
   }
   else if (!(s = parse_dn(s, data + 1, &dsiz)) || dsiz == 1)
     return -1;
-  data[0] = (unsigned char)dsiz;
-  if (!(e->ldn = mp_dmemdup(&zds->zds_mp, data, dsiz + 1)))
+  dnlab = dns_dnlabels(data + 1);
+  data[0] = (unsigned char)(dsiz - 1);
+  if (!(e->ldn = mp_dmemdup(&zds->zds_mp, data, dsiz)))
     return 0;
 
   SKIPSPACE(s);
@@ -124,9 +125,8 @@ static int ds_generic_parseany(struct zonedataset *zds, char *s) {
   memcpy(e->data, data, dsiz);
 
   ++ds->n;
-  dsiz = dns_dnlabels(e->ldn + 1);
-  if (ds->maxlab < dsiz) ds->maxlab = dsiz;
-  if (ds->minlab > dsiz) ds->minlab = dsiz;
+  if (ds->maxlab < dnlab) ds->maxlab = dnlab;
+  if (ds->minlab > dnlab) ds->minlab = dnlab;
 
   return 1;
 }
@@ -149,46 +149,47 @@ ds_generic_line(struct zonedataset *zds, char *s, int lineno) {
 /* comparision of first MINlen bytes of two DNs is sufficient
  * due to the nature of domain name representation */
 
-static int ds_generic_finish(struct dataset *ds) {
+static void ds_generic_finish(struct zonedataset *zds) {
+  struct dataset *ds = zds->zds_ds;
   if (ds->n) {
 
 #   define QSORT_TYPE struct entry
 #   define QSORT_BASE ds->e
 #   define QSORT_NELT ds->n
 #   define QSORT_LT(a,b) \
-  memcmp(a->ldn + 1, b->ldn + 1, min(a->ldn[0], b->ldn[0])) < 0
+  memcmp(a->ldn, b->ldn, a->ldn[0] + 1) < 0
 #   include "qsort.c"
 
     /* collect all equal DNs to point to the same place */
     { struct entry *e, *t;
       for(e = ds->e, t = e + ds->n - 1; e < t; ++e)
-        if (e[0].ldn != e[1].ldn && e[0].ldn[0] == e[1].ldn[0] &&
-            memcmp(e[0].ldn, e[1].ldn, e[0].ldn[0]) == 0)
+        if (memcmp(e[0].ldn, e[1].ldn, e[0].ldn[0] + 1) == 0)
           e[1].ldn = e[0].ldn;
     }
     SHRINK_ARRAY(struct entry, ds->e, ds->n, ds->a);
   }
   dsloaded("e=%u", ds->n);
-  return 1;
 }
 
 static int
-ds_generic_query(const struct zonedataset *zds, const struct dnsquery *qry,
+ds_generic_query(const struct zonedataset *zds, const struct dnsqueryinfo *qi,
                  struct dnspacket *pkt) {
   const struct dataset *ds = zds->zds_ds;
-  const unsigned char *dn = qry->q_dn;
+  const unsigned char *dn = qi->qi_dn;
   const struct entry *e = ds->e, *t;
-  unsigned qlen = qry->q_dnlen;
+  unsigned qlen0 = qi->qi_dnlen0;
   const unsigned char *d;
   int a = 0, b = ds->n - 1, m, r;
 
-  if (qry->q_dnlab > ds->maxlab || qry->q_dnlab < ds->minlab || b < 0)
+  if (qi->qi_dnlab > ds->maxlab || qi->qi_dnlab < ds->minlab || b < 0)
     return 0;
 
   for(;;) {
     if (a > b) return 0;
     t = e + (m = (a + b) >> 1);
-    if (!(r = memcmp(t->ldn + 1, dn, min(qlen, t->ldn[0])))) break;
+    if (t->ldn[0] < qlen0) a = m + 1;
+    else if (t->ldn[0] > qlen0) b = m - 1;
+    else if (!(r = memcmp(t->ldn + 1, dn, qlen0))) break;
     else if (r < 0) a = m + 1;
     else b = m - 1;
   }
@@ -201,7 +202,7 @@ ds_generic_query(const struct zonedataset *zds, const struct dnsquery *qry,
 
   t = ds->e + ds->n;
   do {
-    if (!(qry->q_tflag & e->dtyp))
+    if (!(qi->qi_tflag & e->dtyp))
       continue;
     d = e->data;
     switch(e->dtyp & 0xff) {
@@ -219,7 +220,10 @@ ds_generic_query(const struct zonedataset *zds, const struct dnsquery *qry,
   return 1;
 }
 
-static void ds_generic_dump(const struct zonedataset *zds, FILE *f) {
+static void
+ds_generic_dump(const struct zonedataset *zds,
+                const unsigned char UNUSED *unused_odn,
+                FILE *f) {
   const struct dataset *ds = zds->zds_ds;
   const struct entry *e, *t;
   char name[DNS_MAXDOMAIN+1];

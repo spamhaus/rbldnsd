@@ -3,7 +3,12 @@ $Id$
 This file describes user-visible changes in rbldnsd.
 Never news are at top.
 
-0.94
+0.95
+
+ - new dataset: combined: a container for other datasets.
+   See manpage for details.
+
+0.94 (26 May 2003)
 
  - implemented -d option (dump zone data in BIND format to stdout)
  - data loading warnings goes to stderr instead of stdout

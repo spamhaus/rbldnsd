@@ -346,7 +346,70 @@ are recognized.  TTL value may be specified before record type.  Examples:
  # record with TTL
  www 3000 A 127.0.0.1
  about TXT "ex.com combined blocklist"
+.fi
+
+.IP \fBcombined\fR
+This is a special dataset that stores no data by itself but acts
+like a container for several other datasets of any type except of
+combined type itself.  The data file contains optional common section,
+where various specials are recognized like $NS, $SOA, $TTL (see above),
+and a series of sections, each of which defines one (nested) dataset
+and several subzones of the base zone, for which this dataset should
+be consulted.  New (nested) dataset starts with a line
 .nf
+  $DATASET \fItype\fR \fIsubzone\fR \fIsubzone\fR...
+.fi
+and all subsequent lines up to the end of current file or to next
+$DATASET line are interpreted as a part of dataset of type \fItype\fR.
+Note that combined datasets cannot be nested.  Every \fIsubzone\fR will
+always be relative to the base zone name specified on command line.
+If \fIsubzone\fR specified as single character "@", dataset will be
+connected to the base zone itself.
+.IP
+This dataset type aimed to simplify subzone maintenance, in order to
+be able to include several subzones in one file for easy data transfer,
+atomic operations and to be able to modify list of subzones on remote
+secondary nameservers.
+.IP
+Example of the complete dataset that contains subzone `proxies' with a
+list of open proxies, subzone `relays' with a list of open relays, subzone
+`multihop' with output IPs of multihop open relays, and the base zone
+itself includes proxies and relays but not multihops:
+.nf
+  # common section
+  $NS 1w ns1.ex.com
+  $NS 1w ns2.ex.com
+  $SOA 1w ns1.ex.com admin.ex.com 0 2h 2h 1w 1h
+  # list of open proxies,
+  # in `proxies' subzone and in base zone
+  $DATASET ip4set proxies @
+  :2:Open proxy, see http://bl.ex.com/proxy/$
+  127.0.0.2
+  127.0.0.10
+  # list of open relays,
+  # in `relays' subzone and in base zone
+  $DATASET ip4set relays @
+  :3:Open relay, see http://bl.ex.com/relay/$
+  127.0.0.2
+  127.0.2.10
+  # list of optputs of multistage relays,
+  # in `multihop' subzone only
+  $DATASET ip4set multihop
+  :4:Multihop open relay, see http://bl.ex.com/relay/$
+  127.0.0.2
+  127.0.9.12
+  # for the base zone only,
+  # include several additional records
+  $DATASET generic @
+  @ A 127.0.0.8
+  www A 127.0.0.8
+  @ MX mx.ex.com
+.fi
+.IP
+Note that $NS and $SOA values applies to the base zone \fIonly\fR,
+regardless of the placement in the file.  Unlike the $TTL values and
+$\fIn\fR substitutions, which may be both global and local for a
+given (sub\-)dataset.
 
 .SS "Resulting A values and TXT templates"
 .PP

@@ -56,12 +56,20 @@ struct dnspacket {		/* private structure */
 struct dnsquery {	/* q */
   unsigned q_type;			/* query RR type */
   unsigned q_class;			/* query class */
-  unsigned q_tflag;			/* query RR type flag (NSQUERY_XX) */
   unsigned char q_dn[DNS_MAXDN];	/* original query DN, lowercased */
-  unsigned q_dnlen;			/* length of qdn */
-  unsigned q_dnlab;			/* number of labels in qldn */
-  ip4addr_t q_ip4;			/* parsed IP4 address */
-  int q_ip4valid;			/* true if q_ip4 is valid */
+  unsigned q_dnlen;			/* length of q_dn */
+  unsigned q_dnlab;			/* number of labels in q_dn */
+  unsigned char *q_lptr[DNS_MAXLABELS];	/* pointers to labels */
+};
+
+struct dnsqueryinfo {	/* qi */
+  unsigned char *const *qi_dnlptr;
+  const unsigned char *qi_dn;		/* cached query DN */
+  unsigned qi_tflag;			/* query RR type flag (NSQUERY_XX) */
+  unsigned qi_dnlen0;			/* length of qi_dn - 1 */
+  unsigned qi_dnlab;			/* number of labels in q_dn */
+  ip4addr_t qi_ip4;			/* parsed IP4 address */
+  int qi_ip4valid;			/* true if qi_ip4 is valid */
 };
 
 #define PACK32(b,n) ((b)[0]=(n)>>24,(b)[1]=(n)>>16,(b)[2]=(n)>>8,(b)[3]=(n))
@@ -86,14 +94,15 @@ char *parse_dn(char *s, unsigned char *dn, unsigned *dnlenp);
  * readdslines() */
 int parse_a_txt(char *str, const char **rrp, const char def_a[4]);
 
-typedef void ds_startfn_t(struct dataset *ds);
+typedef void ds_startfn_t(struct zonedataset *zds);
 typedef int ds_linefn_t(struct zonedataset *zds, char *line, int lineno);
-typedef int ds_finishfn_t(struct dataset *ds);
+typedef void ds_finishfn_t(struct zonedataset *zds);
 typedef void ds_resetfn_t(struct dataset *ds);
 typedef int
-ds_queryfn_t(const struct zonedataset *zds, const struct dnsquery *qry,
+ds_queryfn_t(const struct zonedataset *zds, const struct dnsqueryinfo *qi,
              struct dnspacket *pkt);
-typedef void ds_dumpfn_t(const struct zonedataset *zds, FILE *f);
+typedef void
+ds_dumpfn_t(const struct zonedataset *zds, const unsigned char *odn, FILE *f);
 
 /* use high word so that `generic' dataset works */
 #define NSQUERY_TXT	(1u<<16)
@@ -183,8 +192,11 @@ struct zonedataset {	/* zds */
   unsigned char zds_ttl[4];		/* default ttl for a dataset */
   char *zds_subst[10];			/* substitution variables */
   struct mempool zds_mp;		/* memory pool for all data */
-  ds_linefn_t *zds_linefn;		/* parse line routine */
   struct zonedataset *zds_next;		/* next in global list */
+  /* for (re)loads */
+  unsigned zds_warn;			/* number of load warnings */
+  const char *zds_fname;		/* current file name */
+  struct zonedataset *zds_subset;	/* currently loading subset */
 };
 
 struct zonedatalist {	/* zdl */
@@ -194,13 +206,13 @@ struct zonedatalist {	/* zdl */
 };
 
 struct zone {	/* zone, list of zones */
-  char *z_name;				/* name of the zone */
   time_t z_stamp;			/* timestamp, 0 if not loaded */
-  unsigned char *z_dn;			/* zone domain name */
-  unsigned z_dnlen;			/* length of z_dn[] */
+  unsigned char z_dn[DNS_MAXDN+1];	/* zone domain name */
+  unsigned z_dnlen;			/* length of z_dn */
   unsigned z_dnlab;			/* number of dn labels */
   unsigned z_dstflags;			/* flags of all datasets */
   struct zonedatalist *z_zdl;		/* list of datas */
+  struct zonedatalist **z_zdlp;		/* last zdl in list */
   struct zonesoa z_zsoa;		/* SOA record */
   const unsigned char *z_zns[20];	/* list of nameservers */
     /* keep z_zns definition in sync with rbldnsd_packet.c:addrr_ns() */
@@ -210,6 +222,11 @@ struct zone {	/* zone, list of zones */
 
 /* parse query and construct a reply to it, return len of answer or 0 */
 int replypacket(struct dnspacket *p, unsigned qlen, const struct zone *zone);
+const struct zone *
+findqzone(const struct zone *zonelist,
+          unsigned dnlen, unsigned dnlab, unsigned char *const *const dnlptr,
+          struct dnsqueryinfo *qi);
+
 /* log a reply */
 struct sockaddr;
 void logreply(const struct dnspacket *pkt,
@@ -245,21 +262,31 @@ struct dnsstats {
 };
 
 struct zone *addzone(struct zone *zonelist, const char *spec);
+void connectzonedataset(struct zone *zone,
+                        struct zonedataset *zds,
+                        struct zonedatalist *zdl);
+struct zone *newzone(struct zone **zonelist,
+                     unsigned char *dn, unsigned dnlen,
+                     struct mempool *mp);
 int reloadzones(struct zone *zonelist);
 void dumpzone(const struct zone *z, FILE *f);
 
 void PRINTFLIKE(3,4) dslog(int level, int lineno, const char *fmt, ...);
 void PRINTFLIKE(2,3) dswarn(int lineno, const char *fmt, ...);
 void PRINTFLIKE(1,2) dsloaded(const char *fmt, ...);
+extern struct zonedataset *zds_loading;
 
 int readdslines(FILE *f, struct zonedataset *zds);
 /* parse $SPECIAL */
-int zds_special(struct zonedataset *zds, char *line);
+int zds_special(struct zonedataset *zds, char *line, int lineno);
+
+/* from rbldnsd_combined.c, special routine used inside zds_special() */
+int ds_combined_newset(struct zonedataset *zds, char *line, int lineno);
 
 extern const char def_rr[5];
 
 /* parse a DN as reverse-octet IP4 address.  return true if ok */
-int dntoip4addr(const unsigned char *q, ip4addr_t *ap);
+int dntoip4addr(const unsigned char *q, unsigned qlab, ip4addr_t *ap);
 
 /* the same as in ip4addr, but with error/policy checking */
 unsigned ip4parse_cidr(const char *s, ip4addr_t *ap, char **np);

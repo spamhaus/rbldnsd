@@ -609,7 +609,7 @@ int ip4parse_range(const char *s, ip4addr_t *a1p, ip4addr_t *a2p, char **np) {
 
 void oom() {
   if (initialized)
-    dslog(LOG_ERR, 0, "out of memory loading zone (zone will be empty)");
+    dslog(LOG_ERR, 0, "out of memory loading dataset");
   else
     error(0, "out of memory");
 }

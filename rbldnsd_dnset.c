@@ -43,8 +43,8 @@ static void ds_dnset_reset(struct dataset *ds) {
   ds->minlab[EP] = ds->minlab[EW] = DNS_MAXDN;
 }
 
-static void ds_dnset_start(struct dataset *ds) {
-  ds->def_rr = def_rr;
+static void ds_dnset_start(struct zonedataset *zds) {
+  zds->zds_ds->def_rr = def_rr;
 }
 
 static int
@@ -113,7 +113,7 @@ ds_dnset_line(struct zonedataset *zds, char *s, int lineno) {
   e += ds->n[idx]++;
   if (!(e->ldn = (unsigned char*)mp_alloc(&zds->zds_mp, dnlen + 1)))
     return 0;
-  e->ldn[0] = (unsigned char)(dnlen);
+  e->ldn[0] = (unsigned char)(dnlen - 1);
   memcpy(e->ldn + 1, dn, dnlen);
   e->rr = rr;
 
@@ -128,14 +128,18 @@ ds_dnset_line(struct zonedataset *zds, char *s, int lineno) {
 #define min(a,b) ((a)<(b)?(a):(b))
 
 static int ds_dnset_lt(const struct entry *a, const struct entry *b) {
-  int r = memcmp(a->ldn + 1, b->ldn + 1, min(a->ldn[0], b->ldn[0]));
+  int r;
+  if (a->ldn[0] < b->ldn[0]) return 1;
+  if (a->ldn[0] > b->ldn[0]) return 0;
+  r = memcmp(a->ldn + 1, b->ldn + 1, a->ldn[0]);
   return
      r < 0 ? 1 :
      r > 0 ? 0 :
      a->rr < b->rr;
 }
 
-static int ds_dnset_finish(struct dataset *ds) {
+static void ds_dnset_finish(struct zonedataset *zds) {
+  struct dataset *ds = zds->zds_ds;
   unsigned r;
   for(r = 0; r < 2; ++r) {
     if (!ds->n[r]) continue;
@@ -149,8 +153,7 @@ static int ds_dnset_finish(struct dataset *ds) {
     /* we make all the same DNs point to one string for faster searches */
     { register struct entry *e, *t;
       for(e = ds->e[r], t = e + ds->n[r] - 1; e < t; ++e)
-        if (e[0].ldn[0] == e[1].ldn[0] &&
-            memcmp(e[0].ldn, e[1].ldn, e[0].ldn[0]) == 0)
+        if (memcmp(e[0].ldn, e[1].ldn, e[0].ldn[0] + 1) == 0)
           e[1].ldn = e[0].ldn;
     }
 #define dnset_eeq(a,b) a.ldn == b.ldn && rrs_equal(a,b)
@@ -158,23 +161,23 @@ static int ds_dnset_finish(struct dataset *ds) {
     SHRINK_ARRAY(struct entry, ds->e[r], ds->n[r], ds->a[r]);
   }
   dsloaded("e/w=%u/%u", ds->n[EP], ds->n[EW]);
-  return 1;
 }
 
 static const struct entry *
 ds_dnset_find(const struct entry *e, int n,
-              const unsigned char *dn, unsigned dnlen) {
+              const unsigned char *dn, unsigned dnlen0) {
   int a = 0, b = n - 1, m, r;
 
   /* binary search */
   while(a <= b) {
     /* middle entry */
     const struct entry *t = e + (m = (a + b) >> 1);
-    /* compare minlen prefixes */
-    r = memcmp(t->ldn + 1, dn, min(t->ldn[0], dnlen));
-    if (r < 0) a = m + 1;	/* look in last half */
-    else if (r > 0) b = m - 1;	/* look in first half */
-    else {
+    if (t->ldn[0] < dnlen0)		/* middle entry < dn */
+      a = m + 1;			/* look in last half */
+    else if (t->ldn[0] > dnlen0)	/* middle entry > dn */
+      b = m - 1;			/* look in first half */
+    /* lengths match, compare the DN itself */
+    else if ((r = memcmp(t->ldn + 1, dn, dnlen0)) == 0) {
       /* found exact match, seek back to
        * first entry with this domain name */
       dn = (t--)->ldn;
@@ -182,18 +185,22 @@ ds_dnset_find(const struct entry *e, int n,
         --t;
       return t + 1;
     }
+    else if (r < 0)			/* middle entry < dn */
+      a = m + 1;			/* look in last half */
+    else				/* middle entry > dn */
+      b = m - 1;			/* look in first half */
   }
 
   return NULL;			/* not found */
 }
 
 static int
-ds_dnset_query(const struct zonedataset *zds, const struct dnsquery *qry,
+ds_dnset_query(const struct zonedataset *zds, const struct dnsqueryinfo *qi,
                struct dnspacket *pkt) {
   const struct dataset *ds = zds->zds_ds;
-  const unsigned char *dn = qry->q_dn;
-  unsigned qlen = qry->q_dnlen;
-  unsigned qlab = qry->q_dnlab;
+  const unsigned char *dn = qi->qi_dn;
+  unsigned qlen0 = qi->qi_dnlen0;
+  unsigned qlab = qi->qi_dnlab;
   const struct entry *e, *t;
   char name[DNS_MAXDOMAIN+1];
 
@@ -201,7 +208,7 @@ ds_dnset_query(const struct zonedataset *zds, const struct dnsquery *qry,
 
   if (qlab > ds->maxlab[EP] 	/* if we have less labels, search unnec. */
       || qlab < ds->minlab[EP]	/* ditto for more */
-      || !(e = ds_dnset_find(ds->e[EP], ds->n[EP], dn, qlen))) {
+      || !(e = ds_dnset_find(ds->e[EP], ds->n[EP], dn, qlen0))) {
 
     /* try wildcard */
 
@@ -209,7 +216,7 @@ ds_dnset_query(const struct zonedataset *zds, const struct dnsquery *qry,
      * than we have in wildcard array, but remove at least 1 label
      * for wildcard itself. */
     do
-      --qlab, qlen -= *dn + 1, dn += *dn + 1;
+      --qlab, qlen0 -= *dn + 1, dn += *dn + 1;
     while(qlab > ds->maxlab[EW]);
 
     /* now, lookup every so long dn in wildcard array */
@@ -220,11 +227,11 @@ ds_dnset_query(const struct zonedataset *zds, const struct dnsquery *qry,
          * minimum we have listed.  Nothing to search anymore */
         return 0;
 
-      if ((e = ds_dnset_find(ds->e[EW], ds->n[EW], dn, qlen)))
+      if ((e = ds_dnset_find(ds->e[EW], ds->n[EW], dn, qlen0)))
         break;			/* found, listed */
 
       /* remove next label at the end of rdn */
-      qlen -= *dn + 1;
+      qlen0 -= *dn + 1;
       dn += *dn + 1;
       --qlab;
 
@@ -238,15 +245,18 @@ ds_dnset_query(const struct zonedataset *zds, const struct dnsquery *qry,
   if (!e->rr) return 0;	/* exclusion */
 
   dn = e->ldn;
-  if (qry->q_tflag & NSQUERY_TXT)
+  if (qi->qi_tflag & NSQUERY_TXT)
     dns_dntop(e->ldn + 1, name, sizeof(name));
-  do addrr_a_txt(pkt, qry->q_tflag, e->rr, name, zds);
+  do addrr_a_txt(pkt, qi->qi_tflag, e->rr, name, zds);
   while(++e < t && e->ldn == dn);
 
   return 1;
 }
 
-static void ds_dnset_dump(const struct zonedataset *zds, FILE *f) {
+static void
+ds_dnset_dump(const struct zonedataset *zds,
+              const unsigned char UNUSED *unused_odn,
+              FILE *f) {
   const struct dataset *ds = zds->zds_ds;
   const struct entry *e, *t;
   unsigned char name[DNS_MAXDOMAIN+4];

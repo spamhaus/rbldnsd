@@ -63,8 +63,8 @@ ds_ip4set_addent(struct dataset *ds, unsigned idx,
   return 1;
 }
 
-static void ds_ip4set_start(struct dataset *ds) {
-  ds->def_rr = def_rr;
+static void ds_ip4set_start(struct zonedataset *zds) {
+  zds->zds_ds->def_rr = def_rr;
 }
 
 static int
@@ -147,7 +147,8 @@ ds_ip4set_line(struct zonedataset *zds, char *s, int lineno) {
 
 }
 
-static int ds_ip4set_finish(struct dataset *ds) {
+static void ds_ip4set_finish(struct zonedataset *zds) {
+  struct dataset *ds = zds->zds_ds;
   unsigned r;
   for(r = 0; r < 4; ++r) {
     if (!ds->n[r]) continue;
@@ -167,7 +168,6 @@ static int ds_ip4set_finish(struct dataset *ds) {
   }
   dsloaded("e32/24/16/8=%u/%u/%u/%u",
           ds->n[E32], ds->n[E24], ds->n[E16], ds->n[E08]);
-  return 1;
 }
 
 static const struct entry *
@@ -188,15 +188,15 @@ ds_ip4set_find(const struct entry *e, int b, ip4addr_t q) {
 }
 
 static int
-ds_ip4set_query(const struct zonedataset *zds, const struct dnsquery *qry,
+ds_ip4set_query(const struct zonedataset *zds, const struct dnsqueryinfo *qi,
                 struct dnspacket *pkt) {
   const struct dataset *ds = zds->zds_ds;
-  ip4addr_t q = qry->q_ip4;
+  ip4addr_t q = qi->qi_ip4;
   ip4addr_t f;
   const struct entry *e, *t;
   const char *ipsubst;
 
-  if (!qry->q_ip4valid) return 0;
+  if (!qi->qi_ip4valid) return 0;
 
 #define try(i,mask) \
  (ds->n[i] && \
@@ -211,14 +211,17 @@ ds_ip4set_query(const struct zonedataset *zds, const struct dnsquery *qry,
 
   if (!e->rr) return 0;		/* exclusion */
 
-  ipsubst = (qry->q_tflag & NSQUERY_TXT) ? ip4atos(q) : NULL;
-  do addrr_a_txt(pkt, qry->q_tflag, e->rr, ipsubst, zds);
+  ipsubst = (qi->qi_tflag & NSQUERY_TXT) ? ip4atos(q) : NULL;
+  do addrr_a_txt(pkt, qi->qi_tflag, e->rr, ipsubst, zds);
   while(++e < t && e->addr == f);
 
   return 1;
 }
 
-static void ds_ip4set_dump(const struct zonedataset *zds, FILE *f) {
+static void
+ds_ip4set_dump(const struct zonedataset *zds,
+               const unsigned char UNUSED *unused_odn,
+               FILE *f) {
   unsigned r;
   ip4addr_t a;
   const struct entry *e, *t;
