@@ -5,8 +5,9 @@ rbldnsd (0.97pre) unstable; urgency=low
   * use switch(firstchar) in ds_special()
   * return SOA first to ANY queries
   * Also return NS in AUTH in ANY queries inside base zone (cosmetic)
+  * add SOA/NS even before all other recs when queried base DN
 
- -- Michael Tokarev <mjt@corpit.ru>  Thu, 29 May 2003 15:03:45 +0400
+ -- Michael Tokarev <mjt@corpit.ru>  Thu, 29 May 2003 15:10:02 +0400
 
 rbldnsd (0.96) unstable; urgency=high
 
