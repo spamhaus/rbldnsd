@@ -1,8 +1,7 @@
 rbldnsd (0.83p1) unstable; urgency=low
 
   * use included version of qsort (as a macro) in order to be able to
-    use inline comparision routine.  This speeds up loading dramatically,
-    it is now about 4..5 times faster.
+    use inline comparision routine.  Speed up loading significantly.
 
   * allow to run as non-root; little cleanups
 
