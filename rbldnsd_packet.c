@@ -133,8 +133,10 @@ static const unsigned char *const ip6p =
 #endif
 
 /* parse DN (as in 4.3.2.1.in-addr.arpa) to ip4addr_t */
-static int dntoip4addr(const unsigned char *q, unsigned qlen0, unsigned qlab,
-                       ip4addr_t *ap) {
+static int
+dntoip4addr(const unsigned char *q,
+            unsigned UNUSED qlen0, unsigned qlab,
+            ip4addr_t *ap) {
   ip4addr_t a = 0, o;
   if (qlab != 4) {
 
@@ -750,7 +752,8 @@ dump_a_txt(const char *name, const unsigned char *rr,
 
 
 void logreply(const struct dnspacket *pkt,
-              const struct sockaddr *peeraddr, int peeraddrlen,
+              const struct sockaddr *peeraddr,
+	      int UNUSED peeraddrlen,
               FILE *flog, int flushlog) {
 #ifndef NOIPv6
 # ifndef NI_MAXHOST
