@@ -217,7 +217,7 @@ int ds_special(struct dataset *ds, char *line, int lineno) {
     unsigned char ttl[4];
     line += 4;
     SKIPSPACE(line);
-    if (!(line = parse_ttl_nb(line, ttl, defttl))) return 0;
+    if (!(line = parse_ttl_nb(line, ttl, def_ttl))) return 0;
     if (*line) return 0;
     if (ds->ds_subset) ds = ds->ds_subset;
     memcpy(ds->ds_ttl, ttl, 4);
@@ -264,7 +264,7 @@ static void freedataset(struct dataset *ds) {
   ds->ds_type->dst_resetfn(ds->ds_dsd, 0);
   mp_free(ds->ds_mp);
   ds->ds_dssoa = NULL;
-  memcpy(ds->ds_ttl, defttl, 4);
+  memcpy(ds->ds_ttl, def_ttl, 4);
   ds->ds_dsns = NULL;
   ds->ds_dsnslp = &ds->ds_dsns;
   memset(ds->ds_subst, 0, sizeof(ds->ds_subst));

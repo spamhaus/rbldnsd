@@ -15,8 +15,10 @@ rbldnsd (0.97c) unstable; urgency=low
   * handle version.bind CH TXT (and version.rbldns for that matter)
   * return REFUSED instead of FORMERR in case unrecognized query
     class (IN,ANY,etc) requested
+  * defttl => def_ttl to be consistent with def_rr
+  * set ttl for version.bind to be 0
 
- -- Michael Tokarev <mjt@corpit.ru>  Thu,  7 Aug 2003 21:38:16 +0400
+ -- Michael Tokarev <mjt@corpit.ru>  Thu,  7 Aug 2003 21:44:43 +0400
 
 rbldnsd (0.97b) unstable; urgency=low
 

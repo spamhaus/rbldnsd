@@ -29,8 +29,6 @@ extern int logto;
 #define LOGTO_SYSLOG 0x03
 void PRINTFLIKE(2,3) NORETURN error(int errnum, const char *fmt, ...);
 
-extern unsigned char defttl[4];
-
 struct zone;
 struct dataset;
 struct dsdata;
@@ -285,6 +283,7 @@ int ds_special(struct dataset *ds, char *line, int lineno);
 /* from rbldnsd_combined.c, special routine used inside ds_special() */
 int ds_combined_newset(struct dataset *ds, char *line, int lineno);
 
+extern unsigned char def_ttl[4];
 extern const char def_rr[5];
 
 extern const char *show_version; /* version.bind CH TXT */

@@ -715,7 +715,7 @@ static int version_req(struct dnspacket *pkt, const struct dnsquery *qry) {
   *c++ = 192; *c++ = p_hdrsize; /* jump after header: query DN */
   *c++ = DNS_T_TXT>>8; *c++ = DNS_T_TXT;
   *c++ = DNS_C_CH>>8; *c++ = DNS_C_CH;
-  memcpy(c, defttl, 4); c += 4;
+  *c++ = 0; *c++ = 0; *c++ = 0; *c++ = 0; /* ttl */
   dsz = strlen(show_version) + 1;
   PACK16(c, dsz); c += 2;       /* dsize */
   *c++ = --dsz;
