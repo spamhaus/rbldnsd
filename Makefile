@@ -86,7 +86,8 @@ rbldnsd.o: rbldnsd.c
 	$(COMPILE) -DVERSION='"$(VERSION) $(VERSION_DATE)"'
 
 clean:
-	-rm -f $(RBLDNSD_OBJS) $(LIB_OBJS) librbldnsd.a ip4rangetest $(GSRC)
+	-rm -f $(RBLDNSD_OBJS) $(LIB_OBJS) librbldnsd.a ip4rangetest $(GSRC) \
+		ip4rangetest.o
 distclean: clean
 	-rm -f rbldnsd
 
