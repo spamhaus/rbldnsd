@@ -130,14 +130,8 @@ static void
 ds_ip4tset_dump(const struct dataset *ds,
                const unsigned char UNUSED *unused_odn,
                FILE *f) {
-  ip4addr_t a;
-  const ip4addr_t *e, *t;
   const struct dsdata *dsd = ds->ds_dsd;
-  char name[4*3+3+1];
-  for(e = dsd->e, t = e + dsd->n; e < t; ++e) {
-    a = *e;
-    sprintf(name, "%u.%u.%u.%u",
-            a & 255, (a >> 8) & 255, (a >> 16) & 255, (a >> 24));
-    dump_a_txt(name, dsd->def_rr, ip4atos(a), ds, f);
-  }
+  const ip4addr_t *e = dsd->e, *t = e + dsd->n;
+  while(e < t)
+    dump_ip4(*e++, dsd->def_rr, ds, f);
 }
