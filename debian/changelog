@@ -1,4 +1,4 @@
-rbldnsd (0.98a.pre) unstable; urgency=low
+rbldnsd (0.99) unstable; urgency=low
 
   * autoconf-style configuration.  Run ./configure before make.
    - #include "config.h"
@@ -21,13 +21,13 @@ rbldnsd (0.98a.pre) unstable; urgency=low
   * made zonelist really global in rbldnsd.c, reorder some globals to
     be in one place, add some more comments
   * Fixed range parsing.  E.g., 24.217.64-191 did not work (and any range
-    like this where last two bits where xored into 255)    
+    like this where last two bits where xored into 255)
   * allow logging to standard output (-l - or -l +-)
   * move logfile handling a bit earlier in the init process, and
     do not send initialization messages to stdout in case we're
     logging queries there (-l -)
 
- -- Michael Tokarev <mjt@corpit.ru>  Fri, 22 Aug 2003 13:55:58 +0400
+ -- Michael Tokarev <mjt@corpit.ru>  Tue, 16 Sep 2003 21:33:35 +0400
 
 rbldnsd (0.98) unstable; urgency=low
 

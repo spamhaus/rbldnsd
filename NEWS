@@ -3,7 +3,7 @@ $Id$
 This file describes user-visible changes in rbldnsd.
 Never news are at top.
 
-?.?? (???)
+0.99 (16 Sep 2003)
 
  - autoconf-style configuration.  Run ./configure before make.
    -DSTATS_LL gone; NOSTDINT_H, NOIPv6, NOMEMINFO, NOPOLL are
