@@ -18,6 +18,8 @@
 #include <syslog.h>
 #include <time.h>
 #include <fcntl.h>
+#include "rbldnsd.h"
+
 #ifdef NOPOLL
 #include <sys/select.h>
 #else
@@ -30,10 +32,9 @@
 # include <sys/times.h>
 #endif
 #ifndef NOSTDINT_H
+/* if system have stdint.h, assume it have inttypes.h too */
 # include <inttypes.h>
 #endif
-
-#include "rbldnsd.h"
 
 #ifndef NI_WITHSCOPEID
 # define NI_WITHSCOPEID 0
