@@ -10,8 +10,9 @@
 
 int fn(unsigned idx, ip4addr_t start, unsigned count) {
   ip4addr_t step = 1u << (idx << 3);
-  printf(" +%u: %u.%u.%u.%u/%u + %u.%u.%u.%u x %u\n",
-    idx, octets(start), 32-(idx<<3), octets(step), count);
+  ip4addr_t last = start + step * (count - 1);
+  printf(" +%u: %u.%u.%u.%u-%u.%u.%u.%u/%u (%u x %u.%u.%u.%u)\n",
+    idx, octets(start), octets(last), 32-(idx<<3), count, octets(step));
   return 1;
 }
 
