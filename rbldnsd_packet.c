@@ -70,21 +70,22 @@ int replypacket(struct dnspacket *p, unsigned qlen, const struct zone *zone) {
     register unsigned char *s = q + 12;	/* orig src DN in question (<= x) */
     register unsigned char *d = qdn;	/* dest lowercased ptr */
     register unsigned char *e;		/* end of current label */
-    qlab = DNS_MAXLAB;
+    qlab = 0;
     while((qlen = (*d++ = *s++)) != 0) { /* loop by DN lables */
       if (qlen > DNS_MAXLABEL || (e = s + qlen) > x) return 0;
-      qlp[--qlab] = d - 1;
+      qlp[qlab++] = d - 1;	/* remember start of current label */
       do *d++ = dns_dnlc(*s);	/* lowercase current label */
       while (++s < e);		/* ..until it's end */
     }
-    qlen = d - qdn;
-    qtyp = ((unsigned)(s[0]) << 8) | s[1];
-    qcls = ((unsigned)(s[2]) << 8) | s[3];
-    p->c = p->sans = s + 4; /* answers will start here */
-    qlab = DNS_MAXLAB - qlab;
+    qlen = d - qdn;	/* d points past the end of qdn now */
+    x = s;	/* x isn't needed anymore, it now points past the qDN */
   }
-
+  
   /* from now on, we see (almost?) valid dns query, should reply */
+
+  qtyp = ((unsigned)(x[0]) << 8) | x[1];
+  qcls = ((unsigned)(x[2]) << 8) | x[3];
+  p->c = p->sans = x + 4; /* answers will start here */
   p->nans = 0;
 
 #define refuse(code) (q[2] = 0x84, q[3] = (code), (p->sans - q))
@@ -121,7 +122,7 @@ int replypacket(struct dnspacket *p, unsigned qlen, const struct zone *zone) {
 
     if (!zone->loaded) continue;
     if (zone->dnlab > qlab) continue;
-    x = qlp[DNS_MAXLAB - 1 - qlab + zone->dnlab];
+    x = qlp[qlab - zone->dnlab];
     if (zone->dnlen != qlen - (x - qdn)) continue;
     if (memcmp(zone->dn, x, zone->dnlen) != 0) continue;
 
