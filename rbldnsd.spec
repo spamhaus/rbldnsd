@@ -1,9 +1,9 @@
 # $Id$
-# RPM spec template for rbldnsd
+# RPM spec file for rbldnsd
 
 Summary: Small fast daemon to serve DNSBLs
 Name: rbldnsd
-Version: @VERSION@
+Version: 0.91pre
 Release: 1
 License: GPL
 Group: System Environment/Daemons

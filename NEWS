@@ -13,6 +13,8 @@ Never news are at top.
 
  - bugfix: fixed default A RR to be 127.0.0.2, not 2.0.0.127
 
+ - added (preliminary) RPM .spec file (rpmbuild -tb to build from tarball)
+
 0.90 (10 May 2003)
 
  - IPv6 transport support.  Specify -4 or -6 to use particular
