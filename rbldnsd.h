@@ -25,7 +25,8 @@
 extern char *progname; /* limited to 32 chars */
 extern int logto;
 #define LOGTO_STDOUT 0x01
-#define LOGTO_SYSLOG 0x02
+#define LOGTO_STDERR 0x02
+#define LOGTO_SYSLOG 0x03
 void PRINTFLIKE(2,3) NORETURN error(int errnum, const char *fmt, ...);
 
 extern unsigned char defttl[4];
@@ -66,6 +67,8 @@ struct dnsquery {	/* q */
 #define PACK32(b,n) ((b)[0]=(n)>>24,(b)[1]=(n)>>16,(b)[2]=(n)>>8,(b)[3]=(n))
 #define PACK16(b,n) ((b)[0]=(n)>>8,(b)[1]=(n))
 
+unsigned unpack32(const unsigned char nb[4]);
+
 #define ISSPACE(s) ((s) == ' ' || (s) == '\t')
 #define SKIPSPACE(s) while(ISSPACE(*s)) ++s
 
@@ -76,6 +79,11 @@ char *parse_time_nb(char *s, unsigned char nb[4]);
 char *parse_ttl_nb(char *s, unsigned char ttl[4],
                    const unsigned char defttl[4]);
 char *parse_dn(char *s, unsigned char *dn, unsigned *dnlenp);
+/* parse line in form :ip:text into rr
+ * where first 4 bytes is ip in network byte order.
+ * Note this routine uses 4 bytes BEFORE str (it's safe to call it after
+ * readdslines() */
+int parse_a_txt(char *str, const char **rrp, const char def_a[4]);
 
 typedef struct dataset *ds_allocfn_t(void);
 typedef int ds_loadfn_t(struct zonedataset *zds, FILE *f);
@@ -84,6 +92,7 @@ typedef void ds_resetfn_t(struct dataset *ds);
 typedef int
 ds_queryfn_t(const struct zonedataset *zds, const struct dnsquery *qry,
              struct dnspacket *pkt);
+typedef void ds_dumpfn_t(const struct zonedataset *zds, FILE *f);
 
 /* use high word so that `generic' dataset works */
 #define NSQUERY_TXT	(1u<<16)
@@ -102,6 +111,7 @@ struct dataset_type {	/* dst */
   ds_loadfn_t *dst_loadfn;	/* routine to load ds data */
   ds_finishfn_t *dst_finishfn;	/* finish loading */
   ds_resetfn_t *dst_resetfn;	/* routine to release ds internal data */
+  ds_dumpfn_t *dst_dumpfn;	/* dump zone in BIND format */
   const char *dst_descr;    	/* short description of a ds type */
 };
 
@@ -116,10 +126,11 @@ struct dataset_type {	/* dst */
  static ds_loadfn_t ds_##t##_load; \
  static ds_finishfn_t ds_##t##_finish; \
  static ds_resetfn_t ds_##t##_reset; \
+ static ds_dumpfn_t ds_##t##_dump; \
  const struct dataset_type dataset_##t##_type = { \
    #t, /* name */ flags, \
    ds_##t##_query, ds_##t##_alloc, ds_##t##_load, \
-   ds_##t##_finish, ds_##t##_reset, \
+   ds_##t##_finish, ds_##t##_reset, ds_##t##_dump, \
    descr }
 
 declaredstype(ip4set);
@@ -214,6 +225,8 @@ void addrr_mx(struct dnspacket *pkt,
               const unsigned char pri[2],
               const unsigned char *mxdn, unsigned mxdnlen,
               const unsigned char ttl[4]);
+void dump_a_txt(const char *name, const unsigned char *rr,
+                const char *subst, const struct zonedataset *zds, FILE *f);
 
 struct dnsstats {
   time_t stime;			/* start time */
@@ -229,6 +242,7 @@ struct dnsstats {
 
 struct zone *addzone(struct zone *zonelist, const char *spec);
 int reloadzones(struct zone *zonelist);
+void dumpzone(const struct zone *z, FILE *f);
 
 void PRINTFLIKE(3,4) dslog(int level, int lineno, const char *fmt, ...);
 void PRINTFLIKE(2,3) dswarn(int lineno, const char *fmt, ...);
@@ -241,12 +255,6 @@ readdslines(FILE *f, struct zonedataset *zds,
 int zds_special(struct zonedataset *zds, char *line);
 
 extern const char def_rr[5];
-
-/* parse line in form :ip:text into rr
- * where first 4 bytes is ip in network byte order.
- * Note this routine uses 4 bytes BEFORE str (it's safe to call it after
- * readdslines() */
-int parse_a_txt(char *str, const char **rrp, const char def_a[4]);
 
 /* parse a DN as reverse-octet IP4 address.  return true if ok */
 int dntoip4addr(const unsigned char *q, ip4addr_t *ap);

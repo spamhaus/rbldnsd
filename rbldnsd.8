@@ -107,7 +107,7 @@ specified.  \fBrbldnsd\fR will use first available address for a
 multihomed hostname.
 
 .IP "\fB\-P\fR \fIport\fR"
-specify non-default port \fIport\fR to listen on, either numerically
+specify non\-default port \fIport\fR to listen on, either numerically
 or symbolicaly.  Default port is "domain" (usually taken from
 /etc/services or equivalent).  \fBrbldnsd\fR uses UDP socket.
 
@@ -180,6 +180,20 @@ behaviour.
 .IP \fB\-s\fR
 Log memory usage info (obtained via mallinfo(3) routine) and (re)load
 times (obtined via utimes(2) routine) on zone (re)loads.
+
+.IP \fB\-d\fR
+Dump all zones to stdout in BIND format and exit.  This may be sutable
+to convert easily editable rbldnsd-style data into BIND zone.  \fBrbldnsd\fR
+dumps all zones in order specified as one stream, so one may want to
+specify only one zone with \fB\-d\fR.  Zone file will have appropriate
+$ORIGIN tags.  Note that data generated may be really huge (as BIND
+format isn't appropriate for this sort of things), and some entries
+may not be really the same in BIND as in \fBrbldnsd\fR (e.g., IP
+netblocks of large size will be represented as wildcard entries \-
+10.0.0.0/8 will become *.10; excluded entries will be represented
+by a CNAME to `excluded' name, so such name should not be present
+in a data set).  In this mode, \fBrbldnsd\fR ignores \fB\-r\fR
+(root directory) option.
 
 .SH "DATASET TYPES AND FORMATS"
 

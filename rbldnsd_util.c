@@ -198,6 +198,14 @@ int parse_a_txt(char *str, const char **rrp, const char def_a[4]) {
   return 1 + (str - rr);
 }
 
+unsigned unpack32(const unsigned char p[4]) {
+  unsigned n = p[0];
+  n = (n << 8) | p[1];
+  n = (n << 8) | p[2];
+  n = (n << 8) | p[3];
+  return n;
+}
+
 char *emalloc(unsigned size) {
   void *ptr = malloc(size);
   if (!ptr)

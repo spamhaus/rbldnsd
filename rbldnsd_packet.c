@@ -415,49 +415,78 @@ void addrr_any(struct dnspacket *pkt, unsigned dtp,
   pkt->p_buf[p_ancnt] += 1; /* increment numanswers */
 }
 
+static int
+txtsubst(char *sb, const char *txt, const char *s0, char *const sn[10]) {
+  unsigned sl;
+  char *const e = sb + 254;
+  char *lp = sb;
+  const char *s, *si;
+  if (!s0) s0 = "$";
+  while(lp < e) {
+    if ((s = strchr(txt, '$')) == NULL)
+      s = (char*)txt + strlen(txt);
+    sl = s - txt;
+    if (lp + sl > e)
+      sl = e - lp;
+    memcpy(lp, txt, sl);
+    lp += sl;
+    if (!*s++) break;
+    if (*s == '$') { si = s++; sl = 1; }
+    else if (*s >= '0' && *s <= '9') { /* $1 var */
+      si = sn[*s - '0'];
+      if (!si) { si = s - 1; sl = 2; }
+      else sl = strlen(si);
+      ++s;
+    }
+    else
+      sl = strlen(si = s0);
+    if (lp + sl > e) /* silently truncate TXT RR >255 bytes */
+      sl = e - lp;
+    memcpy(lp, si, sl);
+    lp += sl;
+    txt = s;
+  }
+  sl = lp - sb;
+  if (sl > 254) sl = 254;
+  return sl;
+}
+
 void
 addrr_a_txt(struct dnspacket *pkt, unsigned qtflag,
             const char *rr, const char *subst,
             const struct zonedataset *zds) {
   if (qtflag & NSQUERY_A)
     addrr_any(pkt, DNS_T_A, rr, 4, zds->zds_ttl);
-  if (*(rr += 4) && (qtflag & NSQUERY_TXT)) {
-    unsigned sl;
+  if (rr[4] && (qtflag & NSQUERY_TXT)) {
     char sb[258];
-    char *const e = sb + 254;
-    char *lp = sb + 1;
-    const char *s, *si;
-    if (!subst) subst = "$";
-    while(lp < e) {
-      if ((s = strchr(rr, '$')) == NULL)
-        s = (char*)rr + strlen(rr);
-      sl = s - rr;
-      if (lp + sl > e)
-        sl = e - lp;
-      memcpy(lp, rr, sl);
-      lp += sl;
-      if (!*s++) break;
-      if (*s == '$') { si = s++; sl = 1; }
-      else if (*s >= '0' && *s <= '9') { /* $1 var */
-        si = zds->zds_subst[*s - '0'];
-        if (!si) { si = s - 1; sl = 2; }
-        else sl = strlen(si);
-        ++s;
-      }
-      else
-        sl = strlen(si = subst);
-      if (lp + sl > e) /* silently truncate TXT RR >255 bytes */
-        sl = e - lp;
-      memcpy(lp, si, sl);
-      lp += sl;
-      rr = s;
-    }
-    sl = lp - sb;
-    if (sl > 254) sl = 254;
-    sb[0] = sl - 1;
-    addrr_any(pkt, DNS_T_TXT, sb, sl, zds->zds_ttl);
+    unsigned sl = txtsubst(sb + 1, rr + 4, subst, zds->zds_subst);
+    sb[0] = sl;
+    addrr_any(pkt, DNS_T_TXT, sb, sl + 1, zds->zds_ttl);
   }
 }
+
+void
+dump_a_txt(const char *name, const unsigned char *rr,
+           const char *subst, const struct zonedataset *zds, FILE *f) {
+  if (!rr)
+    fprintf(f, "%s\tCNAME\texcluded\n", name);
+  else {
+    fprintf(f, "%s\tA\t%u.%u.%u.%u\n",
+            name, rr[0], rr[1], rr[2], rr[3]);
+    if (rr[4]) {
+      char txt[256];
+      char *p, *n;
+      txt[txtsubst(txt, rr + 4, subst, zds->zds_subst)] = '\0';
+      fprintf(f, "\tTXT\t\"");
+      for(p = txt; (n = strchr(p, '"')) != NULL; p = n + 1) {
+        fwrite(p, 1, n - p, f);
+        putc('\\', f); putc('"', f);
+      }
+      fprintf(f, "%s\"\n", p);
+    }
+  }
+}
+
 
 void logreply(const struct dnspacket *pkt,
               const struct sockaddr *peeraddr, int peeraddrlen,

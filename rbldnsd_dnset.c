@@ -250,3 +250,18 @@ ds_dnset_query(const struct zonedataset *zds, const struct dnsquery *qry,
 
   return 1;
 }
+
+static void ds_dnset_dump(const struct zonedataset *zds, FILE *f) {
+  const struct dataset *ds = zds->zds_ds;
+  const struct entry *e, *t;
+  unsigned char name[DNS_MAXDOMAIN+4];
+  for (e = ds->e[EP], t = e + ds->n[EP]; e < t; ++e) {
+    dns_dntop(e->ldn + 1, name, sizeof(name));
+    dump_a_txt(name, e->rr, name, zds, f);
+  }
+  name[0] = '*'; name[1] = '.';
+  for (e = ds->e[EW], t = e + ds->n[EW]; e < t; ++e) {
+    dns_dntop(e->ldn + 1, name + 2, sizeof(name) - 2);
+    dump_a_txt(name, e->rr, name + 2, zds, f);
+  }
+}

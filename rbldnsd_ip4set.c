@@ -222,3 +222,33 @@ ds_ip4set_query(const struct zonedataset *zds, const struct dnsquery *qry,
 
   return 1;
 }
+
+static void ds_ip4set_dump(const struct zonedataset *zds, FILE *f) {
+  unsigned r;
+  ip4addr_t a;
+  const struct entry *e, *t;
+  const struct dataset *ds = zds->zds_ds;
+  char name[4*3+3+1];
+  for (r = 0; r < 4; ++r) {
+    for(e = ds->e[r], t = e + ds->n[r]; e < t; ++e) {
+      a = e->addr;
+      switch(r) {
+      case E32:
+	sprintf(name, "%u.%u.%u.%u",
+		a & 255, (a >> 8) & 255, (a >> 16) & 255, (a >> 24));
+	break;
+      case E24:
+	sprintf(name, "*.%u.%u.%u",
+		(a >> 8) & 255, (a >> 16) & 255, (a >> 24));
+	break;
+      case E16:
+	sprintf(name, "*.%u.%u", (a >> 16) & 255, (a >> 24));
+	break;
+      case E08:
+	sprintf(name, "*.%u", (a >> 24));
+	break;
+      }
+      dump_a_txt(name, e->rr, ip4atos(a), zds, f);
+    }
+  }
+}

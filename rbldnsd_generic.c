@@ -223,3 +223,40 @@ ds_generic_query(const struct zonedataset *zds, const struct dnsquery *qry,
   } while(++e < t && e->ldn == dn);
   return 1;
 }
+
+static void ds_generic_dump(const struct zonedataset *zds, FILE *f) {
+  const struct dataset *ds = zds->zds_ds;
+  const struct entry *e, *t;
+  char name[DNS_MAXDOMAIN+1];
+  const unsigned char *ldn = NULL;
+  const unsigned char *d;
+
+  for (e = ds->e, t = e + ds->n; e < t; ++e) {
+    if (ldn != e->ldn) {
+      ldn = e->ldn;
+      if (ldn[0] > 1)
+	dns_dntop(ldn + 1, name, sizeof(name));
+      else
+	strcpy(name, "@");
+      d = name;
+    }
+    else
+      d = "";
+    fprintf(f, "%s\t%u\t", d, unpack32(e->data));
+    d = e->data + 4;
+    switch(e->dtyp & 0xff) {
+    case DNS_T_A:
+      fprintf(f, "A\t%u.%u.%u.%u\n", d[0], d[1], d[2], d[3]);
+      break;
+    case DNS_T_TXT:
+      fprintf(f, "TXT\t\"%.*s\"\n", *d, d + 1); /*XXX quotes */
+      break;
+    case DNS_T_MX:
+      dns_dntop(d + 3, name, sizeof(name));
+      fprintf(f, "MX\t%u\t%s.\n",
+              ((unsigned)d[0] << 8) | d[1],
+              name);
+      break;
+    }
+  }
+}

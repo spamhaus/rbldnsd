@@ -155,6 +155,7 @@ static void NORETURN usage(int exitcode) {
 " -l logfile - log queries and answers to this file\n"
 "  (relative to chroot directory)\n"
 " -s - print memory usage and (re)load time info on zone reloads\n"
+" -d - dump all zones in BIND format to standard output and exit\n"
 "each zone specified using `name:type:file,file...'\n"
 "syntax, repeated names constitute the same zone.\n"
 "Available dataset types:\n"
@@ -180,7 +181,7 @@ static int init(int argc, char **argv, struct zone **zonep) {
   uid_t uid = 0;
   gid_t gid = 0;
   int fd;
-  int nodaemon = 0, quickstart = 0;
+  int nodaemon = 0, quickstart = 0, dump = 0;
 #ifndef NOIPv6
   struct addrinfo hints, *aires, *ai;
   char host[NI_MAXHOST], serv[NI_MAXSERV];
@@ -203,7 +204,7 @@ static int init(int argc, char **argv, struct zone **zonep) {
   hints.ai_flags = AI_PASSIVE;
 #endif
 
-  while((c = getopt(argc, argv, "u:r:b:P:w:t:c:p:nel:qsh46")) != EOF)
+  while((c = getopt(argc, argv, "u:r:b:P:w:t:c:p:nel:qsh46d")) != EOF)
     switch(c) {
     case 'u': user = optarg; break;
     case 'r': rootdir = optarg; break;
@@ -231,6 +232,7 @@ static int init(int argc, char **argv, struct zone **zonep) {
     case 'l': logfile = optarg; break;
     case 's': logmemtms = 1; break;
     case 'q': quickstart = 1; break;
+    case 'd': dump = 1; break;
     case 'h': usage(0);
     default: error(0, "type `%.50s -h' for help", progname);
     }
@@ -238,6 +240,27 @@ static int init(int argc, char **argv, struct zone **zonep) {
   if (!(argc -= optind))
     error(0, "no zone(s) to service specified (-h for help)");
   argv += optind;
+
+  if (dump) {
+    struct zone *z;
+    time_t now;
+    logto = LOGTO_STDERR;
+    for(c = 0; c < argc; ++c)
+      *zonep = addzone(*zonep, argv[c]);
+    if (rootdir && (chdir(rootdir) < 0 || chroot(rootdir) < 0))
+      error(errno, "unable to chroot to %.50s", rootdir);
+    if (workdir && chdir(workdir) < 0)
+      error(errno, "unable to chdir to %.50s", workdir);
+    if (!do_reload(*zonep))
+      error(0, "zone loading errors, aborting");
+    now = time(NULL);
+    printf("; zone dump made %s", ctime(&now));
+    printf("; rbldnsd version %s\n", version);
+    for (z = *zonep; z; z = z->z_next)
+      dumpzone(z, stdout);
+    fflush(stdout);
+    exit(ferror(stdout) ? 1 : 0);
+  }
 
   if (nodaemon)
     logto = LOGTO_STDOUT;
@@ -352,7 +375,6 @@ static int init(int argc, char **argv, struct zone **zonep) {
     if (setgroups(1, &gid) < 0 || setgid(gid) < 0 || setuid(uid) < 0)
       error(errno, "unable to setuid(%d:%d)", uid, gid);
 
-  *zonep = NULL;
   for(c = 0; c < argc; ++c)
     *zonep = addzone(*zonep, argv[c]);
 
@@ -477,7 +499,7 @@ static FILE *reopenlog(FILE *flog, const char *logfile) {
 
 int main(int argc, char **argv) {
   int fd;
-  struct zone *zonelist;
+  struct zone *zonelist = NULL;
   struct dnsstats stats;
   FILE *flog;
   int q, r;

@@ -26,8 +26,13 @@ static void
 vdslog(int level, int lineno, const char *fmt, va_list ap) {
   char buf[1024];
   int pl, l;
-  l = pl = (logto & LOGTO_STDOUT) ?
-       ssprintf(buf, sizeof(buf), "%.30s: ", progname) : 0;
+  if ((logto & LOGTO_STDOUT) ||
+      (level <= LOG_WARNING && (logto & LOGTO_STDERR)))
+    l = pl = ssprintf(buf, sizeof(buf), "%.30s: ", progname);
+  else if (!(logto & LOG_SYSLOG))
+    return;
+  else
+    l = pl = 0;
   if (curloading.zds) {
     l += ssprintf(buf + l, sizeof(buf) - l, "%s:%.50s: ",
                   curloading.zds->zds_type->dst_name, curloading.zds->zds_spec);
@@ -43,9 +48,9 @@ vdslog(int level, int lineno, const char *fmt, va_list ap) {
     fmt = buf + pl;
     syslog(level, strchr(fmt, '%') ? "%s" : fmt, fmt);
   }
-  if (logto & LOGTO_STDOUT) {
+  if (logto & (LOGTO_STDOUT | LOGTO_STDERR)) {
     buf[l++] = '\n';
-    write(1, buf, l);
+    write(level <= LOG_WARNING ? 2 : 1, buf, l);
   }
 }
 
@@ -279,6 +284,7 @@ int zds_special(struct zonedataset *zds, char *line) {
 
   return 0;
 }
+
 static void freezonedataset(struct zonedataset *zds) {
   zds->zds_type->dst_resetfn(zds->zds_ds);
   mp_free(&zds->zds_mp);
@@ -431,3 +437,35 @@ int reloadzones(struct zone *zonelist) {
   return errors ? -1 : reloaded ? 1 : 0;
 }
 
+void dumpzone(const struct zone *z, FILE *f) {
+  const struct zonedatalist *zdl;
+  { /* zone header */
+    char name[DNS_MAXDOMAIN+1];
+    const struct zonesoa *zsoa = &z->z_zsoa;
+    const unsigned char **zns = z->z_zns;
+    unsigned nns = z->z_nns;
+    dns_dntop(z->z_dn, name, sizeof(name));
+    fprintf(f, "$ORIGIN\t%s.\n", name);
+    if (zsoa->zsoa_valid) {
+      fprintf(f, "@\t%u\tSOA", unpack32(zsoa->zsoa_ttl));
+      dns_dntop(zsoa->zsoa_odn + 1, name, sizeof(name));
+      fprintf(f, "\t%s.", name);
+      dns_dntop(zsoa->zsoa_pdn + 1, name, sizeof(name));
+      fprintf(f, "\t%s.", name);
+      fprintf(f, "\t(%u %u %u %u %u)\n",
+          unpack32(zsoa->zsoa_n+0),
+          unpack32(zsoa->zsoa_n+4),
+          unpack32(zsoa->zsoa_n+8),
+          unpack32(zsoa->zsoa_n+12),
+          unpack32(zsoa->zsoa_n+16));
+    }
+    while(nns--) {
+      dns_dntop(*zns + 5, name, sizeof(name));
+      fprintf(f, "\t%u\tNS\t%s.\n", unpack32(*zns++), name);
+    }
+  }
+  for (zdl = z->z_zdl; zdl; zdl = zdl->zdl_next) {
+    fprintf(f, "$TTL %u\n", unpack32(zdl->zdl_zds->zds_ttl));
+    zdl->zdl_zds->zds_type->dst_dumpfn(zdl->zdl_zds, f);
+  }
+}
