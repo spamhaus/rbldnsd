@@ -58,7 +58,7 @@ dnset_parseline(struct zonedata *z, char *line, int lineno, int llines) {
   struct entry *e;
 
   if (!llines && line[0] == ':') {
-    if (z->nfile != 0)
+    if (z->nfile > 1)
       return 1;
     if (!addrtxt(line, &z->r_a, &p)) {
       zwarn(lineno, "invalid default entry");
@@ -165,7 +165,7 @@ dnset_query(const struct zonedata *const z, struct dnspacket *p,
     }
   }
   if (qtyp & NSQUERY_A) addrec_a(p, z->r_a);
-  if (z->r_txt && qtyp & NSQUERY_TXT) {
+  if (z->r_txt && (qtyp & NSQUERY_TXT)) {
     char name[DNS_MAXDOMAIN+1];
     dns_dntop(query, name, sizeof(name));
     addrec_txt(p, z->r_txt, name);
