@@ -51,6 +51,9 @@ static int recheck = 60;	/* interval between checks for reload */
 static int accept_in_cidr;	/* accept 127.0.0.1/8-style CIDRs */
 static int initialized;		/* 1 when initialized */
 static char *logfile;		/* log file name */
+#ifndef NOMEMINFO
+static int domeminfo;		/* print memory usage info */
+#endif
 
 static int satoi(const char *s) {
   int n = 0;
@@ -77,6 +80,9 @@ static void NORETURN usage(int exitcode) {
 " -n - do not become a daemon\n"
 " -l logfile - log queries and answers to this file\n"
 "  (relative to chroot directory)\n"
+#ifndef NOMEMINFO
+" -m - print memory usage info on zone reloads\n"
+#endif
 "each zone specified using `name:type:file,file...'\n"
 "syntax, repeated names constitute the same zone.\n"
 "Available zone types:\n"
@@ -118,7 +124,7 @@ static int init(int argc, char **argv, struct zone **zonep) {
 
   if (argc <= 1) usage(1);
 
-  while((c = getopt(argc, argv, "u:r:b:w:t:c:p:nel:h")) != EOF)
+  while((c = getopt(argc, argv, "u:r:b:w:t:c:p:nel:mh")) != EOF)
     switch(c) {
     case 'u': user = optarg; break;
     case 'r': rootdir = optarg; break;
@@ -138,6 +144,11 @@ static int init(int argc, char **argv, struct zone **zonep) {
     case 'n': nodaemon = 1; break;
     case 'e': accept_in_cidr = 1; break;
     case 'l': logfile = optarg; break;
+#ifndef NOMEMINFO
+    case 'm': domeminfo = 1; break;
+#else
+    case 'm': error(0, "memory info is not compiled in");
+#endif
     case 'h': usage(0);
     default: error(0, "type `%.50s -h' for help", progname);
     }

@@ -56,10 +56,10 @@ void PRINTFLIKE(1,2) zloaded(const char *fmt, ...);
 
 #define R_A_DEFAULT ((ip4addr_t)0x7f000002)
 
-typedef struct zonedata *z_allocfn(struct zonedata *z);
+typedef struct zonedata *z_allocfn(void);
 typedef int z_loadfn(struct zonedata *z, FILE *f);
 typedef int z_finishfn(struct zonedata *z);
-typedef struct zonedata *z_freefn(struct zonedata *z);
+typedef void z_freefn(struct zonedata *z);
 typedef int
 z_queryfn(const struct zonedata *const zone, struct dnspacket *p,
           const unsigned char *const query, unsigned qtyp);
@@ -135,37 +135,29 @@ int vssprintf(char *buf, int bufsz, const char *fmt, va_list ap);
 int PRINTFLIKE(3, 4) ssprintf(char *buf, int bufsz, const char *fmt, ...);
 
 /* a helper to shrink an array */
-#define shrinkarray(arr, allocated, needed, type) \
-  if ((allocated) > (needed)) { \
-     (arr) = (type*)realloc((arr), (needed) * sizeof(type)); \
-     (allocated) = (needed); \
+#define SHRINK_ARRAY(arr, allocated, needed, type)		\
+  if ((allocated) > (needed)) {					\
+     (arr) = (type*)realloc((arr), (needed) * sizeof(type));	\
+     (allocated) = (needed);					\
   }
 
 /* a helper macro to remove dups from a sorted array */
 
-#ifdef NOREMOVEDUPS
-
-# define removedups(arr, num, type, eq)
-
-#else
-
-#define removedups(arr, num, type, eq)	\
-{ register type *p, *e, *t;		\
-  p = arr; t = p + num - 1;		\
-  while(p < t)				\
-    if (!(eq((p[0]), (p[1])))) ++p;	\
+#define REMOVE_DUPS(arr, num, type, eq)	\
+{ register type *_p, *_e, *_t;		\
+  _p = arr; _t = _p + num - 1;		\
+  while(_p < _t)			\
+    if (!(eq((_p[0]), (_p[1])))) ++_p;	\
     else {				\
-      ++t; e = p + 1;			\
+      ++_t; _e = _p + 1;		\
       do				\
-        if (eq((*p), (*e))) ++e;	\
-        else *++p = *e++;		\
-      while (e < t);			\
-      num = p + 1 - arr;		\
+        if (eq((*_p), (*_e))) ++_e;	\
+        else *++_p = *_e++;		\
+      while (_e < _t);			\
+      num = _p + 1 - arr;		\
       break;				\
     }					\
 }
-
-#endif
 
 /* helper macro to test whenever two given entries
  * with r_a and r_txt fields, are equal, provided

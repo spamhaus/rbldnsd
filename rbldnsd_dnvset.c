@@ -10,6 +10,7 @@
 #include "rbldnsd.h"
 #include "dns.h"
 #include "mempool.h"
+#include "qsort.h"
 
 definezonetype(dnvset, NSQUERY_A_TXT, "set of (domain name, value) pairs");
 
@@ -37,6 +38,15 @@ struct zonedata {
 /* indexes */
 #define EP 0
 #define EW 1
+
+static void dnvset_free(struct zonedata *z) {
+  if (z) {
+    mp_free(&z->mp);
+    if (z->e[EP]) free(z->e[EP]);
+    if (z->e[EW]) free(z->e[EW]);
+    free(z);
+  }
+}
 
 static int
 dnvset_parseline(struct zonedata *z, char *line, int lineno, int llines) {
@@ -108,31 +118,10 @@ dnvset_parseline(struct zonedata *z, char *line, int lineno, int llines) {
   return 1;
 }
 
-static struct zonedata *dnvset_free(struct zonedata *z) {
-#ifdef REUSEMEM
+static struct zonedata *dnvset_alloc() {
+  struct zonedata *z = (struct zonedata *)emalloc(sizeof(*z));
   if (z) {
-    mp_free(&z->mp);
-    z->n[EP] = z->n[EW] = 0;
-  }
-  return z;
-#else
-  if (z) {
-    mp_free(&z->mp);
-    if (z->e[EP]) free(z->e[EP]);
-    if (z->e[EW]) free(z->e[EW]);
-    free(z);
-  }
-  return NULL;
-#endif
-}
-
-static struct zonedata *dnvset_alloc(struct zonedata *z) {
-  if (!z && (z = (struct zonedata *)emalloc(sizeof(*z))) != NULL)
     memset(z, 0, sizeof(*z));
-  if (z) {
-#ifndef REUSEMEM
-    z->maxlab[EP] = z->maxlab[EW] = 0;
-#endif
     z->minlab[EP] = z->minlab[EW] = 255;
   }
   return z;
@@ -145,7 +134,7 @@ dnvset_load(struct zonedata *z, FILE *f) {
   return readzlines(f, z, dnvset_parseline);
 }
 
-static int dnvset_cmpent(const struct entry *a, const struct entry *b) {
+static inline int dnvset_cmpent(const struct entry *a, const struct entry *b) {
   int r = strcmp(a->dn, b->dn);
   if (r) return r;
   if (a->r_a < b->r_a) return -1;
@@ -153,22 +142,25 @@ static int dnvset_cmpent(const struct entry *a, const struct entry *b) {
   return 0;
 }
 
+static struct entry *dnvset_finish1(struct entry *e, unsigned n, unsigned a) {
+  if (!n) return NULL;
+  QSORT(struct entry, e, n, dnvset_cmpent);
+  /* we make all the same DNs point to one string for faster searches */
+  { register struct entry *p, *t;
+    for(p = e, t = e + n - 1; p < t; ++p)
+      if (p[0].dn != p[1].dn && strcmp(p[0].dn, p[1].dn) == 0)
+        p[1].dn = p[0].dn;
+  }
+#define dnvset_eeq(a,b) a.dn == b.dn && rrs_equal(a,b)
+  REMOVE_DUPS(e, n, struct entry, dnvset_eeq);
+  SHRINK_ARRAY(e, a, n, struct entry);
+  return e;
+}
+
 static int dnvset_finish(struct zonedata *z) {
   unsigned r;
-  for(r = 0; r < 2; ++r) {
-    if (!z->n[r]) continue;
-    qsort(z->e[r], z->n[r], sizeof(struct entry),
-          (int(*)(const void*, const void*))dnvset_cmpent);
-    /* we make all the same DNs point to one string for faster searches */
-    { register struct entry *e, *t;
-      for(e = z->e[r], t = z->e[r] + z->n[r] - 1; e < t; ++e)
-        if (e[0].dn != e[1].dn && strcmp(e[0].dn, e[1].dn) == 0)
-          e[1].dn = e[0].dn;
-    }
-#define eeq(a,b) a.dn == b.dn && rrs_equal(a,b)
-    removedups(z->e[r], z->n[r], struct entry, eeq);
-    shrinkarray(z->e[r], z->a[r], z->n[r], struct entry);
-  }
+  for(r = 0; r < 2; ++r)
+    z->e[r] = dnvset_finish1(z->e[r], z->n[r], z->a[r]);
   zloaded("e/w=%u/%u", z->n[EP], z->n[EW]);
   return 1;
 }

@@ -12,6 +12,7 @@
 #include <stdlib.h>
 #include "rbldnsd.h"
 #include "dns.h"
+#include "qsort.h"
 
 definezonetype(ip4set, NSQUERY_A_TXT, "set of ip4 addresses");
 
@@ -29,6 +30,17 @@ struct zonedata {
 #define E24 1
 #define E16 2
 #define E08 3
+
+static void ip4set_free(struct zonedata *z) {
+  if (z) {
+    if (z->r_txt) free(z->r_txt);
+    if (z->e[E32]) free(z->e[E32]);
+    if (z->e[E24]) free(z->e[E24]);
+    if (z->e[E16]) free(z->e[E16]);
+    if (z->e[E08]) free(z->e[E08]);
+    free(z);
+  }
+}
 
 static int
 ip4set_addent(struct zonedata *z, unsigned idx, ip4addr_t a, unsigned count) {
@@ -55,12 +67,7 @@ ip4set_addent(struct zonedata *z, unsigned idx, ip4addr_t a, unsigned count) {
 static int
 ip4set_parseline(struct zonedata *z, char *line, int lineno, int llines) {
   char *p;
-#ifndef NOIP4RANGES
   ip4addr_t a, b;
-#else
-  unsigned bits;
-  ip4addr_t a;
-#endif
 
   if (!llines && line[0] == ':') {
     /* default entry */
@@ -77,57 +84,14 @@ ip4set_parseline(struct zonedata *z, char *line, int lineno, int llines) {
   }
 
   /* normal entry */
-  if (
-#ifndef NOIP4RANGES
-      !ip4parse_range(line, &a, &b, &p)
-#else
-      !(bits = ip4parse_cidr(line, &a, &p))
-#endif
-      || (*p != '\0' && *p != ' ' && *p != '\t' && *p != '#' && *p != ':')) {
+  if (!ip4parse_range(line, &a, &b, &p) ||
+      (*p != '\0' && *p != ' ' && *p != '\t' && *p != '#' && *p != ':')) {
     zwarn(lineno, "invalid entry");
     return 1;
   }
 
-#ifndef NOIP4RANGES
 #define fn(idx, start, count) ip4set_addent(z, idx, start, count)
   ip4range_expand(a, b, fn);
-#else
-  return
-    ip4set_addent(z, 3 - ((bits-1)>>3), a, 1 << ((32-bits) & 7));
-#endif
-
-}
-
-static struct zonedata *ip4set_free(struct zonedata *z) {
-#ifdef REUSEMEM
-  if (z) {
-    if (z->r_txt) { free(z->r_txt); z->r_txt = NULL; }
-    z->n[E32] = z->n[E24] = z->n[E16] = z->n[E08] = 0;
-  }
-  return z;
-#else
-  if (z) {
-    if (z->r_txt) free(z->r_txt);
-    if (z->e[E32]) free(z->e[E32]);
-    if (z->e[E24]) free(z->e[E24]);
-    if (z->e[E16]) free(z->e[E16]);
-    if (z->e[E08]) free(z->e[E08]);
-    free(z);
-  }
-  return NULL;
-#endif
-}
-
-static struct zonedata *ip4set_alloc(struct zonedata *z) {
-  if (!z && (z = (struct zonedata *)emalloc(sizeof(*z))) != NULL) 
-    memset(z, 0, sizeof(*z));
-  if (z) {
-    z->r_a = R_A_DEFAULT;
-#ifndef REUSEMEM
-    z->nfile = 0;
-#endif
-  }
-  return z;
 }
 
 static int ip4set_load(struct zonedata *z, FILE *f) {
@@ -135,22 +99,29 @@ static int ip4set_load(struct zonedata *z, FILE *f) {
   return readzlines(f, z, ip4set_parseline);
 }
 
-static int ip4set_cmpent(const ip4addr_t *a, const ip4addr_t *b) {
-  if (*a < *b) return -1;
-  if (*a > *b) return 1;
-  return 0;
+static struct zonedata *ip4set_alloc() {
+  struct zonedata *z = (struct zonedata *)emalloc(sizeof(*z));
+  if (z) {
+    memset(z, 0, sizeof(*z));
+    z->r_a = R_A_DEFAULT;
+  }
+  return z;
+}
+
+static ip4addr_t *ip4set_finish1(ip4addr_t *e, unsigned n, unsigned a) {
+  if (!n) return NULL;
+#define ip4set_cmpent(a,b) (*a < *b ? -1 : *a > *b ? 1 : 0)
+  QSORT(ip4addr_t, e, n, ip4set_cmpent);
+#define ip4set_eeq(a,b) a == b
+  REMOVE_DUPS(e, n, ip4addr_t, ip4set_eeq);
+  SHRINK_ARRAY(e, a, n, ip4addr_t);
+  return e;
 }
 
 static int ip4set_finish(struct zonedata *z) {
   unsigned r;
-  for(r = 0; r < 4; ++r) {
-    if (!z->n[r]) continue;
-    qsort(z->e[r], z->n[r], sizeof(ip4addr_t),
-          (int(*)(const void*, const void*))ip4set_cmpent);
-#define eeq(a,b) a == b
-    removedups(z->e[r], z->n[r], ip4addr_t, eeq);
-    shrinkarray(z->e[r], z->a[r], z->n[r], ip4addr_t);
-  }
+  for(r = 0; r < 4; ++r)
+    z->e[r] = ip4set_finish1(z->e[r], z->n[r], z->a[r]);
   zloaded("e32/24/16/8=%u/%u/%u/%u", 
           z->n[E32], z->n[E24], z->n[E16], z->n[E08]);
   return 1;

@@ -10,6 +10,7 @@
 #include "rbldnsd.h"
 #include "dns.h"
 #include "mempool.h"
+#include "qsort.h"
 
 definezonetype(dnset, NSQUERY_A_TXT, "set of domain names");
 
@@ -40,6 +41,15 @@ struct zonedata {
 /* indexes */
 #define EP 0
 #define EW 1
+
+static void dnset_free(struct zonedata *z) {
+  if (z) {
+    mp_free(&z->mp);
+    if (z->e[EP]) free(z->e[EP]);
+    if (z->e[EW]) free(z->e[EW]);
+    free(z);
+  }
+}
 
 static int
 dnset_parseline(struct zonedata *z, char *line, int lineno, int llines) {
@@ -89,35 +99,12 @@ dnset_parseline(struct zonedata *z, char *line, int lineno, int llines) {
   return 1;
 }
 
-static struct zonedata *dnset_free(struct zonedata *z) {
-#ifdef REUSEMEM
+static struct zonedata * dnset_alloc() {
+  struct zonedata *z = (struct zonedata *)emalloc(sizeof(*z));
   if (z) {
-    mp_free(&z->mp);
-    z->n[EP] = z->n[EW] = 0;
-  }
-  return z;
-#else
-  if (z) {
-    mp_free(&z->mp);
-    if (z->e[EP]) free(z->e[EP]);
-    if (z->e[EW]) free(z->e[EW]);
-    free(z);
-  }
-  return NULL;
-#endif
-}
-
-static struct zonedata * dnset_alloc(struct zonedata *z) {
-  if (!z && (z = (struct zonedata *)emalloc(sizeof(*z))) != NULL)
     memset(z, 0, sizeof(*z));
-  if (z) {
     z->r_a = R_A_DEFAULT;
     z->minlab[EP] = z->minlab[EW] = 256;
-#ifndef REUSEMEM
-    z->r_txt = NULL;
-    z->nfile = 0;
-    z->maxlab[EP] = z->maxlab[EW] = 0;
-#endif
   }
   return z;
 }
@@ -128,20 +115,20 @@ dnset_load(struct zonedata *z, FILE *f) {
   return readzlines(f, z, dnset_parseline);
 }
 
-static int dnset_cmpent(const struct entry *a, const struct entry *b) {
-  return strcmp(a->dn, b->dn);
+static struct entry *dnset_finish1(struct entry *e, unsigned n, unsigned a) {
+  if (!n) return NULL;
+#define dnset_cmpent(a,b) strcmp(a->dn, b->dn)
+  QSORT(struct entry, e, n, dnset_cmpent);
+#define dnset_eeq(a,b) strcmp(a.dn, b.dn) == 0
+  REMOVE_DUPS(e, n, struct entry, dnset_eeq);
+  SHRINK_ARRAY(e, a, n, struct entry);
+  return e;
 }
 
 static int dnset_finish(struct zonedata *z) {
   unsigned r;
-  for(r = 0; r < 2; ++r) {
-    if (!z->n[r]) continue;
-    qsort(z->e[r], z->n[r], sizeof(struct entry),
-          (int(*)(const void*, const void*))dnset_cmpent);
-#define eeq(a,b) strcmp(a.dn, b.dn) == 0
-    removedups(z->e[r], z->n[r], struct entry, eeq);
-    shrinkarray(z->e[r], z->a[r], z->n[r], struct entry);
-  }
+  for(r = 0; r < 2; ++r)
+    z->e[r] = dnset_finish1(z->e[r], z->n[r], z->a[r]);
   zloaded("e/w=%u/%u", z->n[EP], z->n[EW]);
   return 1;
 }

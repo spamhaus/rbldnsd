@@ -10,6 +10,7 @@
 #include "rbldnsd.h"
 #include "dns.h"
 #include "mempool.h"
+#include "qsort.h"
 
 definezonetype(ip4vset, NSQUERY_A_TXT, "set of (ip4, value) pairs");
 
@@ -33,6 +34,17 @@ struct zonedata {
 #define E24 1
 #define E16 2
 #define E08 3
+
+static void ip4vset_free(struct zonedata *z) {
+  if (z) {
+    mp_free(&z->mp);
+    if (z->e[E32]) free(z->e[E32]);
+    if (z->e[E24]) free(z->e[E24]);
+    if (z->e[E16]) free(z->e[E16]);
+    if (z->e[E08]) free(z->e[E08]);
+    free(z);
+  }
+}
 
 static int
 ip4vset_addent(struct zonedata *z, unsigned idx, ip4addr_t a, unsigned count,
@@ -62,12 +74,7 @@ ip4vset_addent(struct zonedata *z, unsigned idx, ip4addr_t a, unsigned count,
 
 static int
 ip4vset_parseline(struct zonedata *z, char *line, int lineno, int llines) {
-#ifndef NOIP4RANGES
   ip4addr_t a, b;
-#else
-  ip4addr_t a;
-  unsigned bits;
-#endif
   char *p;
   ip4addr_t r_a;
   const char *r_txt;
@@ -91,13 +98,8 @@ ip4vset_parseline(struct zonedata *z, char *line, int lineno, int llines) {
   }
   else
     not = 0;
-  if (
-#ifndef NOIP4RANGES
-      !ip4parse_range(line, &a, &b, &p)
-#else
-      !(bits = ip4parse_cidr(line, &a, &p))
-#endif
-      || (*p != '\0' && *p != ' ' && *p != '\t' && *p != '#' && *p != ':')) {
+  if (!ip4parse_range(line, &a, &b, &p) ||
+      (*p != '\0' && *p != ' ' && *p != '\t' && *p != '#' && *p != ':')) {
     zwarn(lineno, "invalid address");
     return 1;
   }
@@ -116,40 +118,8 @@ ip4vset_parseline(struct zonedata *z, char *line, int lineno, int llines) {
   else if (!p) r_txt = z->r_txt;
   else if (!(r_txt = mp_edstrdup(&z->mp, p))) return 0;
 
-#ifndef NOIP4RANGES
 #define fn(idx,start,count) ip4vset_addent(z, idx, start, count, r_a, r_txt)
   ip4range_expand(a, b, fn);
-#else
-  return
-    ip4vset_addent(z, 3 - ((bits-1)>>3), a, 1 << ((32-bits) & 7), r_a, r_txt);
-#endif
-
-}
-
-static struct zonedata *ip4vset_free(struct zonedata *z) {
-#ifdef REUSEMEM
-  if (z) {
-    mp_free(&z->mp);
-    z->n[E32] = z->n[E24] = z->n[E16] = z->n[E08] = 0;
-  }
-  return z;
-#else
-  if (z) {
-    mp_free(&z->mp);
-    if (z->e[E32]) free(z->e[E32]);
-    if (z->e[E24]) free(z->e[E24]);
-    if (z->e[E16]) free(z->e[E16]);
-    if (z->e[E08]) free(z->e[E08]);
-    free(z);
-  }
-  return NULL;
-#endif
-}
-
-static struct zonedata *ip4vset_alloc(struct zonedata *z) {
-  if (!z && (z = (struct zonedata *)emalloc(sizeof(*z))) != NULL)
-    memset(z, 0, sizeof(*z));
-  return z;
 }
 
 static int ip4vset_load(struct zonedata *z, FILE *f) {
@@ -158,24 +128,30 @@ static int ip4vset_load(struct zonedata *z, FILE *f) {
   return readzlines(f, z, ip4vset_parseline);
 }
 
-static int ip4vset_cmpent(const struct entry *a, const struct entry *b) {
-  if (a->addr < b->addr) return -1;
-  if (a->addr > b->addr) return 1;
-  if (a->r_a < b->r_a) return -1;
-  if (a->r_a > b->r_a) return 1;
-  return 0;
+static struct zonedata *ip4vset_alloc() {
+  struct zonedata *z = (struct zonedata *)emalloc(sizeof(*z));
+  if (z)
+    memset(z, 0, sizeof(*z));
+  return z;
+}
+
+static struct entry *ip4vset_finish1(struct entry *e, unsigned n, unsigned a) {
+  if (!n) return NULL;
+#define ip4vset_cmpent(a,b) \
+    a->addr < b->addr ? -1 : a->addr > b->addr ? 1 : \
+      a->r_a < b->r_a ? -1 : a->r_a > b->r_a ? 1 : \
+        0
+  QSORT(struct entry, e, n, ip4vset_cmpent);
+#define ip4vset_eeq(a,b) a.addr == b.addr && rrs_equal(a,b)
+  REMOVE_DUPS(e, n, struct entry, ip4vset_eeq);
+  SHRINK_ARRAY(e, a, n, struct entry);
+  return e;
 }
 
 static int ip4vset_finish(struct zonedata *z) {
   unsigned r;
-  for(r = 0; r < 4; ++r) {
-    if (!z->n[r]) continue;
-    qsort(z->e[r], z->n[r], sizeof(struct entry),
-          (int(*)(const void*, const void*))ip4vset_cmpent);
-#define eeq(a,b) a.addr == b.addr && rrs_equal(a,b)
-    removedups(z->e[r], z->n[r], struct entry, eeq);
-    shrinkarray(z->e[r], z->a[r], z->n[r], struct entry);
-  }
+  for(r = 0; r < 4; ++r)
+    z->e[r] = ip4vset_finish1(z->e[r], z->n[r], z->a[r]);
   zloaded("e32/24/16/8=%u/%u/%u/%u",
           z->n[E32], z->n[E24], z->n[E16], z->n[E08]);
   return 1;

@@ -1,14 +1,16 @@
 rbldnsd (0.83p1) unstable; urgency=low
 
-  * do not free() memory for arrays on zone reloads, but reuse
-    previously allocated memory (-DREUSEMEM, not enabled by default).
-    This should speed up loads.
+  * use included version of qsort (as a macro) in order to be able to
+    use inline comparision routine.  This speeds up loading dramatically,
+    it is now about 4..5 times faster.
 
   * allow to run as non-root; little cleanups
 
+  * removed -DNOREMOVEDUPS, -DNOIP4RANGES
+
   * added statistic counters (SIGUSR1/USR2/exit) - disable with -DNOSTATS
 
-  * added meminfo logging via mallinfo - disable with -DNOMEMINFO
+  * added meminfo logging via mallinfo (-m option) - disable with -DNOMEMINFO
 
   * fixed invocation w/o -b (bind address): rbldnsd wasn't work w/o -b at all
 

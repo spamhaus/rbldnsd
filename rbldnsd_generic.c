@@ -10,6 +10,7 @@
 #include "rbldnsd.h"
 #include "dns.h"
 #include "mempool.h"
+#include "qsort.h"
 
 definezonetype(generic, NSQUERY_ANY, "generic simplified bind-format");
 
@@ -39,6 +40,14 @@ struct zonedata {
 #endif
   struct mempool mp;	/* mempool for domain names and RR data */
 };
+
+static void generic_free(struct zonedata *z) {
+  if (z) {
+    mp_free(&z->mp);
+    if (z->e) free(z->e);
+    free(z);
+  }
+}
 
 #define skipsp(s) while(*s == ' ' || *s == '\t') ++s
 #define endword(s,err) \
@@ -181,26 +190,18 @@ generic_parseline(struct zonedata *z, char *line,
     return 1;
 }
 
-static struct zonedata *generic_free(struct zonedata *z) {
-  if (z) {
-    mp_free(&z->mp);
-    if (z->e) free(z->e);
-    free(z);
-  }
-  return NULL;
-}
-
-static struct zonedata *generic_alloc(struct zonedata *z) {
-  if (!z && (z = (struct zonedata *)emalloc(sizeof(*z))) != NULL)
-    memset(z, 0, sizeof(*z));
-  return z;
-}
-
 static int generic_load(struct zonedata *z, FILE *f) {
   return readzlines(f, z, generic_parseline);
 }
 
-static int generic_cmpent(const struct entry *a, const struct entry *b) {
+static struct zonedata *generic_alloc() {
+  struct zonedata *z = (struct zonedata *)emalloc(sizeof(*z));
+  if (z)
+    memset(z, 0, sizeof(*z));
+  return z;
+}
+
+static inline int generic_cmpent(const struct entry *a, const struct entry *b) {
   int r = strcmp(a->dn, b->dn);
   if (r) return r;
   if (a->dtyp < b->dtyp) return -1;
@@ -208,17 +209,21 @@ static int generic_cmpent(const struct entry *a, const struct entry *b) {
   return 0;
 }
 
-static int generic_finish(struct zonedata *z) {
-  struct entry *e, *t;
-  if (z->n) {
-    qsort(z->e, z->n, sizeof(struct entry),
-          (int(*)(const void*, const void*))generic_cmpent);
-    /* collect all equal DNs to point to the same place */
-    for(e = z->e, t = z->e + z->n - 1; e < t; ++e)
-      if (e[0].dn != e[1].dn && strcmp(e[0].dn, e[1].dn) == 0)
-        e[1].dn = e[0].dn;
-    shrinkarray(z->e, z->a, z->n, struct entry);
+static struct entry *generic_finish1(struct entry *e, unsigned n, unsigned a) {
+  if (!n) return NULL;
+  QSORT(struct entry, e, n, generic_cmpent);
+  /* collect all equal DNs to point to the same place */
+  { struct entry *i, *t;
+    for(i = e, t = e + n - 1; i < t; ++i)
+      if (i[0].dn != i[1].dn && strcmp(i[0].dn, i[1].dn) == 0)
+        i[1].dn = i[0].dn;
   }
+  SHRINK_ARRAY(e, a, n, struct entry);
+  return e;
+}
+
+static int generic_finish(struct zonedata *z) {
+  z->e = generic_finish1(z->e, z->n, z->a);
   zloaded("e=%u", z->n);
   return 1;
 }
