@@ -10,7 +10,7 @@ rbldnsd (0.98a.pre) unstable; urgency=low
   * move VERSION[_DATE] extraction from Makefile to configure,
     made Makefile depend on debian/changelog.
 
- -- Michael Tokarev <mjt@corpit.ru>  Fri, 22 Aug 2003 01:46:59 +0400
+ -- Michael Tokarev <mjt@corpit.ru>  Fri, 22 Aug 2003 13:53:26 +0400
 
 rbldnsd (0.98) unstable; urgency=low
 
