@@ -58,8 +58,7 @@ createnode(ip4addr_t prefix, unsigned bits, struct mempool *mp) {
   node->prefix = prefix;
   node->bits = bits;
 #ifdef IP4TRIE_DEBUG
-  {
-    unsigned c;
+  { unsigned c;
     memset(node->pstr, '0', 32);
     for(c = 0; c < bits; ++c) if (bitset(prefix, c)) node->pstr[c] = '1';
   }
@@ -112,24 +111,16 @@ linknode(struct node *parent, struct node *node) {
 static struct node *
 ds_ip4trie_addnode(struct dsdata *dsd, ip4addr_t prefix, unsigned bits,
                    struct mempool *mp) {
-  struct node *node = dsd->tree;
-  struct node *match = NULL;
+  struct node *node, **last;
 
-  dprintf(("addnode: %s\n", p2s(prefix, bits)));
+#ifdef IP4TRIE_DEBUG
+  static int c;
+  dprintf(("%d addnode: %s\n", c++, p2s(prefix, bits)));
+#endif
 
-  for(;;) {
-
-    if (!node) {
-      /* no more nodes, create simple new node */
-      ++dsd->nnodes;
-      if (!(node = createnode(prefix, bits, mp)))
-        return NULL;
-      if (match)
-        linknode(match, node);
-      else
-        dsd->tree = node;
-      return node;
-    }
+  for(last = &dsd->tree;
+      (node = *last) != NULL;
+      last = bitset(prefix, node->bits) ? &node->right : &node->left) {
 
     if (node->bits > bits || !prefixmatch(node->prefix, prefix, node->bits)) {
       /* new node should be inserted before the given node */
@@ -149,32 +140,29 @@ ds_ip4trie_addnode(struct dsdata *dsd, ip4addr_t prefix, unsigned bits,
       if (!(newnode = createnode(prefix & ip4mask(cbits), cbits, mp)))
         return NULL;
       linknode(newnode, node);
-      if (match)
-        linknode(match, newnode);
-      else
-        dsd->tree = newnode;
-      if (cbits != bits) {
-        /* so we just inserted a glue node, now insert real one */
-        ++dsd->nnodes;
-        match = newnode;
-        if (!(newnode = createnode(prefix, bits, mp)))
+      *last = newnode;
+      if (cbits == bits)
+        return newnode;
+      /* so we just inserted a glue node, now insert real one */
+      ++dsd->nnodes;
+      if (!(node = createnode(prefix, bits, mp)))
           return NULL;
-        linknode(match, newnode);
-      }
-      return newnode;
+      linknode(newnode, node);
+      return node;
     }
 
     /* node's prefix matches */
     if (node->bits == bits)	/* if number of bits are the same too, */
       return node;		/* ..we're found exactly the same prefix */
 
-    match = node;		/* remember last match.. */
-    if (bitset(prefix, node->bits))	/* and go to the right direction */
-      node = node->right;
-    else
-      node = node->left;
   }
 
+  /* no more nodes, create simple new node */
+  ++dsd->nnodes;
+  if (!(node = createnode(prefix, bits, mp)))
+    return NULL;
+  *last = node;
+  return node;
 }
 
 static int
@@ -236,9 +224,12 @@ ds_ip4trie_line(struct dataset *ds, char *s, int lineno) {
 
 static void ds_ip4trie_finish(struct dataset *ds) {
   struct dsdata *dsd = ds->ds_dsd;
+#ifdef IP4TRIE_DEBUG
+  print_tree(dsd->tree, "final", 0);
+  fflush(stdout);
+#endif
   dsloaded("ent=%u nodes=%u mem=%u",
            dsd->nents, dsd->nnodes, dsd->nnodes * sizeof(struct node));
-  print_tree(dsd->tree, "final", 0);
 }
 
 int
