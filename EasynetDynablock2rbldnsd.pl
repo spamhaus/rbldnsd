@@ -1,4 +1,4 @@
-#! /usr/bin/perl -W
+#! /usr/bin/perl -w
 # $Id$
 # 
 # A sample script to convert dynablock.wirehub.net bind zone
