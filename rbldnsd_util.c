@@ -142,12 +142,15 @@ int readdslines(FILE *f, struct dataset *ds) {
 #undef buf
 }
 
-int parse_a_txt(char *str, const char **rrp, const char def_a[4]) {
+int parse_a_txt(int lineno, char *str, const char **rrp, const char def_a[4]) {
   char *rr;
   if (*str == ':') {
     ip4addr_t a;
     unsigned bits = ip4addr(str + 1, &a, &str);
-    if (!a || !bits) return 0;
+    if (!a || !bits) {
+      dswarn(lineno, "invalid A RR");
+      return 0;
+    }
     if (bits == 8)
       a |= IP4A_LOOPBACK; /* only last digit in 127.0.0.x */
     SKIPSPACE(str);
@@ -155,8 +158,10 @@ int parse_a_txt(char *str, const char **rrp, const char def_a[4]) {
       ++str;
       SKIPSPACE(str);
     }
-    else if (*str)
+    else if (*str) {
+      dswarn(lineno, "unrecognized value for an entry");
       return 0;
+    }
     rr = (unsigned char*)str - 4;
     PACK32(rr, a);
   }
@@ -166,7 +171,12 @@ int parse_a_txt(char *str, const char **rrp, const char def_a[4]) {
   }
   if (*str) {
     unsigned len = strlen(str);
-    str += len > 255 ? 255 : len;
+    if (len > 255) {
+      dswarn(lineno, "TXT RR truncated to 255 bytes");
+      str += 255;
+    }
+    else
+      str += len;
     *str = '\0';
   }
   *rrp = rr;

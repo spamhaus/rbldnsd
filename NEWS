@@ -15,6 +15,11 @@ Never news are at top.
 
  - reply with REFUSED instead of FORMERR for unknown query class
 
+ - warn about truncated TXT records.  DNS spec allows TXT record to be
+   more than 255 bytes long (by using a series of STRINGs in one RR,
+   each 255 bytes max), but there's no point using TXTs longer than
+   255 bytes for a DNSBL (think of SMTP rejection message)
+
 0.97b (6 Aug 2003)
 
  - bugfix: there was an error in per-zone statistics counting code

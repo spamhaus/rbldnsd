@@ -83,10 +83,8 @@ ds_ip4set_line(struct dataset *ds, char *s, int lineno) {
   int not;
 
   if (*s == ':') {
-    if (!(rrl = parse_a_txt(s, &rr, def_rr))) {
-      dswarn(lineno, "invalid default entry");
+    if (!(rrl = parse_a_txt(lineno, s, &rr, def_rr)))
       return 1;
-    }
     if (!(dsd->def_rr = mp_dmemdup(ds->ds_mp, rr, rrl)))
       return 0;
     return 1;
@@ -109,10 +107,8 @@ ds_ip4set_line(struct dataset *ds, char *s, int lineno) {
     SKIPSPACE(s);
     if (!*s || ISCOMMENT(*s))
       rr = dsd->def_rr;
-    else if (!(rrl = parse_a_txt(s, &rr, dsd->def_rr))) {
+    else if (!(rrl = parse_a_txt(lineno, s, &rr, dsd->def_rr)))
       dswarn(lineno, "invalid value");
-      return 1;
-    }
     else if (!(rr = mp_dmemdup(ds->ds_mp, rr, rrl)))
       return 0;
   }

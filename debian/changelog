@@ -17,8 +17,11 @@ rbldnsd (0.98pre) unstable; urgency=low
     class (IN,ANY,etc) requested
   * defttl => def_ttl to be consistent with def_rr
   * set ttl for version.bind to be 0
+  * warn about truncating TXT records.  Change interface of parse_a_txt()
+    to include a line number
+  * TXT RR is 255 bytes max, not 254 (generic dataset)
 
- -- Michael Tokarev <mjt@corpit.ru>  Thu,  7 Aug 2003 21:44:43 +0400
+ -- Michael Tokarev <mjt@corpit.ru>  Thu,  7 Aug 2003 22:13:22 +0400
 
 rbldnsd (0.97b) unstable; urgency=low
 

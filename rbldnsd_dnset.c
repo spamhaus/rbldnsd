@@ -56,10 +56,8 @@ ds_dnset_line(struct dataset *ds, char *s, int lineno) {
   int not;
 
   if (*s == ':') {		/* default entry */
-    if (!(size = parse_a_txt(s, &rr, def_rr))) {
-      dswarn(lineno, "invalid default entry");
+    if (!(size = parse_a_txt(lineno, s, &rr, def_rr)))
       return 1;
-    }
     if (!(dsd->def_rr = mp_dmemdup(ds->ds_mp, rr, size)))
       return 0;
     return 1;
@@ -92,10 +90,8 @@ ds_dnset_line(struct dataset *ds, char *s, int lineno) {
     SKIPSPACE(s);
     if (!*s || ISCOMMENT(*s))	/* use default if none given */
       rr = dsd->def_rr;
-    else if (!(size = parse_a_txt(s, &rr, dsd->def_rr))) {
-      dswarn(lineno, "invalid value");
+    else if (!(size = parse_a_txt(lineno, s, &rr, dsd->def_rr)))
       return 1;
-    }
     else if (!(rr = mp_dmemdup(ds->ds_mp, rr, size)))
       return 0;
   }

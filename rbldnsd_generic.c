@@ -34,7 +34,7 @@ static void ds_generic_reset(struct dsdata *dsd, int UNUSED unused_freeall) {
 static void ds_generic_start(struct dataset UNUSED *unused_ds) {
 }
 
-static int ds_generic_parseany(struct dataset *ds, char *s) {
+static int ds_generic_parseany(struct dataset *ds, char *s, int lineno) {
   struct dsdata *dsd = ds->ds_dsd;
   struct entry *e;
   char *t;
@@ -105,7 +105,10 @@ static int ds_generic_parseany(struct dataset *ds, char *s) {
     dsiz = strlen(s);
     if (dsiz >= 2 && s[0] == '"' && s[dsiz-1] == '"')
       ++s, dsiz -= 2;
-    if (dsiz > 254) dsiz = 254;
+    if (dsiz > 255) {
+      dswarn(lineno, "TXT RR truncated to 255 bytes");
+      dsiz = 255;
+    }
     dp[0] = (char)dsiz;
     memcpy(dp+1, s, dsiz);
     dsiz += 1;
@@ -139,7 +142,7 @@ static int ds_generic_parseany(struct dataset *ds, char *s) {
 
 static int
 ds_generic_line(struct dataset *ds, char *s, int lineno) {
-  int r = ds_generic_parseany(ds, s);
+  int r = ds_generic_parseany(ds, s, lineno);
   if (r < 0) {
     dswarn(lineno, "invalid/unrecognized entry");
     return 1;

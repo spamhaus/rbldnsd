@@ -661,9 +661,19 @@ real demand, I'll implement AXFR "server" support (so that
 will be able to act as master for BIND nameservers, but not
 as secondary), but the note remains: use rsync.
 
+.PP
+.B rbldnsd
+truncates all TXT records to be at most 255 bytes.  DNS specs
+allows longer TXTs, but long TXTs is something that should be
+avoided as much as possible \- TXT record is used as SMTP
+rejection string.  Note that DNS UDP packet is limited to 512
+bytes.
+.B rbldnsd
+will log a warning when such truncation occurs.
+
 .SH VERSION
 
-This manpage corresponds to \fBrbldnsd\fR version \fB0.97\fR.
+This manpage corresponds to \fBrbldnsd\fR version \fB0.98\fR.
 
 .SH AUTHOR
 
