@@ -6,6 +6,9 @@
 #include <string.h>
 #include <stdlib.h>
 #include <stdarg.h>
+#include <syslog.h>
+#include <unistd.h>
+#include <time.h>
 #include "rbldnsd.h"
 
 #define digit(c) ((c) >= '0' && (c) <= '9')
@@ -139,40 +142,6 @@ int readdslines(FILE *f, struct dataset *ds) {
 #undef buf
 }
 
-/* parse DN (as in 4.3.2.1.in-addr.arpa) to ip4addr_t */
-
-int dntoip4addr(const unsigned char *q, unsigned qlab, ip4addr_t *ap) {
-  ip4addr_t a = 0, o;
-  if (qlab != 4) return 0;
-
-#define oct(q,o)					\
-    switch(*q) {					\
-    case 1:						\
-      if (!digit(q[1]))					\
-        return 0;					\
-      o = d2n(q[1]);					\
-      break;						\
-    case 2:						\
-      if (!digit(q[1]) || !digit(q[2]))			\
-        return 0;					\
-      o = d2n(q[1]) * 10 + d2n(q[2]);			\
-      break;						\
-    case 3:						\
-      if (!digit(q[1]) || !digit(q[2]) || !digit(q[3]))	\
-        return 0;					\
-      o = d2n(q[1]) * 100 + d2n(q[2]) * 10 + d2n(q[3]);	\
-      if (o > 255) return 0;				\
-      break;						\
-    default: return 0;					\
-    }
-  oct(q,o); a |= o;  q += *q + 1;
-  oct(q,o); a |= o << 8;  q += *q + 1;
-  oct(q,o); a |= o << 16;  q += *q + 1;
-  oct(q,o); a |= o << 24;
-  *ap = a;
-  return 1;
-}
-
 int parse_a_txt(char *str, const char **rrp, const char def_a[4]) {
   char *rr;
   if (*str == ':') {
@@ -265,4 +234,82 @@ int ssprintf(char *buf, int bufsz, const char *fmt, ...) {
   bufsz = vssprintf(buf, bufsz, fmt, ap);
   va_end(ap);
   return bufsz;
+}
+
+/* logging */
+
+static void
+vdslog(int level, int lineno, const char *fmt, va_list ap) {
+  char buf[1024];
+  int pl, l;
+  if ((logto & LOGTO_STDOUT) ||
+      (level <= LOG_WARNING && (logto & LOGTO_STDERR)))
+    l = pl = ssprintf(buf, sizeof(buf), "%.30s: ", progname);
+  else if (!(logto & LOG_SYSLOG))
+    return;
+  else
+    l = pl = 0;
+  if (ds_loading) {
+    l += ssprintf(buf + l, sizeof(buf) - l, "%s:%.60s:",
+                  ds_loading->ds_type->dst_name, ds_loading->ds_spec);
+    if (ds_loading->ds_subset)
+      l += ssprintf(buf + l, sizeof(buf) - l, "%s:",
+                    ds_loading->ds_subset->ds_type->dst_name);
+    if (ds_loading->ds_fname) {
+      l += ssprintf(buf + l, sizeof(buf) - l, " %.60s",
+                    ds_loading->ds_fname);
+      l += ssprintf(buf + l, sizeof(buf) - l,
+                    lineno ? "(%d): " : ": ", lineno);
+    }
+    else
+      l += ssprintf(buf + l, sizeof(buf) - l, " ");
+  }
+  l += vssprintf(buf + l, sizeof(buf) - l, fmt, ap);
+  if (logto & LOGTO_SYSLOG) {
+    fmt = buf + pl;
+    syslog(level, strchr(fmt, '%') ? "%s" : fmt, fmt);
+  }
+  if (logto & (LOGTO_STDOUT | LOGTO_STDERR)) {
+    buf[l++] = '\n';
+    write(level <= LOG_WARNING ? 2 : 1, buf, l);
+  }
+}
+
+void dslog(int level, int lineno, const char *fmt, ...) {
+  va_list ap;
+  va_start(ap, fmt);
+  vdslog(level, lineno, fmt, ap);
+  va_end(ap);
+}
+
+#define MAXWARN 5
+
+void dswarn(int lineno, const char *fmt, ...) {
+  if (++ds_loading->ds_warn <= MAXWARN) { /* prevent syslog flood */
+    va_list ap;
+    va_start(ap, fmt);
+    dslog(LOG_WARNING, lineno, fmt, ap);
+    va_end(ap);
+  }
+}
+
+void dsloaded(const char *fmt, ...) {
+  va_list ap;
+  ds_loading->ds_fname = NULL;
+  if (ds_loading->ds_warn > MAXWARN)
+    dslog(LOG_WARNING, 0, "%d more warnings suppressed",
+          ds_loading->ds_warn - MAXWARN);
+  va_start(ap, fmt);
+  if (ds_loading->ds_subset)
+     vdslog(LOG_INFO, 0, fmt, ap);
+  else {
+    struct tm *tm = gmtime(&ds_loading->ds_stamp);
+    char buf[128];
+    vsnprintf(buf, sizeof(buf), fmt, ap);
+    dslog(LOG_INFO, 0, "%04d%02d%02d %02d%02d%02d: %s",
+          tm->tm_year + 1900, tm->tm_mon + 1, tm->tm_mday,
+          tm->tm_hour, tm->tm_min, tm->tm_sec,
+          buf);
+  }
+  va_end(ap);
 }

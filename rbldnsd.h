@@ -282,9 +282,6 @@ int ds_combined_newset(struct dataset *ds, char *line, int lineno);
 
 extern const char def_rr[5];
 
-/* parse a DN as reverse-octet IP4 address.  return true if ok */
-int dntoip4addr(const unsigned char *q, unsigned qlab, ip4addr_t *ap);
-
 /* the same as in ip4addr, but with error/policy checking */
 unsigned ip4parse_cidr(const char *s, ip4addr_t *ap, char **np);
 int ip4parse_range(const char *s, ip4addr_t *a1p, ip4addr_t *a2p, char **np);

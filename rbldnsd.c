@@ -66,6 +66,7 @@ static char *logfile;		/* log file name */
 static int logmemtms;		/* print memory usage and (re)load time info */
 unsigned char defttl[4] = "\0\0\010\064";	/* default record TTL 35m */
 const char def_rr[5] = "\177\0\0\2\0";		/* default A RR */
+struct dataset *ds_loading;
 
 /* a list of zonetypes. */
 const struct dstype *ds_types[] = {

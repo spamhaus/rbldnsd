@@ -123,6 +123,45 @@ parsequery(register const unsigned char *q, unsigned qlen,
   return (unsigned char*)q + 4;	/* answers will start here */
 }
 
+/* parse DN (as in 4.3.2.1.in-addr.arpa) to ip4addr_t */
+static int dntoip4addr(const unsigned char *q, unsigned qlab, ip4addr_t *ap) {
+  ip4addr_t a = 0, o;
+  if (qlab != 4) return 0;
+
+#define digit(c) ((c) >= '0' && (c) <= '9')
+#define d2n(c) ((unsigned)((c) - '0'))
+
+#define oct(q,o)					\
+    switch(*q) {					\
+    case 1:						\
+      if (!digit(q[1]))					\
+        return 0;					\
+      o = d2n(q[1]);					\
+      break;						\
+    case 2:						\
+      if (!digit(q[1]) || !digit(q[2]))			\
+        return 0;					\
+      o = d2n(q[1]) * 10 + d2n(q[2]);			\
+      break;						\
+    case 3:						\
+      if (!digit(q[1]) || !digit(q[2]) || !digit(q[3]))	\
+        return 0;					\
+      o = d2n(q[1]) * 100 + d2n(q[2]) * 10 + d2n(q[3]);	\
+      if (o > 255) return 0;				\
+      break;						\
+    default: return 0;					\
+    }
+  oct(q,o); a |= o;  q += *q + 1;
+  oct(q,o); a |= o << 8;  q += *q + 1;
+  oct(q,o); a |= o << 16;  q += *q + 1;
+  oct(q,o); a |= o << 24;
+  *ap = a;
+  return 1;
+#undef oct
+#undef digit
+#undef d2n
+}
+
 const struct zone *
 findqzone(const struct zone *zone,
           unsigned dnlen, unsigned dnlab, unsigned char *const *const dnlptr,
