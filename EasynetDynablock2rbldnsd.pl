@@ -3,10 +3,8 @@
 # 
 # A sample script to convert dynablock.easynet.nl bind zone
 # (dynablock.txt) into rbldnsd ip4set form.  Only data gets
-# converted, not zone information.  Note this is ip4set, not
-# ip4set, since dynablock.txt contains exclusion entries wich
-# can't be presented in ip4set.
-#
+# converted, not zone information.
+
 use strict;
 
 my ($n, $ip, $a, $b);
