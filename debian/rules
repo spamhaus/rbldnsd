@@ -12,8 +12,8 @@ export DH_COMPAT=3
 
 DEFS =
 CFLAGS = -pipe -Wall -W -g
-ifneq (,$(findstring noopt,$(DEB_BUILD_OPTIONS)))
-	CFLAGS += -O2
+ifeq (,$(findstring noopt,$(DEB_BUILD_OPTIONS)))
+  CFLAGS += -O2
 endif
 
 config: config.h Makefile
