@@ -40,7 +40,7 @@ rm -rf $RPM_BUILD_ROOT
 
 %post
 getent passwd rbldns ||
-  useradd -r -d %home -M -c "rbldnsd pseudo-user" rbldns
+  useradd -r -d %home -M -c "rbldnsd pseudo-user" -s /sbin/nologin rbldns
 /sbin/chkconfig --add rbldnsd
 /etc/init.d/rbldnsd restart
 
