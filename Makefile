@@ -52,7 +52,8 @@ LIB_OBJS = $(LIBDNS_OBJS) $(LIBIP4_OBJS) mempool.o
 LIB_GSRC = $(LIBDNS_GSRC) $(LIBIP4_GSRC)
 
 RBLDNSD_SRCS = rbldnsd.c rbldnsd_zones.c rbldnsd_packet.c \
-  rbldnsd_ip4set.c rbldnsd_dnset.c rbldnsd_generic.c rbldnsd_combined.c \
+  rbldnsd_ip4set.c rbldnsd_ip4trie.c rbldnsd_dnset.c \
+  rbldnsd_generic.c rbldnsd_combined.c \
   rbldnsd_util.c
 RBLDNSD_HDRS = rbldnsd.h
 RBLDNSD_OBJS = $(RBLDNSD_SRCS:.c=.o) librbldnsd.a
@@ -143,6 +144,8 @@ rbldnsd_zones.o: rbldnsd_zones.c rbldnsd.h ip4addr.h dns.h mempool.h
 rbldnsd_packet.o: rbldnsd_packet.c rbldnsd.h ip4addr.h dns.h mempool.h
 rbldnsd_ip4set.o: rbldnsd_ip4set.c rbldnsd.h ip4addr.h dns.h mempool.h \
  qsort.c
+rbldnsd_ip4trie.o: rbldnsd_ip4trie.c rbldnsd.h ip4addr.h dns.h \
+ mempool.h
 rbldnsd_dnset.o: rbldnsd_dnset.c rbldnsd.h ip4addr.h dns.h mempool.h \
  qsort.c
 rbldnsd_generic.o: rbldnsd_generic.c rbldnsd.h ip4addr.h dns.h \

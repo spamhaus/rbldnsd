@@ -42,6 +42,10 @@ Never news are at top.
    each 255 bytes max), but there's no point using TXTs longer than
    255 bytes for a DNSBL (think of SMTP rejection message)
 
+ - feature: new dataset, ip4trie, to store IP4 CIDR ranges.  Unlike
+   ip4set, ip4trie can only hold one value per CIDR range and returns
+   only closest matching entry.  Experimental.
+
 0.97b (6 Aug 2003)
 
  - bugfix: there was an error in per-zone statistics counting code

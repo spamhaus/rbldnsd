@@ -30,6 +30,7 @@ rbldnsd (0.98pre) unstable; urgency=low
   * do fork() early in the initialization process so that logging will
     have proper pid tag. This also slightly simplified init routine.
   * made array of listening sockets to be global
+  * added ip4trie (experimental) dataset: set of IP4 CIDR ranges.
 
  -- Michael Tokarev <mjt@corpit.ru>  Wed, 13 Aug 2003 16:32:17 +0400
 
