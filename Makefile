@@ -55,8 +55,8 @@ SRCS = $(LIB_SRCS) $(RBLDNSD_SRCS) ip4rangetest.c
 GSRC = $(LIB_GSRC)
 HDRS = $(LIB_HDRS) $(RBLDNSD_HDRS)
 
-VERSION = 0.84p2
-VERSION_DATE = 2003-04-29
+VERSION = `sed -e 's/^[^(]\+(\([^)]\+\)).*/\1/' -e 1q debian/changelog`
+VERSION_DATE = `sed -n '/^ --/ { s/.*  ...,  \?\([0-9]\{1,2\} ... [0-9]\{4\}\) .*/\1/p; q; }' debian/changelog`
 
 all: rbldnsd
 
@@ -82,8 +82,8 @@ dns_nametab.c: dns.h dns_maketab.awk
 	$(AWK) -f dns_maketab.awk dns.h > $@.tmp
 	mv -f $@.tmp $@
 
-rbldnsd.o: rbldnsd.c
-	$(COMPILE) -DVERSION='"$(VERSION) $(VERSION_DATE)"'
+rbldnsd.o: rbldnsd.c debian/changelog
+	$(COMPILE) -DVERSION="\"$(VERSION) ($(VERSION_DATE))\""
 
 clean:
 	-rm -f $(RBLDNSD_OBJS) $(LIB_OBJS) librbldnsd.a ip4rangetest $(GSRC) \

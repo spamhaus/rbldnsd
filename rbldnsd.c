@@ -379,7 +379,7 @@ static int init(int argc, char **argv, struct zone **zonep) {
   if (!do_reload(*zonep))
     error(0, "zone loading errors, aborting");
   initialized = 1;
-  zlog(LOG_INFO, 0, "started (version %s)", version);
+  zlog(LOG_INFO, 0, "version %s started", version);
 
   if (!nodaemon) {
     if (fork() > 0) exit(0);
