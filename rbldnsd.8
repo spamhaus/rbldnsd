@@ -309,6 +309,33 @@ In TXT template, any occurence of dollar sign is replaced
 with original query string (or IP address) when formatting
 resulting TXT record.
 
+.SH SIGNALS
+
+.B Rbldnsd
+handles the following signals:
+
+.IP \fBSIGHUP\fR
+recheck zone files and reload any outdated ones.  This is done
+automatically if enabled, see \fB\-c\fR option.  Additionally,
+.B rbldnsd
+will reopen logfile upon receiving SIGHUP, if specified
+(\fB\-l\fR option).
+
+.IP "\fBSIGTERM\fR, \fBSIGINT\fR"
+Terminate process.
+
+.IP \fBSIGUSR1\fR
+Log current statistic counters into syslog.
+.B Rbldnsd
+collects how many packets it handled, how many bytes was received,
+sent, how many OK requests/replies (and how many answer records)
+was received/sent, how many NXDOMAIN answers was sent, and how
+many errors/refusals/etc was sent, in a period of time.
+
+.IP \fBSIGUSR2\fR
+The same as SIGUSR1, but reset all counters and start new sample
+period.
+
 .SH NOTES
 
 .PP
