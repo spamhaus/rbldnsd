@@ -1,3 +1,9 @@
+rbldnsd (0.83p1) unstable; urgency=low
+
+  * added statistic counters (SIGUSR1/USR2/exit)
+
+ -- Michael Tokarev <mjt@corpit.ru>  Sun,  6 Apr 2003 02:46:29 +0400
+
 rbldnsd (0.82) unstable; urgency=low
 
   * recognize another variation of IP address range, for easy use:
