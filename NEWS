@@ -3,7 +3,7 @@ $Id$
 This file describes user-visible changes in rbldnsd.
 Never news are at top.
 
-0.97
+0.97 (13 Jul 2003)
 
  - feature: added per-basezone statistic counters
 

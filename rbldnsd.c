@@ -72,7 +72,9 @@ struct dataset *ds_loading;
 const struct dstype *ds_types[] = {
   &dataset_ip4set_type,
   &dataset_dnset_type,
+#ifdef DNHASH
   &dataset_dnhash_type,
+#endif
   &dataset_generic_type,
   &dataset_combined_type,
   NULL

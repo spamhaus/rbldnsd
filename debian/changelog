@@ -1,4 +1,4 @@
-rbldnsd (0.97pre) unstable; urgency=low
+rbldnsd (0.97) unstable; urgency=low
 
   * even better mempool align arith
   * remove some dnlen usage (only tiny slowdown of zone reloads)
@@ -18,7 +18,7 @@ rbldnsd (0.97pre) unstable; urgency=low
   * corrections of various spelling errors in manpage, great thanks to
     Bert Driehuis (driehuis{at}playbeing{dot}org) for this.
 
- -- Michael Tokarev <mjt@corpit.ru>  Sun, 29 Jun 2003 19:43:01 +0400
+ -- Michael Tokarev <mjt@corpit.ru>  Sun, 13 Jul 2003 03:19:56 +0400
 
 rbldnsd (0.96) unstable; urgency=high
 
