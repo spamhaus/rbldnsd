@@ -4,8 +4,9 @@ rbldnsd (0.97pre) unstable; urgency=low
   * remove some dnlen usage (only tiny slowdown of zone reloads)
   * use switch(firstchar) in ds_special()
   * return SOA first to ANY queries
+  * Also return NS in AUTH in ANY queries inside base zone (cosmetic)
 
- -- Michael Tokarev <mjt@corpit.ru>  Thu, 29 May 2003 14:57:49 +0400
+ -- Michael Tokarev <mjt@corpit.ru>  Thu, 29 May 2003 15:03:45 +0400
 
 rbldnsd (0.96) unstable; urgency=high
 
