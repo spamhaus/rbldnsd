@@ -707,8 +707,8 @@ static int version_req(struct dnspacket *pkt, const struct dnsquery *qry) {
     return 0;
   if (qry->q_class != DNS_C_CH || qry->q_type != DNS_T_TXT)
     return 0;
-  if (!(qry->q_dnlen == 14 && memcmp(qry->q_dn, "\7version\4bind", 14) == 0) &&
-      !(qry->q_dnlen == 17 && memcmp(qry->q_dn, "\7version\7rbldnsd", 17) == 0))
+  if ((qry->q_dnlen != 16 || memcmp(qry->q_dn, "\7version\6server", 16)) &&
+      (qry->q_dnlen != 14 || memcmp(qry->q_dn, "\7version\4bind", 14)))
     return 0;
 
   c = pkt->p_cur;
