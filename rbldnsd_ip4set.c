@@ -89,7 +89,7 @@ ds_ip4set_parseline(struct zonedataset *zds, char *s, int lineno) {
   else
     not = 0;
   if (!ip4parse_range(s, &a, &b, &s) ||
-      (*s && !ISSPACE(*s) && *s != '#' && *s != ':')) {
+      (*s && !ISSPACE(*s) && !ISCOMMENT(*s) && *s != ':')) {
     dswarn(lineno, "invalid address");
     return 1;
   }
@@ -97,7 +97,7 @@ ds_ip4set_parseline(struct zonedataset *zds, char *s, int lineno) {
     rr = NULL;
   else {
     SKIPSPACE(s);
-    if (!*s)
+    if (!*s || ISCOMMENT(*s))
       rr = ds->def_rr;
     else if (!(rrl = parse_a_txt(s, &rr, ds->def_rr))) {
       dswarn(lineno, "invalid value");

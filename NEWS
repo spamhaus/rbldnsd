@@ -7,6 +7,10 @@ Never news are at top.
 
  - implemented -d option (dump zone data in BIND format to stdout)
  - data loading warnings goes to stderr instead of stdout
+ - Makefile portability tweaks for Solaris
+ - recognize ';' as comment char in addition to '#'; also, officially
+   recognize comments after an entry (IP address or domain name) in
+   ip4set and dnset
 
 0.93 (18 May 2003)
 

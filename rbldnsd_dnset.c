@@ -87,7 +87,7 @@ ds_dnset_parseline(struct zonedataset *zds, char *s, int lineno) {
     rr = NULL;			/* negation entry */
   else {			/* else parse rest */
     SKIPSPACE(s);
-    if (!*s)			/* use default if none given */
+    if (!*s || ISCOMMENT(*s))	/* use default if none given */
       rr = ds->def_rr;
     else if (!(size = parse_a_txt(s, &rr, ds->def_rr))) {
       dswarn(lineno, "invalid value");

@@ -69,7 +69,8 @@ struct dnsquery {	/* q */
 
 unsigned unpack32(const unsigned char nb[4]);
 
-#define ISSPACE(s) ((s) == ' ' || (s) == '\t')
+#define ISSPACE(c) ((c) == ' ' || (c) == '\t')
+#define ISCOMMENT(c) ((c) == '#' || (c) == ';')
 #define SKIPSPACE(s) while(ISSPACE(*s)) ++s
 
 char *parse_uint32(char *s, unsigned *np);

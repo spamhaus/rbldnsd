@@ -122,7 +122,7 @@ readdslines(FILE *f, struct zonedataset *zds,
       --eol;
     eol[1] = '\0';
     if (line[0] == '$' ||
-        ((line[0] == '#' || line[0] == ':') && line[1] == '$')) {
+        ((ISCOMMENT(line[0]) || line[0] == ':') && line[1] == '$')) {
       int r = zds_special(zds, line[0] == '$' ? line + 1 : line + 2);
       if (!r)
         dswarn(lineno, "invalid or unrecognized special entry");
@@ -130,7 +130,7 @@ readdslines(FILE *f, struct zonedataset *zds,
         return 0;
       continue;
     }
-    if (line[0] && line[0] != '#')
+    if (line[0] && !ISCOMMENT(line[0]))
       if (!dslpfn(zds, line, lineno))
         return 0;
   }
@@ -168,7 +168,6 @@ int dntoip4addr(const unsigned char *q, ip4addr_t *ap) {
 
 int parse_a_txt(char *str, const char **rrp, const char def_a[4]) {
   char *rr;
-  SKIPSPACE(str);
   if (*str == ':') {
     ip4addr_t a;
     unsigned bits = ip4addr(str + 1, &a, &str);
@@ -189,11 +188,11 @@ int parse_a_txt(char *str, const char **rrp, const char def_a[4]) {
     rr = (unsigned char*)str - 4;
     memcpy(rr, def_a, 4);
   }
-  if (*str != '#' && *str != '\0') {
-    int len = strlen(str);
+  if (*str) {
+    unsigned len = strlen(str);
     str += len > 255 ? 255 : len;
+    *str = '\0';
   }
-  *str = '\0';
   *rrp = rr;
   return 1 + (str - rr);
 }
