@@ -1,3 +1,10 @@
+rbldnsd (0.89p1) unstable; urgency=low
+
+  * big number of changes, to match BIND's runtime behaviour.
+    See NEWS for details
+
+ -- Michael Tokarev <mjt@corpit.ru>  Sun,  4 May 2003 18:27:42 +0400
+
 rbldnsd (0.84p2) unstable; urgency=low
 
   * rewrote query parsing routine to be much more accurate (see
