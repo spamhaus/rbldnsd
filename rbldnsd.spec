@@ -8,7 +8,7 @@ Release: 1
 License: GPL
 Group: System Environment/Daemons
 BuildRoot: %_tmppath/%name-%version
-PreReq: /sbin/chkconfig, shadow-utils
+PreReq: /sbin/chkconfig, /sbin/nologin, shadow-utils
 
 Source: http://www.corpit.ru/mjt/%name/%{name}_%version.tar.gz
 
