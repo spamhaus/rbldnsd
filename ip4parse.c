@@ -82,10 +82,14 @@ unsigned ip4range(const char *s, ip4addr_t *ap, ip4addr_t *bp, char **np) {
 
   if (!bits) return eret(np, s);
   else if (*s == '-') {
-    bits = ip4prefix(s + 1, bp, (char**)&s);
-    if (!bits) return eret(np, s);
-    if (bits != 32) /* complete last octets */
-      *bp |= ~ip4mask(bits);
+    unsigned bbits = ip4prefix(s + 1, bp, (char**)&s);
+    if (!bbits) return eret(np, s);
+    if (bbits == 8) { /* treat 127.0.0.1-2 as 127.0.0.1-127.0.0.2 */
+      *bp = (*bp >> (bits - 8)) | (*ap & ip4mask(bits - 8));
+      bbits = bits;
+    }
+    if (bbits != 32) /* complete last octets */
+      *bp |= ~ip4mask(bbits);
     if (*ap > *bp) return eret(np, s);
     return cret(32, np, s);
   }
