@@ -6,15 +6,20 @@ PATH=/sbin:/bin:/usr/sbin:/usr/bin
 NAME=rbldnsd
 DESC=$NAME
 DAEMON=/usr/sbin/$NAME
-CONFFILE=/etc/default/$NAME
 
-test -f $DAEMON -a -f $CONFFILE || exit 0
+test -f $DAEMON || exit 0
 
 set -e
 
 RBLDNSD=
 
-. $CONFFILE
+if [ -f /etc/default/$NAME ] ; then
+  . /etc/default/$NAME
+elif [ -f /etc/sysconfig/$NAME ]; then
+  . /etc/sysconfig/$NAME
+else
+  exit 0
+fi
 
 test -n "$RBLDNSD" || exit 0
 
@@ -82,10 +87,15 @@ function reload() {
 }
 
 case "$1" in
-  start|stop|reload|restart)
+  start|restart)
 	forall $1
+	if [ -d /var/lock/subsys ] ; then touch /var/lock/subsys/$NAME; fi
 	;;
-  force-reload)
+  stop)
+	forall $1
+	rm -f /var/lock/subsys/$NAME
+	;;
+  reload|force-reload)
 	forall reload
 	;;
   *)
