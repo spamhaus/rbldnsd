@@ -3,6 +3,10 @@ $Id$
 This file describes user-visible changes in rbldnsd.
 Never news are at top.
 
+0.92 (15 May 2003)
+
+ - bugfix: fixed SOA screwup introduced in 0.91
+
 0.91 (15 May 2003)
 
  - rotate nameserver records (simple cyclic rotation)

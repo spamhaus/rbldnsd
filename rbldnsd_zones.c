@@ -210,7 +210,7 @@ int zds_special(struct zonedataset *zds, char *line) {
     if (!(line = parse_uint32_nb(line, bp))) return 0;
     /* refresh, retry, expiry, minttl */
     bp += 4;
-    for(n = 0, bp = zsoa->zsoa_n; n < 4; ++n) {
+    for(n = 0; n < 4; ++n) {
       if (!(line = parse_time_nb(line, bp))) return 0;
       bp += 4;
     }
