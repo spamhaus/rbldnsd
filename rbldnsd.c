@@ -285,7 +285,7 @@ initsockets(const char *bindaddr[MAXSOCK], int nba, int UNUSED family) {
     else
       sin.sin_port = se->s_port;
 
-    if (ip4addr(host, &sinaddr, NULL)) {
+    if (ip4addr(host, &sinaddr, NULL) > 0) {
       sin.sin_addr.s_addr = htonl(sinaddr);
       newsocket(&sin);
     }
@@ -783,19 +783,19 @@ int main(int argc, char **argv) {
 }
 
 unsigned ip4parse_cidr(const char *s, ip4addr_t *ap, char **np) {
-  unsigned bits = ip4cidr(s, ap, np);
-  if (bits) {
-    if (*ap & ~ip4mask(bits)) {
-      if (!accept_in_cidr) return 0;
-      *ap &= ip4mask(bits);
-    }
+  int bits = ip4cidr(s, ap, np);
+  if (bits <= 0)
+    return 0;
+  if (*ap & ~ip4mask(bits)) {
+    if (!accept_in_cidr) return 0;
+    *ap &= ip4mask(bits);
   }
-  return bits;
+  return (unsigned)bits;
 }
 
 int ip4parse_range(const char *s, ip4addr_t *a1p, ip4addr_t *a2p, char **np) {
-  unsigned bits = ip4range(s, a1p, a2p, np);
-  if (!bits) return 0;
+  int bits = ip4range(s, a1p, a2p, np);
+  if (bits <= 0) return 0;
   if (*a1p & ~ip4mask(bits)) {
     if (accept_in_cidr) *a1p &= ip4mask(bits);
     else return 0;

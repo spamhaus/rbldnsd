@@ -95,7 +95,7 @@ static int ds_generic_parseany(struct dataset *ds, char *s, int lineno) {
   if (strcmp(t, "a") == 0) {
     ip4addr_t a;
     dtyp = NSQUERY_A | DNS_T_A;
-    if (!ip4addr(s, &a, &s)) return -1;
+    if (ip4addr(s, &a, &s) <= 0) return -1;
     PACK32(dp, a);
     dsiz = 4;
   }

@@ -146,8 +146,8 @@ int parse_a_txt(int lineno, char *str, const char **rrp, const char def_a[4]) {
   char *rr;
   if (*str == ':') {
     ip4addr_t a;
-    unsigned bits = ip4addr(str + 1, &a, &str);
-    if (!a || !bits) {
+    int bits = ip4addr(str + 1, &a, &str);
+    if (!a || bits <= 0) {
       dswarn(lineno, "invalid A RR");
       return 0;
     }
