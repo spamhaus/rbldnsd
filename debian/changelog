@@ -12,8 +12,9 @@ rbldnsd (0.994pre) unstable; urgency=low
     rbldnsd_packets.c which is too large and has nothing to
     do with that stuff.
   * new helper dump_ip4(), analogous to dump_ip4range()
+  * use dump_ip4() in ip4tset
 
- -- Michael Tokarev <mjt@corpit.ru>  Tue,  2 Nov 2004 02:50:41 +0300
+ -- Michael Tokarev <mjt@corpit.ru>  Tue,  2 Nov 2004 02:52:34 +0300
 
 rbldnsd (0.993.1) unstable; urgency=low
 
