@@ -93,12 +93,14 @@ static void NORETURN usage(int exitcode) {
 
 #ifndef NOMEMINFO
 static void logmemusage() {
-  struct mallinfo mi = mallinfo();
-  zlog(LOG_INFO, 0,
+  if (domeminfo) {
+    struct mallinfo mi = mallinfo();
+    zlog(LOG_INFO, 0,
        "memory usage: "
        "arena=%d/%d ord=%d free=%d keepcost=%d mmaps=%d/%d",
        mi.arena, mi.ordblks, mi.uordblks, mi.fordblks, mi.keepcost,
        mi.hblkhd, mi.hblks);
+  }
 }
 #else
 # define logmemusage()
