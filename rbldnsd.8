@@ -107,6 +107,15 @@ zone will be automatically reloaded.  Setting this value to 0 disables
 automatic zone change detection.  This procedure may also be triggered
 by sending SIGHUP signal to \fBrbldnsd\fR.
 
+.IP \fB\-e\fR
+Allow non-network addresses to be used in CIDR ranges.  Normally,
+\fBrbldnsd\fR rejects addresses such as 127.2.3.4/24, where prefix
+is not within the network mask derived from bit number (in this
+case, correct form is 127.2.3.0/24, note the trailing zero in prefix).
+This is done in order to catch possible typos in zones (\fBrbldnsd\fR
+will warn about a problem and will ignore such entry).  This option
+removes a check whenever CIDR prefix fits within network mask.
+
 .IP "\fB\-p\fR \fIpidfile\fR"
 Write rbldnsd's pid to the specified \fIpidfile\fR, so it will be easily
 findable.  This file gets written before entering chroot jail (if specified)
