@@ -14,8 +14,8 @@ RANLIB = :
 #To not compile code that removes duplicates
 #DEFS = -DNOREMOVEDUPS
 
-# Experimental feature: understand IP4 ranges in form 1.2.3.4-1.2.4.254
-#DEFS = -DIP4RANGES
+#Do NOT understand IP4 ranges in form 1.2.3.4-1.2.4.254
+#DEFS = -DNOIP4RANGES
 
 # Print zone load time using utimes()
 #DEFS = -DPRINT_TIMES

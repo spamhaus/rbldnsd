@@ -1,8 +1,13 @@
 $Id$
 
+2003-04-03 0.81pre3
+
+ - IP4RANGES is now the default (but old behaviour may be selected
+   by defining -DNOIP4RANGES).  Updated manpage etc.
+
 2003-04-03 0.81pre2
 
- - -v option gone, logging is now done with -l logfile option
+ - -v option is gone, logging is now done with -l logfile option
 
  - reorganized source: moved various parts into separate files,
    cleanups

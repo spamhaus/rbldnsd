@@ -73,7 +73,7 @@ ip4vset_addent(struct zonedata *z, unsigned idx, ip4addr_t a, unsigned count,
 
 static int
 ip4vset_parseline(struct zonedata *z, char *line, int lineno, int llines) {
-#ifdef IP4RANGES
+#ifndef NOIP4RANGES
   ip4addr_t a, b;
 #else
   ip4addr_t a;
@@ -103,7 +103,7 @@ ip4vset_parseline(struct zonedata *z, char *line, int lineno, int llines) {
   else
     not = 0;
   if (
-#ifdef IP4RANGES
+#ifndef NOIP4RANGES
       !ip4parse_range(line, &a, &b, &p)
 #else
       !(bits = ip4parse_cidr(line, &a, &p))
@@ -127,7 +127,7 @@ ip4vset_parseline(struct zonedata *z, char *line, int lineno, int llines) {
   else if (!p) r_txt = z->r_txt;
   else if (!(r_txt = mp_edstrdup(&z->mp, p))) return 0;
 
-#ifdef IP4RANGES
+#ifndef NOIP4RANGES
 #define fn(idx,start,count) ip4vset_addent(z, idx, start, count, r_a, r_txt)
   ip4range_expand(a, b, fn);
 #else
