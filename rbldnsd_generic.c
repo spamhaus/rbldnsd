@@ -95,26 +95,6 @@ static int ds_generic_parseany(struct dataset *ds, char *line) {
     dsiz += 1;
   }
 
-  else if (strcmp(t, "ns") == 0) {
-    dtyp = NSQUERY_NS | DNS_T_NS;
-    if (!(line = parse_dn(line, data + 1, &dsiz))) return -1;
-    if (*line) return -1;
-    data[0] = (unsigned char)dsiz;
-    ++dsiz;
-  }
-
-  else if (strcmp(t, "mx") == 0) {
-    u_int16_t prio;
-    u_int32_t v;
-    dtyp = NSQUERY_MX | DNS_T_MX;
-    if (!(line = parse_uint32(line, &v))) return -1;
-    prio = htons(v); memcpy(data, &prio, 2); dp += 3;
-    if (!(line = parse_dn(line, data + 3, &dsiz))) return -1;
-    if (*line) return -1;
-    data[2] = (unsigned char)dsiz;
-    dsiz += 3;
-  }
-
   else
     return -1;
 
@@ -213,17 +193,11 @@ ds_generic_query(const struct dataset *ds, const struct dnsquery *query,
     if (!(query->q_tflag & e->dtyp))
       continue;
     switch(e->dtyp & 0xff) {
-    case DNS_T_NS:
-      addrec_ns(packet, e->data + 1, e->data[0]);
-      break;
-    case DNS_T_MX:
-      addrec_mx(packet, e->data, e->data + 3, e->data[2]);
-      break;
     case DNS_T_A:
-      addrec_any(packet, DNS_T_A, e->data, 4);
+      addrr_any(packet, DNS_T_A, e->data, 4);
       break;
     case DNS_T_TXT:
-      addrec_any(packet, DNS_T_TXT, e->data, (unsigned)(e->data[0]) + 1);
+      addrr_any(packet, DNS_T_TXT, e->data, (unsigned)(e->data[0]) + 1);
       break;
     }
   } while(++e < t && e->lrdn == rdn);

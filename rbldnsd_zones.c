@@ -16,13 +16,6 @@
 #include "dns.h"
 #include "rbldnsd.h"
 
-/* a list of zonetypes. */
-static const struct dataset_type *dataset_types[] = {
-  &dataset_ip4set_type,
-  &dataset_dnset_type,
-  &dataset_generic_type
-};
-
 static struct zonedataset *zonedatasets;
 
 static struct {
@@ -30,13 +23,6 @@ static struct {
   const char *fname;
   int warns;
 } curloading;
-
-void printdstypes(FILE *f) {
-  unsigned i;
-  for (i = 0; i < sizeof(dataset_types)/sizeof(dataset_types[0]); ++i)
-    fprintf(f, " %s - %s\n",
-            dataset_types[i]->dst_name, dataset_types[i]->dst_descr);
-}
 
 static void
 vdslog(int level, int lineno, const char *fmt, va_list ap) {
@@ -105,7 +91,7 @@ static struct zonedataset *newzonedataset(char *spec) {
   char *f;
   struct zonefile **zfp, *zf;
   static const char *const delims = ",:";
-  unsigned n;
+  const struct dataset_type **dstp;
 
   f = strchr(spec, ':');
   if (!f)
@@ -122,11 +108,11 @@ static struct zonedataset *newzonedataset(char *spec) {
   zonedatasets = zds;
   zds->zds_spec = estrdup(f);
 
-  n = 0;
-  while(strcmp(spec, dataset_types[n]->dst_name))
-    if (++n >= sizeof(dataset_types)/sizeof(dataset_types[0]))
+  dstp = dataset_types;
+  while(strcmp(spec, (*dstp)->dst_name))
+    if (!*++dstp)
       error(0, "unknown zone type `%.60s'", spec);
-  zds->zds_type = dataset_types[n];
+  zds->zds_type = *dstp;
 
   for(zfp = &zds->zds_zf, f = strtok(f, delims); f; f = strtok(NULL, delims)) {
     zf = tmalloc(struct zonefile);

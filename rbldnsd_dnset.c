@@ -300,7 +300,7 @@ ds_dnset_query(const struct dataset *ds, const struct dnsquery *qry,
     dns_dnreverse(e->lrdn + 1, dn, e->lrdn[0] + 1);
     dns_dntop(dn, name, sizeof(name));
   }
-  do addrec_a_txt(pkt, qry->q_tflag, e->rr, name);
+  do addrr_a_txt(pkt, qry->q_tflag, e->rr, name);
   while(++e < t && e->lrdn == rdn);
 
   return 1;

@@ -10,7 +10,8 @@
 #include "rbldnsd.h"
 #include "dns.h"
 
-static int add_soa(struct dnspacket *pkt, const struct zone *zone, int auth);
+static int addrr_soa(struct dnspacket *pkt, const struct zone *zone, int auth);
+static int addrr_ns(struct dnspacket *pkt, const struct zone *zone, int auth);
 
 /* DNS packet:
  * bytes comment */
@@ -157,7 +158,6 @@ int replypacket(struct dnspacket *pkt, unsigned qlen, const struct zone *zone) {
   case DNS_T_TXT: qry.q_tflag = NSQUERY_TXT; break;
   case DNS_T_NS:  qry.q_tflag = NSQUERY_NS;  break;
   case DNS_T_SOA: qry.q_tflag = NSQUERY_SOA; break;
-  case DNS_T_MX:  qry.q_tflag = NSQUERY_MX;  break;
   default:
     if (qry.q_type >= DNS_T_TSIG)
       return refuse(DNS_R_NOTIMPL);
@@ -209,17 +209,15 @@ int replypacket(struct dnspacket *pkt, unsigned qlen, const struct zone *zone) {
 
     found = 1;
 
-    if ((qry.q_tflag & NSQUERY_NS && !zone->z_zns) ||
-        (qry.q_tflag & NSQUERY_SOA && !zone->z_zsoa.zsoa_valid))
-        return refuse(DNS_R_REFUSED);
-
-    if (qry.q_tflag & NSQUERY_NS) {
-      register const struct zonens *zns = zone->z_zns;
-      do addrec_ns(pkt, zns->zns_dn + 1, zns->zns_dn[0]);
-      while((zns = zns->zns_next) != NULL);
+    if (found && (qry.q_tflag & NSQUERY_NS) && !addrr_ns(pkt, zone, 0))
+      found = 0;
+    if (found && (qry.q_tflag & NSQUERY_SOA) && !addrr_soa(pkt, zone, 0))
+      found = 0;
+    if (!found) {
+      pkt->p_cur = pkt->p_sans;
+      h[p_ancnt] = h[p_nscnt] = 0;
+      return refuse(DNS_R_REFUSED);
     }
-    if (qry.q_tflag & NSQUERY_SOA)
-      add_soa(pkt, zone, 0);
 
   }
   else {
@@ -241,11 +239,11 @@ int replypacket(struct dnspacket *pkt, unsigned qlen, const struct zone *zone) {
   }
 
   if (!found) {			/* negative result */
-    add_soa(pkt, zone, 1);	/* add SOA if any to AUTHORITY */
+    addrr_soa(pkt, zone, 1);	/* add SOA if any to AUTHORITY */
     h[p_f2] = DNS_R_NXDOMAIN;
   }
   else if (!h[p_ancnt]) {	/* positive reply, no answers */
-    add_soa(pkt, zone, 1);	/* add SOA if any to AUTHORITY */
+    addrr_soa(pkt, zone, 1);	/* add SOA if any to AUTHORITY */
   }
 
   return pkt->p_cur - h;
@@ -282,10 +280,8 @@ add_dn(struct dnspacket *pkt, register unsigned char *c,
     }
     if (!fit(pkt, c, *dn + 1))
       return NULL;
-    if (dnlen < 128 &&
-        compr->cdnp + dnlen <= compr->dnbuf + sizeof(compr->dnbuf) &&
-        ptr < compr->ptr + DNS_MAXLABELS) {
-      ptr->dnp = compr->cdnp; compr->cdnp += dnlen;
+    if (ptr < compr->ptr + DNS_MAXLABELS) {
+      ptr->dnp = dn;
       ptr->dnlen = dnlen;
       ptr->qpos = c - pkt->p_buf;
       ++compr->cptr;
@@ -300,7 +296,7 @@ add_dn(struct dnspacket *pkt, register unsigned char *c,
   return c;
 }
 
-static int add_soa(struct dnspacket *pkt, const struct zone *zone, int auth) {
+static int addrr_soa(struct dnspacket *pkt, const struct zone *zone, int auth) {
   register unsigned char *c;
   unsigned char *rstart;
   unsigned dsz;
@@ -334,41 +330,25 @@ static int add_soa(struct dnspacket *pkt, const struct zone *zone, int auth) {
   return 0;
 }
 
-int addrec_ns(struct dnspacket *pkt, 
-              const unsigned char *nsdn, unsigned nsdnlen) {
+static int addrr_ns(struct dnspacket *pkt, const struct zone *zone, int auth) {
   register unsigned char *c = pkt->p_cur;
-  if (fit(pkt, c, 10 + 2)) {
-    addrr_start(c, DNS_T_NS, &defttl_nbo); /* 10 bytes */
-    c += 2;
-    if ((c = add_dn(pkt, c, nsdn, nsdnlen))) {
-      nsdnlen = (c - pkt->p_cur) - 12;
-      pkt->p_cur[10] = nsdnlen>>8; pkt->p_cur[11] = nsdnlen;
-      pkt->p_buf[p_ancnt] += 1;
-      return 1;
+  const struct zonens *zns = zone->z_zns;
+  if (!zns) return 0;
+  do {
+    if (fit(pkt, c, 10 + 2)) {
+      addrr_start(c, DNS_T_NS, &defttl_nbo); /* 10 bytes */
+      c[0] = 0;
+      if ((c = add_dn(pkt, c + 2, zns->zns_dn + 1, zns->zns_dn[0]))) {
+        pkt->p_cur[11] = zns->zns_dn[0];
+        pkt->p_cur = c;
+        pkt->p_buf[auth ? p_nscnt : p_ancnt] += 1;
+        continue;
+      }
     }
-  }
-  setnonauth(pkt->p_buf); /* non-auth answer as we can't fit the record */
-  return 0;
-}
-
-int addrec_mx(struct dnspacket *pkt, 
-              const unsigned char prio[2],
-              const unsigned char *mxdn, unsigned mxdnlen) {
-  register unsigned char *c = pkt->p_cur;
-  if (fit(pkt, c, 10 + 2 + 2)) {
-    addrr_start(c, DNS_T_MX, &defttl_nbo); /* 10 bytes */
-    c += 2;
-    *c++ = prio[0]; *c++ = prio[1];
-    if ((c = add_dn(pkt, c, mxdn, mxdnlen)) && fit(pkt, c, 2)) {
-      mxdnlen = (c - pkt->p_cur) - 12;
-      pkt->p_cur[10] = mxdnlen>>8; pkt->p_cur[11] = mxdnlen;
-      pkt->p_cur = c;
-      pkt->p_buf[p_ancnt] += 1;
-      return 1;
-    }
-  }
-  setnonauth(pkt->p_buf); /* non-auth answer as we can't fit the record */
-  return 0;
+    setnonauth(pkt->p_buf); /* non-auth answer as we can't fit the record */
+    return 0;
+  } while((zns = zns->zns_next));
+  return 1;
 }
 
 /* check whenever a given RR is already in the packet
@@ -387,27 +367,26 @@ static int aexists(const struct dnspacket *pkt, unsigned typ,
 
 /* add a new record into answer, check for dups.
  * We just ignore any data that exceeds packet size */
-int addrec_any(struct dnspacket *pkt, unsigned dtp,
+void addrr_any(struct dnspacket *pkt, unsigned dtp,
                const void *data, unsigned dsz) {
   register unsigned char *c = pkt->p_cur;
-  if (aexists(pkt, dtp, data, dsz)) return 1;
+  if (aexists(pkt, dtp, data, dsz)) return;
   if (!fit(pkt, c, 12 + dsz)) {
     setnonauth(pkt->p_buf); /* non-auth answer as we can't fit the record */
-    return 0;
+    return;
   }
   addrr_start(c, dtp, &defttl_nbo); /* 10 bytes */
   *c++ = dsz>>8; *c++ = dsz; /* dsize */
   memcpy(c, data, dsz);
   pkt->p_cur = c + dsz;
   pkt->p_buf[p_ancnt] += 1; /* increment numanswers */
-  return 1;
 }
 
 void
-addrec_a_txt(struct dnspacket *pkt, unsigned qtflag,
+addrr_a_txt(struct dnspacket *pkt, unsigned qtflag,
              const char *rr, const char *subst) {
   if (qtflag & NSQUERY_A)
-    addrec_any(pkt, DNS_T_A, rr, 4);
+    addrr_any(pkt, DNS_T_A, rr, 4);
   if (*(rr += 4) && (qtflag & NSQUERY_TXT)) {
     unsigned sl;
     char sb[256];
@@ -433,7 +412,7 @@ addrec_a_txt(struct dnspacket *pkt, unsigned qtflag,
     }
     sl = lp - sb;
     sb[0] = sl - 1;
-    addrec_any(pkt, DNS_T_TXT, sb, sl);
+    addrr_any(pkt, DNS_T_TXT, sb, sl);
   }
 }
 

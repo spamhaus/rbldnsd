@@ -257,7 +257,7 @@ ds_ip4set_query(const struct dataset *ds, const struct dnsquery *qry,
   if (!e->rr) return 0;		/* exclusion */
 
   ipsubst = (qry->q_tflag & NSQUERY_TXT) ? ip4atos(q) : NULL;
-  do addrec_a_txt(pkt, qry->q_tflag, e->rr, ipsubst);
+  do addrr_a_txt(pkt, qry->q_tflag, e->rr, ipsubst);
   while(++e < t && e->addr == f);
 
   return 1;

@@ -95,8 +95,8 @@ zds_special(struct zonedataset *zds, char *line) {
 
      zns = (struct zonens *)emalloc(sizeof(struct zonens) + n);
      if (!zns) return 0;
-     memcpy(zns->zns_dn, dn, n);
      zns->zns_dn = (unsigned char*)(zns + 1);
+     memcpy(zns->zns_dn, dn, n);
 
      znsp = &zds->zds_ns;
      while(*znsp) znsp = &(*znsp)->zns_next;

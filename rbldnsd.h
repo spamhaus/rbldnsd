@@ -77,14 +77,12 @@ typedef int
 ds_queryfn_t(const struct dataset *ds, const struct dnsquery *query,
              struct dnspacket *packet);
 
-/* flags used in qtyp. should be in MS word for `generic' dataset to work */
-#define NSQUERY_TXT	(1u<<16)
-#define NSQUERY_A	(1u<<17)
-#define NSQUERY_NS	(1u<<18)
-#define NSQUERY_SOA	(1u<<19)
-#define NSQUERY_MX	(1u<<20)
-#define NSQUERY_OTHER	(1u<<31)
-#define NSQUERY_ANY	0xffff0000u
+#define NSQUERY_TXT	(1u<<1)
+#define NSQUERY_A	(1u<<2)
+#define NSQUERY_NS	(1u<<3)
+#define NSQUERY_SOA	(1u<<4)
+#define NSQUERY_OTHER	(1u<<15)
+#define NSQUERY_ANY	0xff
 
 struct dataset_type {	/* dst */
   const char *dst_name;		/* name of the type */
@@ -116,7 +114,8 @@ struct dataset_type {	/* dst */
 
 declaredstype(ip4set);
 declaredstype(dnset);
-declaredstype(generic);
+
+extern const struct dataset_type *dataset_types[];
 
 /*
  * Each zone is composed of a set of datasets.
@@ -183,14 +182,10 @@ void logreply(const struct dnspacket *pkt, const char *ip,
 /* details of DNS packet structure are in rbldnsd_packet.c */
 
 /* add a record into answer section */
-void addrec_a_txt(struct dnspacket *p, unsigned qtflag,
-                  const char *rr, const char *subst);
-int addrec_any(struct dnspacket *p, unsigned dtp,
+void addrr_a_txt(struct dnspacket *p, unsigned qtflag,
+                 const char *rr, const char *subst);
+void addrr_any(struct dnspacket *p, unsigned dtp,
                const void *data, unsigned dsz);
-int addrec_ns(struct dnspacket *p,
-              const unsigned char *nsdn, unsigned nsdnlen);
-int addrec_mx(struct dnspacket *p, const unsigned char prio[2],
-              const unsigned char *mxdn, unsigned mxdnlen);
 
 struct dnsstats {
   time_t stime;			/* start time */
@@ -206,12 +201,10 @@ struct dnsstats {
 
 struct zone *addzone(struct zone *zonelist, const char *spec);
 int reloadzones(struct zone *zonelist);
-void printdstypes(FILE *f);
 
 void PRINTFLIKE(3,4) dslog(int level, int lineno, const char *fmt, ...);
 void PRINTFLIKE(2,3) dswarn(int lineno, const char *fmt, ...);
 void PRINTFLIKE(1,2) dsloaded(const char *fmt, ...);
-
 
 int
 readdslines(FILE *f, struct zonedataset *zds,

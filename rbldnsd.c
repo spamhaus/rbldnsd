@@ -67,6 +67,13 @@ static struct ip4list *qryfilt;	/* which IPs/nets will be serviced */
 static int logmemtms;		/* print memory usage and (re)load time info */
 const char def_rr[5] = "\1\0\0\177\0";
 
+/* a list of zonetypes. */
+const struct dataset_type *dataset_types[] = {
+  &dataset_ip4set_type,
+  &dataset_dnset_type,
+  NULL
+};
+
 static int satoi(const char *s) {
   int n = 0;
   if (*s < '0' || *s > '9') return -1;
@@ -123,6 +130,7 @@ static int do_reload(struct zone *zonelist) {
 }
 
 static void NORETURN usage(int exitcode) {
+   const struct dataset_type **dstp;
    printf(
 "%s: rbl dns daemon version %s\n"
 "Usage is: %s [options] zonespec...\n"
@@ -147,7 +155,8 @@ static void NORETURN usage(int exitcode) {
 "syntax, repeated names constitute the same zone.\n"
 "Available dataset types:\n"
 , progname, version, progname);
-  printdstypes(stdout);
+  for(dstp = dataset_types; *dstp; ++dstp)
+    printf(" %s - %s\n", (*dstp)->dst_name, (*dstp)->dst_descr);
   printf(
 "netlist is a comma-separated list of CIDR network ranges or hosts,\n"
 "possible negated, 127.0.0.1,!127/8 (0/0 added implicitly)\n"
