@@ -6,6 +6,7 @@
 
 #define DNS_PORT 53			/* default DNS port */
 #define DNS_MAXPACKET 512		/* max size of UDP packet */
+#define DNS_EDNS0_MAXPACKET 2048	/* max size of EDNS0 UDP packet */
 #define DNS_MAXDN 255			/* max length of DN */
 #define DNS_MAXLABEL 63			/* max length of one DN label */
 #define DNS_MAXLABELS (DNS_MAXDN/2)	/* max # of labels in a DN */

@@ -61,23 +61,33 @@ static int version_req(struct dnspacket *pkt, const struct dnsquery *qry);
 #define p_nscnt p_nscnt2
 #define p_arcnt p_arcnt2
 
-/* parsequery: parse query packet
- * initializes q_dn, q_dnlen, q_dnlab, q_type, q_class
- * returns pointer after qDN (where answer section will begin)
- * or NULL on failure. */
-
-static unsigned char *
-parsequery(register const unsigned char *q, unsigned qlen,
+static int
+parsequery(struct dnspacket *pkt, unsigned qlen,
            struct dnsquery *qry) {
 
   /* parsing incoming query.  Untrusted data read directly from the network.
-   * q is a buffer ptr - data that was read (DNS_MAXPACKET max).
+   * pkt->p_buf is a buffer - data that was read (DNS_EDNS0_MAXPACKET max).
    * qlen is number of bytes actually read (packet length)
    * first p_hdrsize bytes is header, next is query DN,
    * next are QTYPE and QCLASS (2x2 bytes).
-   * rest of data if any is ignored.
+   * If NSCNT==0 && ARCNT==1, and an OPT record comes after the query,
+   * EDNS0 packet size gets extracted from the OPT record.
+   * Rest of data is ignored.
+   * Returns true on success, 0 on failure.
+   * Upon successeful return, pkt->p_sans = pkt->p_cur points to the end of
+   * the query section (where our answers will be placed), and
+   * pkt->p_endp is initialized to point to the real end of answers.
+   * Real end of answers is:
+   * for non-EDNS0-aware clients it's pkt->p_buf+DNS_MAXPACKET, and
+   * if a vaild EDNS0 UDPsize is given, it will be pkt->p_buf+UDPsize-11,
+   * with the 11 bytes needed for a minimal OPT record.
+   * In replypacket() we check whenever all our answers fits in standard
+   * UDP buffer size (DNS_MAXPACKET), and if not (which means we're replying
+   * to EDNS0-aware client due to the above rules), we just add proper OPT
+   * record at the end.
    */
 
+  register unsigned const char *q = pkt->p_buf;
   register unsigned const char *x, *e;
   register unsigned char *d;
   unsigned qlab;			/* number of labels in qDN */
@@ -86,14 +96,14 @@ parsequery(register const unsigned char *q, unsigned qlen,
   /* qlen isn't needed anymore, it'll be used as length of qDN below */
 
   if (q + p_hdrsize > x)	/* short packet (header isn't here) */
-    return NULL;
+    return 0;
   else if (q + p_hdrsize + DNS_MAXDN <= x)
     x = q + p_hdrsize + DNS_MAXDN - 1; /* constrain query DN to DNS_MAXDN */
 
   if (q[p_f1] & pf1_qr)			/* response packet?! */
-     return 0;
+    return 0;
   if (q[p_qdcnt1] || q[p_qdcnt2] != 1)	/* qdcount should be == 1 */
-    return NULL;
+    return 0;
 
   /* parse and lowercase query DN, count and init labels */
   qlab = 0;			/* number of labels so far */
@@ -104,7 +114,7 @@ parsequery(register const unsigned char *q, unsigned qlen,
     e = q + *q + 1;		/* end of this label */
     if (*q > DNS_MAXLABEL	/* too long label? */
         || e > x)		/* or it ends past packet? */
-      return NULL;
+      return 0;
     /* lowercase it */
     ++q;			/* length */
     do *d++ = dns_dnlc(*q);	/* lowercase each char */
@@ -119,7 +129,29 @@ parsequery(register const unsigned char *q, unsigned qlen,
   qry->q_type = ((unsigned)(q[0]) << 8) | q[1];
   qry->q_class = ((unsigned)(q[2]) << 8) | q[3];
 
-  return (unsigned char*)q + 4;	/* answers will start here */
+  q += 4;
+  pkt->p_sans = (unsigned char *)q; /* answers will start here */
+  pkt->p_cur = (unsigned char *)q;  /* and current answer pointer is here */
+  d = pkt->p_buf;
+  if (q < x &&
+      d[p_nscnt1] == 0 && d[p_nscnt2] == 0 &&
+      d[p_arcnt1] == 0 && d[p_arcnt2] == 1 &&
+      q[0] == 0 /* empty DN */ &&
+      q[1] == 0 && q[2] == DNS_T_OPT) {
+    qlen = (((unsigned)q[3]) << 8) | q[4];
+    /* 11 bytes are needed to encode minimal EDNS0 OPT record */
+    if (qlen < DNS_MAXPACKET + 11)
+      qlen = DNS_MAXPACKET;
+    else if (qlen > sizeof(pkt->p_buf) - 11)
+      qlen = sizeof(pkt->p_buf) - 11;
+    else
+      qlen -= 11;
+    pkt->p_endp = d + qlen;
+  }
+  else
+    pkt->p_endp = d + DNS_MAXPACKET;
+
+  return 1;
 }
 
 #ifdef RECOGNIZE_IP4IN6
@@ -230,12 +262,12 @@ int replypacket(struct dnspacket *pkt, unsigned qlen, struct zone *zone) {
 
   struct dnsquery qry;			/* query structure */
   struct dnsqinfo qi;			/* query info structure */
-  unsigned char *const h = pkt->p_buf;	/* packet's header */
+  unsigned char *h = pkt->p_buf;	/* packet's header */
   const struct dslist *dsl;
   int found;
   extern int lazy; /*XXX hack*/
 
-  if (!(pkt->p_cur = pkt->p_sans = parsequery(h, qlen, &qry))) {
+  if (!parsequery(pkt, qlen, &qry)) {
     do_stats(gstats.q_err += 1; gstats.b_in += qlen);
     return 0;
   }
@@ -354,6 +386,19 @@ int replypacket(struct dnspacket *pkt, unsigned qlen, struct zone *zone) {
     hook_query_result(zone, NULL, &qi, 1);
 #endif
   }
+  if (rlen() > DNS_MAXPACKET) {	/* add OPT record for long replies */
+    /* as per parsequery(), we always have 11 bytes for minimal OPT record at
+     * the end of our reply packet, OR rlen() does not exceed DNS_MAXPACKET */
+    h[p_arcnt1] = 1;
+    h = pkt->p_cur;
+    *h++ = 0;			/* empty (root) DN */
+    *h++ = 0; *h++ = DNS_T_OPT;	/* OPT record, <255 */
+    PACK16S(h, DNS_EDNS0_MAXPACKET);
+    *h++ = 0; *h++ = 0;		/* RCODE and version */
+    *h++ = 0; *h++ = 0;		/* rest of the TTL field */
+    *h++ = 0; *h++ = 0;		/* RDLEN */
+    pkt->p_cur = h;
+  }
   do_stats(zone->z_stats.b_out += rlen());
   return rlen();
 
@@ -366,7 +411,7 @@ err_z:
   return rlen();
 }
 
-#define fit(p, c, bytes) ((c) + (bytes) <= (p)->p_buf + DNS_MAXPACKET)
+#define fit(pkt, c, bytes) ((c) + (bytes) <= (pkt)->p_endp)
 
 
 /* DN compression pointers/structures */

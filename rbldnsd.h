@@ -36,7 +36,8 @@ struct dsdata;
 struct dsctx;
 
 struct dnspacket {		/* private structure */
-  unsigned char p_buf[DNS_MAXPACKET]; /* packet buffer */
+  unsigned char p_buf[DNS_EDNS0_MAXPACKET]; /* packet buffer */
+  unsigned char *p_endp;	/* end of packet buffer */
   unsigned char *p_cur;		/* current pointer */
   unsigned char *p_sans;	/* start of answers */
 };
