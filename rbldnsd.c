@@ -17,6 +17,7 @@
 #include <signal.h>
 #include <syslog.h>
 #include <time.h>
+#include <fcntl.h>
 #ifndef NOMEMINFO
 # include <malloc.h>
 #endif
@@ -466,19 +467,24 @@ static void logstats(struct dnsstats *s, int reset) {
 # define logstats(s,r)
 #endif
 
+static int reopenlog(int fdlog, const char *logfile) {
+  if (fdlog >= 0) close(fdlog);
+  return open(logfile, O_WRONLY|O_APPEND|O_CREAT|O_NONBLOCK, 0644);
+}
+
 int main(int argc, char **argv) {
   int fd;
   struct zone *zonelist;
   struct dnsstats stats;
-  FILE *flog;
+  int fdlog;
   int q, r;
   struct sockaddr_in sin;
   socklen_t sinl;
   struct dnspacket pkt;
 
   fd = init(argc, argv, &zonelist);
-  flog = logfile ? fopen(logfile, "a") : NULL;
   setup_signals();
+  fdlog = logfile ? reopenlog(-1, logfile) : -1;
   alarm(recheck);
 #ifndef NOSTATS
   memset(&stats, 0, sizeof(stats));
@@ -500,10 +506,8 @@ int main(int argc, char **argv) {
         logstats(&stats, signalled & SIGNALLED_USR2);
         logmemusage();
       }
-      if ((signalled & SIGNALLED_HUP) && logfile) {
-        if (flog) fclose(flog);
-        flog = fopen(logfile, "a");
-      }
+      if ((signalled & SIGNALLED_HUP) && logfile)
+        fdlog = reopenlog(fdlog, logfile);
       if (signalled & (SIGNALLED_HUP|SIGNALLED_ALRM))
         do_reload(zonelist);
       signalled = 0;
@@ -525,8 +529,8 @@ int main(int argc, char **argv) {
 #endif
       continue;
     }
-    if (flog && (!logfilt || ip4list_match(logfilt, sin.sin_addr.s_addr)))
-      logreply(&pkt, ip4atos(ntohl(sin.sin_addr.s_addr)), flog);
+    if (fdlog >= 0 && (!logfilt || ip4list_match(logfilt, sin.sin_addr.s_addr)))
+      logreply(&pkt, ip4atos(ntohl(sin.sin_addr.s_addr)), fdlog);
 #ifndef NOSTATS
     switch(pkt.p[3]) {
     case DNS_R_NOERROR:

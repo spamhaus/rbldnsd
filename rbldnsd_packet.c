@@ -7,6 +7,7 @@
 #include <stdio.h>
 #include <sys/types.h>
 #include <netinet/in.h>
+#include <unistd.h>
 #include "rbldnsd.h"
 #include "dns.h"
 
@@ -386,22 +387,24 @@ codename(unsigned c, const char *name, const char *base, char *buf)
   return buf;
 }
 
-void logreply(const struct dnspacket *pkt, const char *ip, FILE *flog) {
-  char cbuf[DNS_MAXDOMAIN+1];
+void logreply(const struct dnspacket *pkt, const char *ip, int fdlog) {
+  char cbuf[DNS_MAXDOMAIN + 200];
+  char tbuf[20];
+  char *cp = cbuf;
   const unsigned char *p;
   unsigned c;
 
+  cp += sprintf(cp, "%lu %s ", (unsigned long)time(NULL), ip);
   p = pkt->p + 12;
-  dns_dntop(p, cbuf, sizeof(cbuf));
+  cp += dns_dntop(p, cp, DNS_MAXDOMAIN);
   p += dns_dnlen(p);
-  fprintf(flog, "%lu %s %s ", (unsigned long)time(NULL), ip, cbuf);
   c = ((unsigned)p[0]<<8)|p[1];
-  fprintf(flog, "%s ", codename(c, dns_typename(c), "type", cbuf));
+  cp += sprintf(cp, " %s ", codename(c, dns_typename(c), "type", tbuf));
   c = ((unsigned)p[2]<<8)|p[3];
-  fprintf(flog, "%s: ", codename(c, dns_classname(c), "class", cbuf));
+  cp += sprintf(cp, "%s: ", codename(c, dns_classname(c), "class", tbuf));
   c = pkt->p[3];
-  fprintf(flog, "%s/%u/%d\n",
-          codename(c, dns_rcodename(c), "rcode", cbuf),
-          pkt->p[7], pkt->c - pkt->p);
-
+  cp += sprintf(cp, "%s/%u/%d\n",
+                codename(c, dns_rcodename(c), "rcode", tbuf),
+                pkt->p[7], pkt->c - pkt->p);
+  write(fdlog, cbuf, cp - cbuf);
 }

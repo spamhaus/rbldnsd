@@ -155,7 +155,7 @@ struct zone {	/* zone, list of zones */
 /* parse query and construct a reply to it, return len of answer or 0 */
 int replypacket(struct dnspacket *p, unsigned qlen, const struct zone *zone);
 /* log a reply */
-void logreply(const struct dnspacket *pkt, const char *ip, FILE *flog);
+void logreply(const struct dnspacket *pkt, const char *ip, int fdlog);
 
 /* details of DNS packet structure are in rbldnsd_packet.c */
 
