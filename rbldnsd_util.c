@@ -78,7 +78,7 @@ char *parse_ttl(char *s, unsigned *ttlp, unsigned defttl) {
     *ttlp = defttl;
   else if (min_ttl && *ttlp < min_ttl)
     *ttlp = min_ttl;
-  else if (max_ttl && *ttlp < max_ttl)
+  else if (max_ttl && *ttlp > max_ttl)
     *ttlp = max_ttl;
   return s;
 }
