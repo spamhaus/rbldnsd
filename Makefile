@@ -45,7 +45,7 @@ MISC = rbldnsd.8 Makefile NEWS CHANGES WirehubDynablock2rbldnsd.pl
 
 SRCS = $(LIB_SRCS) $(RBLDNSD_SRCS) ip4rangetest.c
 HDRS = $(LIB_HDRS) $(RBLDNSD_HDRS)
-DISTFILES = $(SRCS) $(HDRS) $(MISC)
+
 VERSION = 0.82
 VERSION_DATE = 2003-04-05
 
@@ -76,15 +76,6 @@ clean:
 	-rm -f $(RBLDNSD_OBJS) $(LIB_OBJS) librbldnsd.a ip4rangetest
 distclean: clean
 	-rm -f rbldnsd
-
-base = rbldnsd-$(VERSION)
-dist: $(base).tar.gz
-$(base).tar.gz: $(DISTFILES)
-	rm -rf $(base)
-	mkdir $(base)
-	ln $(DISTFILES) $(base)/
-	tar cfz $@ $(base)
-	rm -rf $(base)
 
 depend dep deps: $(SRCS)
 	@echo Generating deps for:
