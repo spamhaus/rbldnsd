@@ -664,15 +664,15 @@ static void dumpstats(void) {
     add(q_ok); add(q_nxd); add(q_err);
 #undef add
     dns_dntop(z->z_dn, name, sizeof(name));
-    fprintf(f, " %s" C C C C C C,
+    fprintf(f, " %s" C C C C C,
       name,
       z->z_stats.q_ok + z->z_stats.q_nxd + z->z_stats.q_err,
-      z->z_stats.q_ok, z->z_stats.q_nxd, z->z_stats.q_err,
+      z->z_stats.q_ok, z->z_stats.q_nxd,
       z->z_stats.b_in, z->z_stats.b_out);
   }
-  fprintf(f, " *" C C C C C C "\n",
+  fprintf(f, " *" C C C C C "\n",
     tot.q_ok + tot.q_nxd + tot.q_err,
-    tot.q_ok, tot.q_nxd, tot.q_err,
+    tot.q_ok, tot.q_nxdt
     tot.b_in, tot.b_out);
 #undef C
   fclose(f);
