@@ -194,7 +194,7 @@ loganswer(FILE *flog,
 }
 
 int udp_request(int fd, const struct zone *zonelist,
-                struct dnsstats *stats, FILE *flog) {
+                struct dnsstats UNUSED *stats, FILE *flog) {
   struct dnspacket p;
   unsigned char buf[DNS_MAXPACKET+1];
   int r, n;
@@ -215,6 +215,7 @@ int udp_request(int fd, const struct zone *zonelist,
   }
   if (flog)
     loganswer(flog, &p, &sin);
+#ifndef NOSTATS
   switch(buf[3]) {
   case DNS_C_NOERROR:
     stats->nrep += 1; stats->irep += n; stats->orep += r;
@@ -227,6 +228,7 @@ int udp_request(int fd, const struct zone *zonelist,
     stats->nerr += 1; stats->ierr += n; stats->oerr += r;
     break;
   }
+#endif
   while((r = sendto(fd, buf, r, 0, (struct sockaddr *)&sin, sizeof(sin))) < 0)
     if (errno != EINTR) break;
   return r < 0 ? 0 : 1;

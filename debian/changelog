@@ -1,6 +1,8 @@
 rbldnsd (0.83p1) unstable; urgency=low
 
-  * added statistic counters (SIGUSR1/USR2/exit)
+  * added statistic counters (SIGUSR1/USR2/exit) - disable with -DNOSTATS
+
+  * added meminfo logging via mallinfo - disable with -DNOMEMINFO
 
  -- Michael Tokarev <mjt@corpit.ru>  Sun,  6 Apr 2003 02:46:29 +0400
 

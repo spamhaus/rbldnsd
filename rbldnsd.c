@@ -17,6 +17,9 @@
 #include <signal.h>
 #include <syslog.h>
 #include <time.h>
+#ifndef NOMEMINFO
+# include <malloc.h>
+#endif
 
 #include "rbldnsd.h"
 #include "dns.h"
@@ -81,6 +84,19 @@ static void NORETURN usage(int exitcode) {
   printzonetypes(stdout);
   exit(exitcode);
 }
+
+#ifndef NOMEMINFO
+static void logmemusage() {
+  struct mallinfo mi = mallinfo();
+  zlog(LOG_INFO, 0,
+       "memory usage: "
+       "arena=%d/%d ord=%d free=%d keepcost=%d mmaps=%d/%d",
+       mi.arena, mi.ordblks, mi.uordblks, mi.fordblks, mi.keepcost,
+       mi.hblkhd, mi.hblks);
+}
+#else
+# define logmemusage()
+#endif
 
 static int init(int argc, char **argv, struct zone **zonep) {
   int c;
@@ -231,6 +247,7 @@ static int init(int argc, char **argv, struct zone **zonep) {
 
   if (!reloadzones(*zonep))
     error(0, "zone loading errors, aborting");
+  logmemusage();
   initialized = 1;
   zlog(LOG_INFO, 0, "started");
 
@@ -278,14 +295,17 @@ static void setup_signals() {
   sigaddset(&ssblock, SIGHUP);
   sigaction(SIGALRM, &sa, NULL);
   sigaddset(&ssblock, SIGALRM);
+#ifndef NOSTATS
   sigaction(SIGUSR1, &sa, NULL);
   sigaddset(&ssblock, SIGUSR1);
   sigaction(SIGUSR2, &sa, NULL);
   sigaddset(&ssblock, SIGUSR2);
+#endif
   sigaction(SIGTERM, &sa, NULL);
   sigaction(SIGINT, &sa, NULL);
 }
 
+#ifndef NOSTATS
 static void logstats(struct dnsstats *s, int reset) {
   time_t t = time(NULL);
   zlog(LOG_INFO, 0,
@@ -309,6 +329,9 @@ static void logstats(struct dnsstats *s, int reset) {
     s->stime = t;
   }
 }
+#else
+# define logstats(s,r)
+#endif
 
 int main(int argc, char **argv) {
   int fd;
@@ -319,19 +342,25 @@ int main(int argc, char **argv) {
   flog = logfile ? fopen(logfile, "a") : NULL;
   setup_signals();
   alarm(recheck);
+#ifndef NOSTATS
   memset(&stats, 0, sizeof(stats));
   stats.stime = time(NULL);
+#endif
 
   for(;;) {
 
     if (signalled) {
       sigset_t ssorig;
       sigprocmask(SIG_BLOCK, &ssblock, &ssorig);
-      if (signalled & (SIGNALLED_USR1|SIGNALLED_USR2|SIGNALLED_TERM))
-        logstats(&stats, signalled & SIGNALLED_USR2);
       if (signalled & SIGNALLED_TERM) {
         zlog(LOG_INFO, 0, "terminating");
+        logstats(&stats, 0);
+        logmemusage();
         return 0;
+      }
+      if (signalled & (SIGNALLED_USR1|SIGNALLED_USR2)) {
+        logstats(&stats, signalled & SIGNALLED_USR2);
+        logmemusage();
       }
       if (signalled & (SIGNALLED_HUP|SIGNALLED_ALRM))
         reloadzones(zonelist);

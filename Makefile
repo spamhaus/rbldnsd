@@ -13,10 +13,12 @@ RANLIB = :
 
 #To not compile code that removes duplicates
 #DEFS = -DNOREMOVEDUPS
-
 #Do NOT understand IP4 ranges in form 1.2.3.4-1.2.4.254
 #DEFS = -DNOIP4RANGES
-
+# Disable statistic counters
+#DEFS = -DNOSTATS
+# Disable memory info logging (mallinfo)
+#DEFS = -DNOMEMINFO
 # Print zone load time using utimes()
 #DEFS = -DPRINT_TIMES
 
