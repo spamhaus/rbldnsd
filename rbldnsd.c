@@ -143,7 +143,7 @@ static int do_reload(struct zone *zonelist) {
   if (logmemtms) {
     etm = times(&tms) - etm;
     utm = tms.tms_utime - utm;
-#define sec(tm) tm/HZ, (unsigned long)(tm*100/HZ)%100
+#define sec(tm) (unsigned long)(tm/HZ), (unsigned long)((tm*100/HZ)%100)
     dslog(LOG_INFO, 0, "zones (re)loaded: %lu.%lue/%lu.%luu sec",
          sec(etm), sec(utm));
 #undef sec
