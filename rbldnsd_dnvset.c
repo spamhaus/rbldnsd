@@ -165,6 +165,8 @@ static int ds_dnvset_finish(struct dataset *ds) {
   return 1;
 }
 
+/* see comments in dnset dataset code. dnvset is very similar */
+
 static const struct entry *
 ds_dnvset_find(const struct entry *e, int n,
                const unsigned char *rdn, unsigned dnlen,
@@ -176,6 +178,8 @@ ds_dnvset_find(const struct entry *e, int n,
     if (r < 0) a = m + 1;
     else if (r > 0) b = m - 1;
     else if (t->lrdn[0] == dnlen) {
+      /* found exact match, seek back to
+       * first entry with this domain name */
       rdn = (t--)->lrdn;
       while(t > e && t->lrdn == rdn)
         --t;
