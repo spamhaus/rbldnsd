@@ -1,7 +1,7 @@
 rbldnsd (0.993.1) unstable; urgency=low
 
   * don't remove rbldns user in debian/postrm (Closes: bug#258012).
-  * create /var/lib/rbldns root-owned, to stop encougrading using
+  * create /var/lib/rbldns root-owned, to stop encouraging usage of
     rbldns userid to store datafiles.
   * add README.user explaining rbldns userid and /var/lib/rbldns dir usage
   * #include <sys/time.h> in rbldnsd.c to get struct timeval definition
