@@ -41,7 +41,14 @@ rbldnsd (0.96pre) unstable; urgency=low
 
   * simplify and clarify warning about too long NS or SOA RRs
 
- -- Michael Tokarev <mjt@corpit.ru>  Thu, 29 May 2003 11:58:10 +0400
+  * remove zlog()
+
+  * Moves:
+     dslog() &Co from rbldnsd_zones.c to rbldnsd_utils.c
+     dntoip4addr() from rbldnsd_utils.c to rbldnsd_packet.c
+     ds_loading from rbldnsd_zones.c to rbldnsd.c
+
+ -- Michael Tokarev <mjt@corpit.ru>  Thu, 29 May 2003 12:09:24 +0400
 
 rbldnsd (0.95) unstable; urgency=low
 
