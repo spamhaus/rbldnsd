@@ -26,7 +26,7 @@ extern char *progname; /* limited to 32 chars */
 extern int logto;
 #define LOGTO_STDOUT 0x01
 #define LOGTO_STDERR 0x02
-#define LOGTO_SYSLOG 0x03
+#define LOGTO_SYSLOG 0x04
 void PRINTFLIKE(2,3) NORETURN error(int errnum, const char *fmt, ...);
 
 struct zone;
