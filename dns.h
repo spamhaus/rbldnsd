@@ -4,11 +4,12 @@
 
 #ifndef DNS_PORT
 
-#define DNS_PORT 53
-#define DNS_MAXPACKET 512
-#define DNS_MAXDN 255
-#define DNS_MAXLABEL 63
-#define DNS_MAXDOMAIN 1024
+#define DNS_PORT 53			/* default DNS port */
+#define DNS_MAXPACKET 512		/* max size of UDP packet */
+#define DNS_MAXDN 255			/* max length of DN */
+#define DNS_MAXLABEL 63			/* max length of one DN label */
+#define DNS_MAXLABELS (DNS_MAXDN/2)	/* max # of labels in a DN */
+#define DNS_MAXDOMAIN 1024		/* max length of asciiz DN */
 
 enum dns_class {
   DNS_C_INVALID	= 0, /* invalid class */
