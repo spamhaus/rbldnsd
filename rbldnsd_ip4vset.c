@@ -175,13 +175,13 @@ ip4vset_find(const struct entry *e, int b, ip4addr_t q) {
 
 static int
 ip4vset_query(const struct zonedata *const z, struct dnspacket *p,
-              const unsigned char *const query, unsigned qtyp)
+              const unsigned char *const query, unsigned labels, unsigned qtyp)
 {
   ip4addr_t q, f;
   const struct entry *e, *t;
   const char *ipsubst;
 
-  if (!(q = dntoip4addr(query)))
+  if (labels != 4 || !(q = dntoip4addr(query)))
     return 0;
 
 #define try(i,mask) \

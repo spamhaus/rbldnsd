@@ -185,13 +185,12 @@ dnvset_find(const struct entry *e, int b, const unsigned char *q) {
 
 static int
 dnvset_query(const struct zonedata *const z, struct dnspacket *p,
-             const unsigned char *const query, unsigned qtyp)
+             const unsigned char *const query, unsigned labels, unsigned qtyp)
 {
   const unsigned char *dn = query;
-  unsigned labels;
   const struct entry *e, *t;
   char name[DNS_MAXDOMAIN+1];
-  if ((labels = dns_dnlabels(dn)) == 0)
+  if (!labels)
     return 0;
   if (labels > z->maxlab[EP] || labels < z->minlab[EP] ||
       !(e = dnvset_find(z->e[EP], z->n[EP] - 1, dn))) {

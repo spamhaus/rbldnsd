@@ -80,7 +80,7 @@ typedef int z_finishfn(struct zonedata *z);
 typedef void z_freefn(struct zonedata *z);
 typedef int
 z_queryfn(const struct zonedata *const zone, struct dnspacket *p,
-          const unsigned char *const query, unsigned qtyp);
+          const unsigned char *const query, unsigned qlevels, unsigned qtyp);
 
 /* flags used in qtyp */
 #define NSQUERY_TXT	(1u<< 8)

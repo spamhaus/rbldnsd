@@ -146,11 +146,10 @@ dnset_find(const struct entry *e, int b, const unsigned char *q) {
 
 static int
 dnset_query(const struct zonedata *const z, struct dnspacket *p,
-            const unsigned char *const query, unsigned qtyp)
+            const unsigned char *const query, unsigned labels, unsigned qtyp)
 {
   const unsigned char *dn = query;
-  unsigned labels;
-  if ((labels = dns_dnlabels(dn)) == 0)
+  if (!labels)
     return 0;
   if (labels > z->maxlab[EP] || labels < z->minlab[EP] ||
       !dnset_find(z->e[EP], z->n[EP] - 1, dn)) {

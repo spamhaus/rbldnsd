@@ -133,7 +133,7 @@ int replypacket(struct dnspacket *p, unsigned qlen, const struct zone *zone) {
     for(zdl = zone->dlist; zdl; zdl = zdl->next) {
       //if (zdl->set->qfilter & qtyp) {
         nmatch = 1;	/* at least one zone with this data types */
-        if (zdl->set->queryfn(zdl->set->data, p, qdn, qtyp))
+        if (zdl->set->queryfn(zdl->set->data, p, qdn, qlab - zone->dnlab, qtyp))
           nfound = 1;	/* positive answer */
       }
     *x = zone->dn[0];	/* restore qdn */

@@ -139,10 +139,10 @@ static int ip4set_find(const ip4addr_t *e, int b, ip4addr_t q) {
 
 static int
 ip4set_query(const struct zonedata *const z, struct dnspacket *p,
-             const unsigned char *const query, unsigned qtyp)
+             const unsigned char *const query, unsigned labels, unsigned qtyp)
 {
   ip4addr_t q;
-  if ((q = dntoip4addr(query)) == 0)
+  if (labels != 4 || !(q = dntoip4addr(query)))
     return 0;
 #define try(i,mask) \
     (z->n[i] && ip4set_find(z->e[i], z->n[i] - 1, q & mask))

@@ -249,7 +249,8 @@ generic_find(const struct entry *e, int b, const unsigned char *q) {
 
 static int
 generic_query(const struct zonedata *const z, struct dnspacket *p,
-              const unsigned char *const query, unsigned qtyp)
+              const unsigned char *const query, unsigned UNUSED labels,
+              unsigned qtyp)
 {
   const struct entry *e, *t;
   const unsigned char *dn;
