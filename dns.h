@@ -36,6 +36,15 @@ enum dns_rtype {
   DNS_T_ANY	= 0x00ff  /* any, wildcard */
 };
 
+enum dns_rcode {	/* reply code */
+  DNS_C_NOERR		= 0,	/* ok, no error */
+  DNS_C_FORMERR		= 1,	/* format error */
+  DNS_C_SERVFAIL	= 2,	/* server failed */
+  DNS_C_NXDOMAIN	= 3,	/* domain does not exists */
+  DNS_C_NOTIMPL		= 4,	/* not implemented */
+  DNS_C_REFUSED		= 5	/* query refused */
+};
+
 unsigned dns_ptodn(const char *name, unsigned char *dn, unsigned dnsiz);
 /* convert asciiz string `name' to the DN format, return length or 0 */
 unsigned dns_dntop(const unsigned char *dn, char *dst, unsigned dstsiz);
