@@ -613,27 +613,52 @@ static int addrr_ns(struct dnspacket *pkt, const struct zone *zone, int auth) {
   return 1;
 }
 
-/* check whenever a given RR is already in the packet
- * (to suppress duplicate answers)
- * May be unnecessary? */
-static int aexists(const struct dnspacket *pkt, unsigned typ,
-                   const void *val, unsigned vlen) {
-  const unsigned char *c, *e;
-  for(c = pkt->p_sans, e = pkt->p_cur; c < e; c = c + 12 + c[11]) {
-    if (c[2] == (typ>>8) && c[3] == (typ&255) &&
-        c[11] == vlen && memcmp(c + 12, val, vlen) == 0)
-      return 1;
-  }
-  return 0;
-}
-
 /* add a new record into answer, check for dups.
  * We just ignore any data that exceeds packet size */
 void addrr_any(struct dnspacket *pkt, unsigned dtp,
                const void *data, unsigned dsz,
                const unsigned char ttl[4]) {
-  register unsigned char *c = pkt->p_cur;
-  if (aexists(pkt, dtp, data, dsz)) return;
+  register unsigned char *c, *e, *f;
+
+  c = pkt->p_sans; e = pkt->p_cur;
+#define nextRR(c) ((c) + 12 + (c)[11])
+#define hasRR(c,e) ((c) < (e))
+#define sameRRT(c,dtp) ((c)[2] == ((dtp)>>8) && (c)[3] == ((dtp)&255))
+#define sameDATA(c,dsz,data) ((c)[11] == (dsz) && memcmp((c)+12, (data), (dsz)) == 0)
+#define rrTTL(c) ((c)+6)
+
+  /* check whenever we already have this (type of) RR in reply */
+  while(hasRR(c,e)) {
+    if (!sameRRT(c,dtp)) { c = nextRR(c); continue; } /* skip different type */
+    if (sameDATA(c,dsz,data)) return; /* first RR has this data - nothing to do */
+    f = c; /* remember first RR of this type */
+    /* see whenever we have other RRs of the same type and with the same data */
+    for(c = nextRR(c); hasRR(c,e); c = nextRR(c))
+      if (sameRRT(c,dtp) && sameDATA(c,dsz,data))
+        return;
+    /* the same RR was not found, so we're going to insert new RR */
+    /* check whenever we should fix TTL.
+     * If new RR has the same TTL as existing ones, nothing to do.
+     * If new RR has larger TTL, use existing (smaller) TTL instead.
+     * If new TTL is smaller, made all other TTLs this small too.
+     */
+    if (memcmp(rrTTL(f), ttl, 4) == 0) break; /* the same, nothing to do */
+    if (unpack32(ttl) > unpack32(rrTTL(f)))
+      ttl = rrTTL(f); /* use existing, smaller TTL for new RR */
+    else { /* change TTLs of existing RRs to new */
+      memcpy(rrTTL(f), ttl, 4);
+      for(f = nextRR(f); hasRR(f,e); f = nextRR(f))
+        if (sameRRT(f,dtp))
+          memcpy(rrTTL(f), ttl, 4);
+    }
+    break;
+  }
+#undef nextRR
+#undef hasRR
+#undef sameRRT
+#undef sameDATA
+#undef rrTTL
+
   if (!fit(pkt, c, 12 + dsz)) {
     setnonauth(pkt->p_buf); /* non-auth answer as we can't fit the record */
     return;

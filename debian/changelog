@@ -1,3 +1,11 @@
+rbldnsd (0.990pre0) unstable; urgency=low
+
+  * ensure we return all RRs of the same type (if there
+    are several of them) with the same (smallest) TTL.
+    Problem spotted by Victor Duchovny, MorganStanley.
+
+ -- Michael Tokarev <mjt@corpit.ru>  Wed, 19 Nov 2003 19:49:29 +0300
+
 rbldnsd (0.99) unstable; urgency=medium
 
   * autoconf-style configuration.  Run ./configure before make.
