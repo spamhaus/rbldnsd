@@ -1,4 +1,4 @@
-rbldnsd (0.94pre) unstable; urgency=low
+rbldnsd (0.94) unstable; urgency=low
 
   * implemented -d option (dump zone data in BIND format to stdout)
 
