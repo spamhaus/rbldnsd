@@ -73,7 +73,7 @@ ds_dnset_addent(struct dsdata *dsd, int idx,
 }
 
 static int
-ds_dnset_line(struct dataset *ds, char *s, int lineno) {
+ds_dnset_line(struct dataset *ds, char *s, struct dsctx *dsc) {
   struct dsdata *dsd = ds->ds_dsd;
   unsigned char dn[DNS_MAXDN];
   const char *rr;
@@ -82,7 +82,7 @@ ds_dnset_line(struct dataset *ds, char *s, int lineno) {
   int not, iswild, isplain;
 
   if (*s == ':') {		/* default entry */
-    if (!(size = parse_a_txt(lineno, s, &rr, def_rr)))
+    if (!(size = parse_a_txt(s, &rr, def_rr, dsc)))
       return 1;
     if (!(dsd->def_rr = mp_dmemdup(ds->ds_mp, rr, size)))
       return 0;
@@ -104,7 +104,7 @@ ds_dnset_line(struct dataset *ds, char *s, int lineno) {
 
   /* disallow emptry DN to be listed (i.e. "all"?) */
   if (!(s = parse_dn(s, dn, &dnlen)) || dnlen == 1) {
-    dswarn(lineno, "invalid domain name");
+    dswarn(dsc, "invalid domain name");
     return 1;
   }
 
@@ -116,7 +116,7 @@ ds_dnset_line(struct dataset *ds, char *s, int lineno) {
     SKIPSPACE(s);
     if (!*s || ISCOMMENT(*s))	/* use default if none given */
       rr = dsd->def_rr;
-    else if (!(size = parse_a_txt(lineno, s, &rr, dsd->def_rr)))
+    else if (!(size = parse_a_txt(s, &rr, dsd->def_rr, dsc)))
       return 1;
     else if (!(rr = mp_dmemdup(ds->ds_mp, rr, size)))
       return 0;
@@ -150,7 +150,7 @@ static int ds_dnset_lt(const struct entry *a, const struct entry *b) {
      a->rr < b->rr;
 }
 
-static void ds_dnset_finish(struct dataset *ds) {
+static void ds_dnset_finish(struct dataset *ds, struct dsctx *dsc) {
   struct dsdata *dsd = ds->ds_dsd;
   unsigned r;
   for(r = 0; r < 2; ++r) {
@@ -172,7 +172,7 @@ static void ds_dnset_finish(struct dataset *ds) {
     REMOVE_DUPS(struct entry, dsd->e[r], dsd->n[r], dnset_eeq);
     SHRINK_ARRAY(struct entry, dsd->e[r], dsd->n[r], dsd->a[r]);
   }
-  dsloaded("e/w=%u/%u", dsd->n[EP], dsd->n[EW]);
+  dsloaded(dsc, "e/w=%u/%u", dsd->n[EP], dsd->n[EW]);
 }
 
 static const struct entry *

@@ -96,13 +96,14 @@ char *parse_dn(char *s, unsigned char *dn, unsigned *dnlenp) {
   return n;
 }
 
-int readdslines(FILE *f, struct dataset *ds) {
+int readdslines(FILE *f, struct dataset *ds, struct dsctx *dsc) {
 #define bufsiz 8192
   char _buf[bufsiz+4], *line, *eol;
 #define buf (_buf+4)  /* keep room for 4 IP octets in addrtxt() */
-  int lineno = 0, noeol = 0;
+  int noeol = 0;
   struct dataset *dscur = ds;
   ds_linefn_t *linefn = dscur->ds_type->dst_linefn;
+
   while(fgets(buf, bufsiz, f)) {
     eol = buf + strlen(buf) - 1;
     if (eol < buf) /* can this happen? */
@@ -112,15 +113,15 @@ int readdslines(FILE *f, struct dataset *ds) {
         noeol = 0;
       continue;
     }
-    ++lineno;
+    ++dsc->dsc_lineno;
     if (*eol == '\n')
       --eol;
     else if (feof(f)) {
-      dslog(LOG_WARNING, lineno, "incomplete last line (ignored)");
+      dslog(LOG_WARNING, dsc, "incomplete last line (ignored)");
       break;
     }
     else {
-      dswarn(lineno, "long line (truncated)");
+      dswarn(dsc, "long line (truncated)");
       noeol = 1; /* mark it to be read above */
     }
     /* skip whitespace */
@@ -131,31 +132,32 @@ int readdslines(FILE *f, struct dataset *ds) {
     eol[1] = '\0';
     if (line[0] == '$' ||
         ((ISCOMMENT(line[0]) || line[0] == ':') && line[1] == '$')) {
-      int r = ds_special(ds, line[0] == '$' ? line + 1 : line + 2, lineno);
+      int r = ds_special(ds, line[0] == '$' ? line + 1 : line + 2, dsc);
       if (!r)
-        dswarn(lineno, "invalid or unrecognized special entry");
+        dswarn(dsc, "invalid or unrecognized special entry");
       else if (r < 0)
         return 0;
-      dscur = ds->ds_subset ? ds->ds_subset : ds;
+      dscur = dsc->dsc_subset ? dsc->dsc_subset : ds;
       linefn = dscur->ds_type->dst_linefn;
       continue;
     }
     if (line[0] && !ISCOMMENT(line[0]))
-      if (!linefn(dscur, line, lineno))
+      if (!linefn(dscur, line, dsc))
         return 0;
   }
   return 1;
 #undef buf
 }
 
-int parse_a_txt(int lineno, char *str, const char **rrp, const char *def_rr) {
+int parse_a_txt(char *str, const char **rrp, const char *def_rr,
+                struct dsctx *dsc) {
   char *rr;
   static char rrbuf[4+256];	/*XXX static buffer */
   if (*str == ':') {
     ip4addr_t a;
     int bits = ip4addr(str + 1, &a, &str);
     if (!a || bits <= 0) {
-      dswarn(lineno, "invalid A RR");
+      dswarn(dsc, "invalid A RR");
       return 0;
     }
     if (bits == 8)
@@ -168,7 +170,7 @@ int parse_a_txt(int lineno, char *str, const char **rrp, const char *def_rr) {
       PACK32(rr, a);
     }
     else if (*str) {
-      dswarn(lineno, "unrecognized value for an entry");
+      dswarn(dsc, "unrecognized value for an entry");
       return 0;
     }
     else {	/* only A - take TXT from default entry */
@@ -186,7 +188,7 @@ int parse_a_txt(int lineno, char *str, const char **rrp, const char *def_rr) {
   if (*str) {
     unsigned len = strlen(str);
     if (len > 255) {
-      dswarn(lineno, "TXT RR truncated to 255 bytes");
+      dswarn(dsc, "TXT RR truncated to 255 bytes");
       str += 255;
     }
     else
@@ -263,7 +265,7 @@ int ssprintf(char *buf, int bufsz, const char *fmt, ...) {
 /* logging */
 
 static void
-vdslog(int level, int lineno, const char *fmt, va_list ap) {
+vdslog(int level, struct dsctx *dsc, const char *fmt, va_list ap) {
   char buf[1024];
   int pl, l;
   if ((logto & LOGTO_STDOUT) ||
@@ -273,17 +275,16 @@ vdslog(int level, int lineno, const char *fmt, va_list ap) {
     l = pl = 0;
   else
     return;
-  if (ds_loading) {
+  if (dsc) {
     l += ssprintf(buf + l, sizeof(buf) - l, "%s:%.60s:",
-                  ds_loading->ds_type->dst_name, ds_loading->ds_spec);
-    if (ds_loading->ds_subset)
+                  dsc->dsc_ds->ds_type->dst_name, dsc->dsc_ds->ds_spec);
+    if (dsc->dsc_subset)
       l += ssprintf(buf + l, sizeof(buf) - l, "%s:",
-                    ds_loading->ds_subset->ds_type->dst_name);
-    if (ds_loading->ds_fname) {
-      l += ssprintf(buf + l, sizeof(buf) - l, " %.60s",
-                    ds_loading->ds_fname);
+                    dsc->dsc_subset->ds_type->dst_name);
+    if (dsc->dsc_fname) {
+      l += ssprintf(buf + l, sizeof(buf) - l, " %.60s", dsc->dsc_fname);
       l += ssprintf(buf + l, sizeof(buf) - l,
-                    lineno ? "(%d): " : ": ", lineno);
+                    dsc->dsc_lineno ? "(%d): " : ": ", dsc->dsc_lineno);
     }
     else
       l += ssprintf(buf + l, sizeof(buf) - l, " ");
@@ -302,35 +303,34 @@ vdslog(int level, int lineno, const char *fmt, va_list ap) {
     write(1, buf, l);
 }
 
-void dslog(int level, int lineno, const char *fmt, ...) {
+void dslog(int level, struct dsctx *dsl, const char *fmt, ...) {
   va_list ap;
   va_start(ap, fmt);
-  vdslog(level, lineno, fmt, ap);
+  vdslog(level, dsl, fmt, ap);
   va_end(ap);
 }
 
 #define MAXWARN 5
 
-void dswarn(int lineno, const char *fmt, ...) {
-  if (++ds_loading->ds_warn <= MAXWARN) { /* prevent syslog flood */
+void dswarn(struct dsctx *dsl, const char *fmt, ...) {
+  if (++dsl->dsc_warns <= MAXWARN) { /* prevent syslog flood */
     va_list ap;
     va_start(ap, fmt);
-    vdslog(LOG_WARNING, lineno, fmt, ap);
+    vdslog(LOG_WARNING, dsl, fmt, ap);
     va_end(ap);
   }
 }
 
-void dsloaded(const char *fmt, ...) {
+void dsloaded(struct dsctx *dsc, const char *fmt, ...) {
   va_list ap;
-  ds_loading->ds_fname = NULL;
-  if (ds_loading->ds_warn > MAXWARN)
-    dslog(LOG_WARNING, 0, "%d more warnings suppressed",
-          ds_loading->ds_warn - MAXWARN);
+  if (dsc->dsc_warns > MAXWARN)
+    dslog(LOG_WARNING, dsc, "%d more warnings suppressed",
+          dsc->dsc_warns - MAXWARN);
   va_start(ap, fmt);
-  if (ds_loading->ds_subset)
-     vdslog(LOG_INFO, 0, fmt, ap);
+  if (dsc->dsc_subset)
+     vdslog(LOG_INFO, dsc, fmt, ap);
   else {
-    struct tm *tm = gmtime(&ds_loading->ds_stamp);
+    struct tm *tm = gmtime(&dsc->dsc_ds->ds_stamp);
     char buf[128];
     vssprintf(buf, sizeof(buf), fmt, ap);
     dslog(LOG_INFO, 0, "%04d%02d%02d %02d%02d%02d: %s",

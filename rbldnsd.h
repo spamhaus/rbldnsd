@@ -33,6 +33,7 @@ void PRINTFLIKE(2,3) NORETURN error(int errnum, const char *fmt, ...);
 struct zone;
 struct dataset;
 struct dsdata;
+struct dsctx;
 
 struct dnspacket {		/* private structure */
   unsigned char p_buf[DNS_MAXPACKET]; /* packet buffer */
@@ -80,11 +81,12 @@ char *parse_dn(char *s, unsigned char *dn, unsigned *dnlenp);
  * where first 4 bytes is ip in network byte order.
  * Note this routine uses 4 bytes BEFORE str (it's safe to call it after
  * readdslines() */
-int parse_a_txt(int lineno, char *str, const char **rrp, const char *def_rr);
+int parse_a_txt(char *str, const char **rrp, const char *def_rr,
+                struct dsctx *dsc);
 
 typedef void ds_startfn_t(struct dataset *ds);
-typedef int ds_linefn_t(struct dataset *ds, char *line, int lineno);
-typedef void ds_finishfn_t(struct dataset *ds);
+typedef int ds_linefn_t(struct dataset *ds, char *line, struct dsctx *dsc);
+typedef void ds_finishfn_t(struct dataset *ds, struct dsctx *dsc);
 typedef void ds_resetfn_t(struct dsdata *dsd, int freeall);
 typedef int
 ds_queryfn_t(const struct dataset *ds, const struct dnsqinfo *qi,
@@ -186,10 +188,6 @@ struct dataset {	/* ds */
   char *ds_subst[10];			/* substitution variables */
   struct mempool *ds_mp;		/* memory pool for data */
   struct dataset *ds_next;		/* next in global list */
-  /* for (re)loads */
-  unsigned ds_warn;			/* number of load warnings */
-  const char *ds_fname;			/* current file name */
-  struct dataset *ds_subset;		/* currently loading subset */
 };
 
 struct dslist {	/* dsl */
@@ -282,28 +280,32 @@ struct zone *newzone(struct zone **zonelist,
 int reloadzones(struct zone *zonelist);
 void dumpzone(const struct zone *z, FILE *f);
 
-void PRINTFLIKE(3,4) dslog(int level, int lineno, const char *fmt, ...);
-void PRINTFLIKE(2,3) dswarn(int lineno, const char *fmt, ...);
-void PRINTFLIKE(1,2) dsloaded(const char *fmt, ...);
-extern struct dataset *ds_loading;
+struct dsctx {
+  struct dataset *dsc_ds;		/* currently loading dataset */
+  struct dataset *dsc_subset;		/* currently loading subset */
+  const char *dsc_fname;		/* currently loading file name */
+  int dsc_lineno;			/* current line number */
+  int dsc_warns;			/* number of warnings so far */
+};
+
+void PRINTFLIKE(3,4) dslog(int level, struct dsctx *dsc, const char *fmt, ...);
+void PRINTFLIKE(2,3) dswarn(struct dsctx *dsc, const char *fmt, ...);
+void PRINTFLIKE(2,3) dsloaded(struct dsctx *dsc, const char *fmt, ...);
 void PRINTFLIKE(3,4)
 zlog(int level, const struct zone *zone, const char *fmt, ...);
 
-int readdslines(FILE *f, struct dataset *ds);
+int readdslines(FILE *f, struct dataset *ds, struct dsctx *dsc);
 /* parse $SPECIAL */
-int ds_special(struct dataset *ds, char *line, int lineno);
+int ds_special(struct dataset *ds, char *line, struct dsctx *dsc);
 
 /* from rbldnsd_combined.c, special routine used inside ds_special() */
-int ds_combined_newset(struct dataset *ds, char *line, int lineno);
+int ds_combined_newset(struct dataset *ds, char *line, struct dsctx *dsc);
 
 extern unsigned def_ttl, min_ttl, max_ttl;
 extern const char def_rr[5];
+extern int accept_in_cidr;
 
 extern const char *show_version; /* version.bind CH TXT */
-
-/* the same as in ip4addr, but with error/policy checking */
-unsigned ip4parse_cidr(const char *s, ip4addr_t *ap, char **np);
-int ip4parse_range(const char *s, ip4addr_t *a1p, ip4addr_t *a2p, char **np);
 
 void oom(void);
 char *emalloc(unsigned size);

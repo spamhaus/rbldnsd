@@ -166,10 +166,10 @@ ds_ip4trie_addnode(struct dsdata *dsd, ip4addr_t prefix, unsigned bits,
 }
 
 static int
-ds_ip4trie_line(struct dataset *ds, char *s, int lineno) {
+ds_ip4trie_line(struct dataset *ds, char *s, struct dsctx *dsc) {
   struct dsdata *dsd = ds->ds_dsd;
   ip4addr_t a;
-  unsigned bits;
+  int bits;
   const char *rr;
   unsigned rrl;
   struct node *node;
@@ -177,7 +177,7 @@ ds_ip4trie_line(struct dataset *ds, char *s, int lineno) {
   int not;
 
   if (*s == ':') {
-    if (!(rrl = parse_a_txt(lineno, s, &rr, def_rr)))
+    if (!(rrl = parse_a_txt(s, &rr, def_rr, dsc)))
       return 1;
     if (!(dsd->def_rr = mp_dmemdup(ds->ds_mp, rr, rrl)))
       return 0;
@@ -190,9 +190,10 @@ ds_ip4trie_line(struct dataset *ds, char *s, int lineno) {
   }
   else
     not = 0;
-  if (!(bits = ip4parse_cidr(s, &a, &s)) ||
+  if ((bits = ip4cidr(s, &a, &s)) <= 0 ||
+      (!accept_in_cidr && (a & ~ip4mask(bits))) ||
       (*s && !ISSPACE(*s) && !ISCOMMENT(*s) && *s != ':')) {
-    dswarn(lineno, "invalid address");
+    dswarn(dsc, "invalid address");
     return 1;
   }
   if (not)
@@ -201,8 +202,8 @@ ds_ip4trie_line(struct dataset *ds, char *s, int lineno) {
     SKIPSPACE(s);
     if (!*s || ISCOMMENT(*s))
       rr = dsd->def_rr;
-    else if (!(rrl = parse_a_txt(lineno, s, &rr, dsd->def_rr)))
-      dswarn(lineno, "invalid value");
+    else if (!(rrl = parse_a_txt(s, &rr, dsd->def_rr, dsc)))
+      dswarn(dsc, "invalid value");
     else if (!(rr = mp_dmemdup(ds->ds_mp, rr, rrl)))
       return 0;
   }
@@ -213,7 +214,7 @@ ds_ip4trie_line(struct dataset *ds, char *s, int lineno) {
   print_tree(dsd->tree, "top", 0);
 
   if (node->rr) {
-    dswarn(lineno, "duplicated entry for %s/%d", ip4atos(a), bits);
+    dswarn(dsc, "duplicated entry for %s/%d", ip4atos(a), bits);
     return 1;
   }
   node->rr = rr;
@@ -222,13 +223,13 @@ ds_ip4trie_line(struct dataset *ds, char *s, int lineno) {
   return 1;
 }
 
-static void ds_ip4trie_finish(struct dataset *ds) {
+static void ds_ip4trie_finish(struct dataset *ds, struct dsctx *dsc) {
   struct dsdata *dsd = ds->ds_dsd;
 #ifdef IP4TRIE_DEBUG
   print_tree(dsd->tree, "final", 0);
   fflush(stdout);
 #endif
-  dsloaded("ent=%u nodes=%u mem=%u",
+  dsloaded(dsc, "ent=%u nodes=%u mem=%u",
            dsd->nents, dsd->nnodes, dsd->nnodes * sizeof(struct node));
 }
 

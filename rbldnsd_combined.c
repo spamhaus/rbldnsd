@@ -51,37 +51,36 @@ static void ds_combined_reset(struct dsdata *dsd, int freeall) {
 
 static int
 ds_combined_line(struct dataset UNUSED *unused_ds,
-                 char UNUSED *unused_s, int lineno) {
-  dslog(LOG_ERR, lineno, "invalid/unrecognized entry - specify $DATASET line");
+                 char UNUSED *unused_s, struct dsctx *dsc) {
+  dslog(LOG_ERR, dsc, "invalid/unrecognized entry - specify $DATASET line");
   return 0;
 }
 
-static void ds_combined_finishlast(struct dataset *ds) {
-  struct dataset *dssub = ds->ds_subset;
+static void ds_combined_finishlast(struct dsctx *dsc) {
+  struct dataset *dssub = dsc->dsc_subset;
   if (dssub) {
-    const char *fname = ds->ds_fname;
-    ds->ds_fname = NULL;
-    dssub->ds_type->dst_finishfn(dssub);
-    ds->ds_subset = NULL;
-    ds->ds_fname = fname;
+    const char *fname = dsc->dsc_fname;
+    dsc->dsc_fname = NULL;
+    dssub->ds_type->dst_finishfn(dssub, dsc);
+    dsc->dsc_subset = NULL;
+    dsc->dsc_fname = fname;
   }
 }
 
-static void ds_combined_start(struct dataset *ds) {
-  ds_combined_finishlast(ds);
+static void ds_combined_start(struct dataset UNUSED *ds) {
 }
 
-static void ds_combined_finish(struct dataset *ds) {
+static void ds_combined_finish(struct dataset *ds, struct dsctx *dsc) {
   struct dsdata *dsd = ds->ds_dsd;
   struct zone *zone;
   unsigned nzones;
-  ds_combined_finishlast(ds);
+  ds_combined_finishlast(dsc);
   for(nzones = 0, zone = dsd->zlist; zone; zone = zone->z_next)
     ++nzones;
-  dsloaded("subzones=%u datasets=%u", nzones, dsd->nds);
+  dsloaded(dsc, "subzones=%u datasets=%u", nzones, dsd->nds);
 }
 
-int ds_combined_newset(struct dataset *ds, char *line, int lineno) {
+int ds_combined_newset(struct dataset *ds, char *line, struct dsctx *dsc) {
   char *p;
   const char *const space = " \t";
   struct dsdata *dsd = ds->ds_dsd;
@@ -91,7 +90,7 @@ int ds_combined_newset(struct dataset *ds, char *line, int lineno) {
   unsigned char dn[DNS_MAXDN];
   unsigned dnlen;
 
-  ds_combined_finishlast(ds);
+  ds_combined_finishlast(dsc);
 
   p = line;
   while(*p && !ISCOMMENT(*p))
@@ -108,7 +107,7 @@ int ds_combined_newset(struct dataset *ds, char *line, int lineno) {
       dstp = ds_types;
       while(*dstp == &dataset_combined_type || strcmp(p, (*dstp)->dst_name))
         if (!*++dstp) {
-          dslog(LOG_ERR, lineno, "unknown dataset type `%.60s'", p);
+          dslog(LOG_ERR, dsc, "unknown dataset type `%.60s'", p);
           return -1;
         }
       dst = *dstp;
@@ -146,7 +145,7 @@ int ds_combined_newset(struct dataset *ds, char *line, int lineno) {
       dnlen = 1;
     }
     else if (!(dnlen = dns_ptodn(p, dn, sizeof(dn)))) {
-      dswarn(lineno, "invalid domain name `%.60s'", p);
+      dswarn(dsc, "invalid domain name `%.60s'", p);
       continue;
     }
     zone = newzone(&dsd->zlist, dn, dnlen, ds->ds_mp);
@@ -156,7 +155,7 @@ int ds_combined_newset(struct dataset *ds, char *line, int lineno) {
   }
 
   ++dsd->nds;
-  ds->ds_subset = dssub;
+  dsc->dsc_subset = dssub;
   dssub->ds_type->dst_resetfn(dssub->ds_dsd, 0);
   dssub->ds_ttl = ds->ds_ttl;
   memcpy(dssub->ds_subst, ds->ds_subst, sizeof(ds->ds_subst));

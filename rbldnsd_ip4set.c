@@ -78,16 +78,17 @@ static void ds_ip4set_start(struct dataset *ds) {
 }
 
 static int
-ds_ip4set_line(struct dataset *ds, char *s, int lineno) {
+ds_ip4set_line(struct dataset *ds, char *s, struct dsctx *dsc) {
   struct dsdata *dsd = ds->ds_dsd;
   ip4addr_t a, b;
   const char *rr;
   unsigned rrl;
 
   int not;
+  int bits;
 
   if (*s == ':') {
-    if (!(rrl = parse_a_txt(lineno, s, &rr, def_rr)))
+    if (!(rrl = parse_a_txt(s, &rr, def_rr, dsc)))
       return 1;
     if (!(dsd->def_rr = mp_dmemdup(ds->ds_mp, rr, rrl)))
       return 0;
@@ -100,9 +101,10 @@ ds_ip4set_line(struct dataset *ds, char *s, int lineno) {
   }
   else
     not = 0;
-  if (!ip4parse_range(s, &a, &b, &s) ||
+  if ((bits = ip4range(s, &a, &b, &s)) <= 0 ||
+      (!accept_in_cidr && (a & ~ip4mask(bits))) ||
       (*s && !ISSPACE(*s) && !ISCOMMENT(*s) && *s != ':')) {
-    dswarn(lineno, "invalid address");
+    dswarn(dsc, "invalid address");
     return 1;
   }
   if (not)
@@ -111,8 +113,8 @@ ds_ip4set_line(struct dataset *ds, char *s, int lineno) {
     SKIPSPACE(s);
     if (!*s || ISCOMMENT(*s))
       rr = dsd->def_rr;
-    else if (!(rrl = parse_a_txt(lineno, s, &rr, dsd->def_rr)))
-      dswarn(lineno, "invalid value");
+    else if (!(rrl = parse_a_txt(s, &rr, dsd->def_rr, dsc)))
+      dswarn(dsc, "invalid value");
     else if (!(rr = mp_dmemdup(ds->ds_mp, rr, rrl)))
       return 0;
   }
@@ -153,7 +155,7 @@ ds_ip4set_line(struct dataset *ds, char *s, int lineno) {
 
 }
 
-static void ds_ip4set_finish(struct dataset *ds) {
+static void ds_ip4set_finish(struct dataset *ds, struct dsctx *dsc) {
   struct dsdata *dsd = ds->ds_dsd;
   unsigned r;
   for(r = 0; r < 4; ++r) {
@@ -178,8 +180,8 @@ static void ds_ip4set_finish(struct dataset *ds) {
     REMOVE_DUPS(struct entry, dsd->e[r], dsd->n[r], ip4set_eeq);
     SHRINK_ARRAY(struct entry, dsd->e[r], dsd->n[r], dsd->a[r]);
   }
-  dsloaded("e32/24/16/8=%u/%u/%u/%u",
-          dsd->n[E32], dsd->n[E24], dsd->n[E16], dsd->n[E08]);
+  dsloaded(dsc, "e32/24/16/8=%u/%u/%u/%u",
+           dsd->n[E32], dsd->n[E24], dsd->n[E16], dsd->n[E08]);
 }
 
 static const struct entry *

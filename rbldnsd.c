@@ -84,17 +84,16 @@ void error(int errnum, const char *fmt, ...) {
 }
 
 static unsigned recheck = 60;	/* interval between checks for reload */
-static int accept_in_cidr;	/* accept 127.0.0.1/8-style CIDRs */
 static int initialized;		/* 1 when initialized */
 static char *logfile;		/* log file name */
 #ifndef NOSTATS
 static char *statsfile;		/* statistics file */
 static int stats_relative;	/* dump relative, not absolute, stats */
 #endif
+int accept_in_cidr;		/* accept 127.0.0.1/8-"style" CIDRs */
 unsigned def_ttl = 35*60;	/* default record TTL 35m */
 unsigned min_ttl, max_ttl;	/* TTL constraints */
 const char def_rr[5] = "\177\0\0\2\0";		/* default A RR */
-struct dataset *ds_loading;	/* a dataset currently being loaded if any */
 
 #define MAXSOCK	20	/* maximum # of supported sockets */
 static int sock[MAXSOCK];	/* array of active sockets */
@@ -875,7 +874,6 @@ int start_loading() {
 #endif
     close(pfd[0]);
     ipc_fd = pfd[1];
-    ds_loading = NULL;
     longjmp(reload_ctx, 1);
   }
   close(pfd[1]);
@@ -1038,27 +1036,6 @@ int main(int argc, char **argv) {
     }
 #endif /* NOPOLL */
   }
-}
-
-unsigned ip4parse_cidr(const char *s, ip4addr_t *ap, char **np) {
-  int bits = ip4cidr(s, ap, np);
-  if (bits <= 0)
-    return 0;
-  if (*ap & ~ip4mask(bits)) {
-    if (!accept_in_cidr) return 0;
-    *ap &= ip4mask(bits);
-  }
-  return (unsigned)bits;
-}
-
-int ip4parse_range(const char *s, ip4addr_t *a1p, ip4addr_t *a2p, char **np) {
-  int bits = ip4range(s, a1p, a2p, np);
-  if (bits <= 0) return 0;
-  if (*a1p & ~ip4mask(bits)) {
-    if (accept_in_cidr) *a1p &= ip4mask(bits);
-    else return 0;
-  }
-  return 1;
 }
 
 void oom(void) {

@@ -31,7 +31,7 @@ static void ds_ip4tset_start(struct dataset UNUSED *unused_ds) {
 }
 
 static int
-ds_ip4tset_line(struct dataset *ds, char *s, int lineno) {
+ds_ip4tset_line(struct dataset *ds, char *s, struct dsctx *dsc) {
   struct dsdata *dsd = ds->ds_dsd;
   ip4addr_t a;
 
@@ -39,7 +39,7 @@ ds_ip4tset_line(struct dataset *ds, char *s, int lineno) {
     if (!dsd->def_rr) {
       unsigned rrl;
       const char *rr;
-      if (!(rrl = parse_a_txt(lineno, s, &rr, def_rr)))
+      if (!(rrl = parse_a_txt(s, &rr, def_rr, dsc)))
         return 1;
       if (!(dsd->def_rr = mp_dmemdup(ds->ds_mp, rr, rrl)))
         return 0;
@@ -49,7 +49,7 @@ ds_ip4tset_line(struct dataset *ds, char *s, int lineno) {
 
   if (ip4prefix(s, &a, &s) != 32 ||
       (*s && !ISSPACE(*s) && !ISCOMMENT(*s) && *s != ':')) {
-    dswarn(lineno, "invalid address");
+    dswarn(dsc, "invalid address");
     return 1;
   }
 
@@ -70,7 +70,7 @@ ds_ip4tset_line(struct dataset *ds, char *s, int lineno) {
   return 1;
 }
 
-static void ds_ip4tset_finish(struct dataset *ds) {
+static void ds_ip4tset_finish(struct dataset *ds, struct dsctx *dsc) {
   struct dsdata *dsd = ds->ds_dsd;
   ip4addr_t *e = dsd->e;
   unsigned n = dsd->n;
@@ -94,7 +94,7 @@ static void ds_ip4tset_finish(struct dataset *ds) {
   }
 
   if (!dsd->def_rr) dsd->def_rr = def_rr;
-  dsloaded("cnt=%u", n);
+  dsloaded(dsc, "cnt=%u", n);
 }
 
 static int

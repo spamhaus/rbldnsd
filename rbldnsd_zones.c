@@ -138,7 +138,7 @@ struct zone *addzone(struct zone *zonelist, const char *spec) {
 }
 
 /* parse $SPECIAL construct */
-int ds_special(struct dataset *ds, char *line, int lineno) {
+int ds_special(struct dataset *ds, char *line, struct dsctx *dsc) {
 
   switch(*line) {
 
@@ -250,7 +250,7 @@ int ds_special(struct dataset *ds, char *line, int lineno) {
        ds->ds_dsns = dsns_first; /* throw away all NS recs */
      }
      else if (dsns_first != ds->ds_dsns && !(ds->ds_nsflags & DSF_NSWARN)) {
-       dswarn(lineno, "compatibility mode: specify all NS records in ONE line");
+       dswarn(dsc, "compatibility mode: specify all NS records in ONE line");
        ds->ds_nsflags |= DSF_NSWARN;
      }
      if (!ds->ds_nsttl || ds->ds_nsttl > ttl)
@@ -272,8 +272,8 @@ int ds_special(struct dataset *ds, char *line, int lineno) {
     SKIPSPACE(line);
     if (!(line = parse_ttl(line, &ttl, def_ttl))) return 0;
     if (*line) return 0;
-    if (ds->ds_subset) ds = ds->ds_subset;
-    ds->ds_ttl = ttl;
+    if (dsc->dsc_subset) dsc->dsc_subset->ds_ttl = ttl;
+    else ds->ds_ttl = ttl;
     return 1;
   }
   break;
@@ -283,7 +283,7 @@ int ds_special(struct dataset *ds, char *line, int lineno) {
   if (ISSPACE(line[1])) {
     /* substitution vars */
     unsigned n = line[0] - '0';
-    if (ds->ds_subset) ds = ds->ds_subset;
+    if (dsc->dsc_subset) ds = dsc->dsc_subset;
     if (ds->ds_subst[n]) return 1; /* ignore second assignment */
     line += 2;
     SKIPSPACE(line);
@@ -304,7 +304,7 @@ int ds_special(struct dataset *ds, char *line, int lineno) {
       ds->ds_type == &dataset_combined_type) {
     line += 8;
     SKIPSPACE(line);
-    return ds_combined_newset(ds, line, lineno);
+    return ds_combined_newset(ds, line, dsc);
   }
   break;
 
@@ -324,8 +324,6 @@ static void freedataset(struct dataset *ds) {
   ds->ds_nsflags = 0;
 #endif
   memset(ds->ds_subst, 0, sizeof(ds->ds_subst));
-  ds->ds_warn = 0;
-  ds->ds_subset = NULL;
 }
 
 static int loaddataset(struct dataset *ds) {
@@ -333,34 +331,40 @@ static int loaddataset(struct dataset *ds) {
   time_t stamp = 0;
   FILE *f;
   struct stat st0, st1;
+  struct dsctx dsc;
 
   freedataset(ds);
 
-  ds_loading = ds;
+  memset(&dsc, 0, sizeof(dsc));
+  dsc.dsc_ds = ds;
 
   for(dsf = ds->ds_dsf; dsf; dsf = dsf->dsf_next) {
-    ds->ds_fname = dsf->dsf_name;
+    dsc.dsc_fname = dsf->dsf_name;
     f = fopen(dsf->dsf_name, "r");
     if (!f || fstat(fileno(f), &st0) < 0) {
-      dslog(LOG_ERR, 0, "unable to open file: %s", strerror(errno));
+      dslog(LOG_ERR, &dsc, "unable to open file: %s", strerror(errno));
       if (f) fclose(f);
       return 0;
     }
     ds->ds_type->dst_startfn(ds);
-    if (!readdslines(f, ds)) {
+    if (!readdslines(f, ds, &dsc)) {
       fclose(f);
       return 0;
     }
+    dsc.dsc_lineno = 0;
     if (ferror(f) || fstat(fileno(f), &st1) < 0) {
-      dslog(LOG_ERR, 0, "error reading file: %s", strerror(errno));
+      dslog(LOG_ERR, &dsc, "error reading file: %s", strerror(errno));
       fclose(f);
       return 0;
     }
     fclose(f);
     if (st0.st_mtime != st1.st_mtime ||
         st0.st_size  != st1.st_size) {
-      dslog(LOG_ERR, 0, "file changed while we where reading it, data load aborted");
-      dslog(LOG_ERR, 0, "do not write data files directly, use temp file and rename(2) instead");
+      dslog(LOG_ERR, &dsc,
+            "file changed while we where reading it, data load aborted");
+      dslog(LOG_ERR, &dsc,
+            "do not write data files directly, "
+            "use temp file and rename(2) instead");
       return 0;
     }
     dsf->dsf_stamp = st0.st_mtime;
@@ -368,12 +372,10 @@ static int loaddataset(struct dataset *ds) {
     if (dsf->dsf_stamp > stamp)
       stamp = dsf->dsf_stamp;
   }
-  ds->ds_fname = NULL;
   ds->ds_stamp = stamp;
+  dsc.dsc_fname = NULL;
 
-  ds->ds_type->dst_finishfn(ds);
-
-  ds_loading = NULL;
+  ds->ds_type->dst_finishfn(ds, &dsc);
 
   return 1;
 }
@@ -416,13 +418,11 @@ int reloadzones(struct zone *zonelist) {
   for(ds = ds_list; ds; ds = ds->ds_next) {
     int load = 0;
 
-    ds_loading = ds;
-
     for(dsf = ds->ds_dsf; dsf; dsf = dsf->dsf_next) {
       struct stat st;
       if (stat(dsf->dsf_name, &st) < 0) {
         dslog(LOG_ERR, 0, "unable to stat file `%.60s': %s",
-             dsf->dsf_name, strerror(errno));
+              dsf->dsf_name, strerror(errno));
         load = -1;
         break;
       }
@@ -455,8 +455,6 @@ int reloadzones(struct zone *zonelist) {
     }
 
   }
-
-  ds_loading = NULL;
 
   if (reloaded) {
 

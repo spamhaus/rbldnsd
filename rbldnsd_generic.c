@@ -33,7 +33,8 @@ static void ds_generic_reset(struct dsdata *dsd, int UNUSED unused_freeall) {
 static void ds_generic_start(struct dataset UNUSED *unused_ds) {
 }
 
-static int ds_generic_parseany(struct dataset *ds, char *s, int lineno) {
+static int
+ds_generic_parseany(struct dataset *ds, char *s, struct dsctx *dsc) {
   struct dsdata *dsd = ds->ds_dsd;
   struct entry *e;
   char *t;
@@ -106,7 +107,7 @@ static int ds_generic_parseany(struct dataset *ds, char *s, int lineno) {
     if (dsiz >= 2 && s[0] == '"' && s[dsiz-1] == '"')
       ++s, dsiz -= 2;
     if (dsiz > 255) {
-      dswarn(lineno, "TXT RR truncated to 255 bytes");
+      dswarn(dsc, "TXT RR truncated to 255 bytes");
       dsiz = 255;
     }
     dp[0] = (char)dsiz;
@@ -141,10 +142,10 @@ static int ds_generic_parseany(struct dataset *ds, char *s, int lineno) {
 }
 
 static int
-ds_generic_line(struct dataset *ds, char *s, int lineno) {
-  int r = ds_generic_parseany(ds, s, lineno);
+ds_generic_line(struct dataset *ds, char *s, struct dsctx *dsc) {
+  int r = ds_generic_parseany(ds, s, dsc);
   if (r < 0) {
-    dswarn(lineno, "invalid/unrecognized entry");
+    dswarn(dsc, "invalid/unrecognized entry");
     return 1;
   }
   else if (!r)
@@ -165,7 +166,7 @@ static int ds_generic_lt(const struct entry *a, const struct entry *b) {
   else return a->dtyp < b->dtyp;
 }
 
-static void ds_generic_finish(struct dataset *ds) {
+static void ds_generic_finish(struct dataset *ds, struct dsctx *dsc) {
   struct dsdata *dsd = ds->ds_dsd;
   if (dsd->n) {
 
@@ -183,7 +184,7 @@ static void ds_generic_finish(struct dataset *ds) {
     }
     SHRINK_ARRAY(struct entry, dsd->e, dsd->n, dsd->a);
   }
-  dsloaded("e=%u", dsd->n);
+  dsloaded(dsc, "e=%u", dsd->n);
 }
 
 static const struct entry *
