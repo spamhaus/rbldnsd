@@ -785,10 +785,9 @@ int main(int argc, char **argv) {
 unsigned ip4parse_cidr(const char *s, ip4addr_t *ap, char **np) {
   unsigned bits = ip4cidr(s, ap, np);
   if (bits) {
-    ip4addr_t hmask = ~ip4mask(bits);
-    if (*ap & hmask) {
+    if (*ap & ~ip4mask(bits)) {
       if (!accept_in_cidr) return 0;
-      *ap &= hmask;
+      *ap &= ip4mask(bits);
     }
   }
   return bits;
