@@ -17,6 +17,12 @@ Never news are at top.
  - -v option is gone, new option -l to specify a logfile
    (it was a bad idea to log every request via syslog).
 
+ - when constructing a dataset from several files, A and
+   TXT records are now taken from _first_ file for ip4set
+   and dnset (ignoring those in other files), and for
+   ip4vset and dnvset, defaults are in effect for a single
+   file only.
+
  - implemented removal of duplicate entries on zone data
    reloads.  May be disabled at compile time by adding
    -DNOREMOVEDUPS to $(DEFS).
