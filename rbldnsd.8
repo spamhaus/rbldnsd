@@ -231,7 +231,8 @@ By default, \fBrbldnsd\fR writes absolute counter values into
 last reset).  \fIstatsfile\fR may be prefixed with plus sign (+),
 in which case \fBrbldnsd\fR will write delta values, that is,
 number of packets or bytes since last write, or number of
-packets (bytes) per unit of time.
+packets (bytes) per unit of time ("incremental" mode, hence
+the "+" sign).
 
 .IP \fB\-n\fR
 Do not become a daemon.  Normally, \fBrbldnsd\fR will fork and go to the
