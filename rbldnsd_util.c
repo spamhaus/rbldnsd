@@ -208,6 +208,59 @@ unsigned unpack32(const unsigned char p[4]) {
   return n;
 }
 
+static void
+dump_ip4octets(FILE *f, unsigned idx, ip4addr_t a, unsigned cnt,
+	       const char *rr, const struct dataset *ds) {
+  char name[16];
+  static const char * const fmt[4] = {
+     "%u.%u.%u.%u", "*.%u.%u.%u", "*.%u.%u", "*.%u"
+  };
+  const unsigned bits = 8 * idx;
+  for(;;) {
+    sprintf(name, fmt[idx], a&255, (a>>8)&255, (a>>16)&255, (a>>24));
+    dump_a_txt(name, rr, ip4atos(a<<bits), ds, f);
+    if (!--cnt)
+      break;
+    ++a;
+  }
+}
+
+void dump_ip4range(ip4addr_t a, ip4addr_t b, const char *rr,
+		   const struct dataset *ds, FILE *f) {
+
+#define fn(idx,start,count) \
+	dump_ip4octets(f, idx, start, count, rr, ds)
+#define ip4range_expand_octet(bits)               \
+  if ((a | 255u) >= b) {                          \
+    if (b - a == 255u)                            \
+      fn((bits>>3)+1, a>>8, 1);                   \
+    else                                          \
+      fn(bits>>3, a, b - a + 1);                  \
+    return;                                       \
+  }                                               \
+  if (a & 255u) {                                 \
+    fn(bits>>3, a, 256u - (a & 255u));            \
+    a = (a >> 8) + 1;                             \
+  }                                               \
+  else                                            \
+    a >>= 8;                                      \
+  if ((b & 255u) != 255u) {                       \
+    fn((bits>>3), (b & ~255u), (b&255u)+1);       \
+    b = (b >> 8) - 1;                             \
+  }                                               \
+  else                                            \
+    b >>= 8
+
+  ip4range_expand_octet(0);
+  ip4range_expand_octet(8);
+  ip4range_expand_octet(16);
+  fn(3, a, b - a + 1);
+
+#undef fn
+#undef ip4range_expand_octet
+
+}
+
 char *emalloc(unsigned size) {
   void *ptr = malloc(size);
   if (!ptr)

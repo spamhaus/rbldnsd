@@ -3,8 +3,12 @@ rbldnsd (0.994pre) unstable; urgency=low
   * fixed wrong return in ds_ip4trie_dump_octets(), which
     prevented some ranges from being expanded properly when
     creating master-format dump (-d) file.
+  * generalized and moved ds_ip4trie_dump_range() (renamed to
+    dump_ip4range()) to rbldnsd_utils.c to made it generally
+    useful (to be used in rbldnsd_ip4set.c too), and made it
+    void (cf the wrong return above)
 
- -- Michael Tokarev <mjt@corpit.ru>  Sun, 24 Oct 2004 20:51:58 +0400
+ -- Michael Tokarev <mjt@corpit.ru>  Sun, 24 Oct 2004 21:18:02 +0400
 
 rbldnsd (0.993.1) unstable; urgency=low
 

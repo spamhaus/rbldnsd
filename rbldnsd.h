@@ -269,6 +269,8 @@ void addrr_any(struct dnspacket *pkt, unsigned dtp,
                const void *data, unsigned dsz, unsigned ttl);
 void dump_a_txt(const char *name, const unsigned char *rr,
                 const char *subst, const struct dataset *ds, FILE *f);
+void dump_ip4range(ip4addr_t a, ip4addr_t b, const char *rr,
+		   const struct dataset *ds, FILE *f);
 
 struct zone *addzone(struct zone *zonelist, const char *spec);
 void connectdataset(struct zone *zone,
