@@ -13,6 +13,8 @@ rbldnsd (0.91pre) unstable; urgency=low
   * changed default ttl to be 35m
   * use ISSPACE/SKIPSPACE everywhere
   * use PACK32/PACK16 everywhere
+  * some more variants of parse_{time,uint32}
+  * use parse_time() for -c option too
 
  -- Michael Tokarev <mjt@corpit.ru>  Wed, 14 May 2003 19:20:28 +0400
 

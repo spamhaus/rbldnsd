@@ -25,28 +25,32 @@ static char *parse_uint32_s(char *s, unsigned *np) {
   return (char*)t;
 }
 
-char *parse_uint32(char *s, unsigned char nb[4]) {
-  unsigned n;
-  if (!(s = parse_uint32_s(s, &n))) return NULL;
+char *parse_uint32(char *s, unsigned *np) {
+  if (!(s = parse_uint32_s(s, np))) return NULL;
   if (*s) {
     if (!ISSPACE(*s)) return NULL;
     ++s; SKIPSPACE(s);
   }
+  return s;
+}
+
+char *parse_uint32_nb(char *s, unsigned char nb[4]) {
+  unsigned n;
+  if (!(s = parse_uint32(s, &n))) return NULL;
   PACK32(nb, n);
   return s;
 }
 
-char *parse_time(char *s, unsigned char nb[4]) {
-  unsigned n;
+char *parse_time(char *s, unsigned *tp) {
   unsigned m = 1;
-  if (!(s = parse_uint32_s(s, &n))) return NULL;
+  if (!(s = parse_uint32_s(s, tp))) return NULL;
   switch(*s) {
     case 'w': case 'W': m *= 7;		/* week */
     case 'd': case 'D': m *= 24;	/* day */
     case 'h': case 'H': m *= 60;	/* hours */
     case 'm': case 'M': m *= 60;	/* minues */
-      if (0xffffffffu / m < n) return NULL;
-      n *= m;
+      if (0xffffffffu / m < *tp) return NULL;
+      *tp *= m;
     case 's': case 'S':			/* secounds */
       ++s;
       break;
@@ -55,12 +59,19 @@ char *parse_time(char *s, unsigned char nb[4]) {
     if (*s && !ISSPACE(*s)) return NULL;
     ++s; SKIPSPACE(s);
   }
-  PACK32(nb, n);
   return s;
 }
 
-char *parse_ttl(char *s, unsigned char ttl[4], const unsigned char defttl[4]) {
-  s = parse_time(s, ttl);
+char *parse_time_nb(char *s, unsigned char nb[4]) {
+  unsigned t;
+  if (!(s = parse_time(s, &t))) return NULL;
+  PACK32(nb, t);
+  return s;
+}
+
+char *parse_ttl_nb(char *s, unsigned char ttl[4],
+                   const unsigned char defttl[4]) {
+  s = parse_time_nb(s, ttl);
   if (s && memcmp(ttl, "\0\0\0\0", 4) == 0)
     memcpy(ttl, defttl, 4);
   return s;

@@ -198,7 +198,7 @@ int zds_special(struct zonedataset *zds, char *line) {
     line += 4;
     SKIPSPACE(line);
 
-    if (!(line = parse_ttl(line, zsoa->zsoa_ttl, zds->zds_ttl))) return 0;
+    if (!(line = parse_ttl_nb(line, zsoa->zsoa_ttl, zds->zds_ttl))) return 0;
 
     if (!(line = parse_dn(line, zsoa->zsoa_odn + 1, &n))) return 0;
     zsoa->zsoa_odn[0] = n;
@@ -207,11 +207,11 @@ int zds_special(struct zonedataset *zds, char *line) {
 
     /* serial */
     bp = zsoa->zsoa_n;
-    if (!(line = parse_uint32(line, bp))) return 0;
+    if (!(line = parse_uint32_nb(line, bp))) return 0;
     /* refresh, retry, expiry, minttl */
     bp += 4;
     for(n = 0, bp = zsoa->zsoa_n; n < 4; ++n) {
-      if (!(line = parse_time(line, bp))) return 0;
+      if (!(line = parse_time_nb(line, bp))) return 0;
       bp += 4;
     }
 
@@ -233,7 +233,7 @@ int zds_special(struct zonedataset *zds, char *line) {
      line += 3;
      SKIPSPACE(line);
 
-     if (!(line = parse_ttl(line, dn, zds->zds_ttl))) return 0;
+     if (!(line = parse_ttl_nb(line, dn, zds->zds_ttl))) return 0;
 
      if (!(line = parse_dn(line, dn + 5, &n))) return 0;
      dn[4] = (unsigned char)n;
@@ -259,7 +259,7 @@ int zds_special(struct zonedataset *zds, char *line) {
     unsigned char ttl[4];
     line += 4;
     SKIPSPACE(line);
-    if (!(line = parse_ttl(line, ttl, defttl))) return 0;
+    if (!(line = parse_ttl_nb(line, ttl, defttl))) return 0;
     if (*line) return 0;
     memcpy(zds->zds_ttl, ttl, 4);
     return 1;

@@ -69,9 +69,12 @@ struct dnsquery {	/* q */
 #define ISSPACE(s) ((s) == ' ' || (s) == '\t')
 #define SKIPSPACE(s) while(ISSPACE(*s)) ++s
 
-char *parse_uint32(char *s, unsigned char nb[4]);
-char *parse_time(char *s, unsigned char nb[4]);
-char *parse_ttl(char *s, unsigned char ttl[4], const unsigned char defttl[4]);
+char *parse_uint32(char *s, unsigned *np);
+char *parse_uint32_nb(char *s, unsigned char nb[4]);
+char *parse_time(char *s, unsigned *tp);
+char *parse_time_nb(char *s, unsigned char nb[4]);
+char *parse_ttl_nb(char *s, unsigned char ttl[4],
+                   const unsigned char defttl[4]);
 char *parse_dn(char *s, unsigned char *dn, unsigned *dnlenp);
 
 typedef struct dataset *ds_allocfn_t(void);

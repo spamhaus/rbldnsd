@@ -67,7 +67,7 @@ static int ds_generic_parseany(struct zonedataset *zds, char *s) {
   SKIPSPACE(s);
 
   if (*s >= '0' && *s <= '9') { /* ttl */
-    if (!(s = parse_ttl(s, data, zds->zds_ttl))) return 0;
+    if (!(s = parse_ttl_nb(s, data, zds->zds_ttl))) return 0;
     SKIPSPACE(s);
   }
   else
@@ -103,7 +103,7 @@ static int ds_generic_parseany(struct zonedataset *zds, char *s) {
 
   else if (strcmp(t, "mx") == 0) {
     dtyp = NSQUERY_MX | DNS_T_MX;
-    if (!(s = parse_uint32(s, dp)) || dp[0] || dp[1]) return -1;
+    if (!(s = parse_uint32_nb(s, dp)) || dp[0] || dp[1]) return -1;
     dp[0] = dp[2]; dp[1] = dp[3];
     if (!(s = parse_dn(s, dp + 3, &dsiz))) return 0;
     if (*s) return 0;

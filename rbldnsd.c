@@ -59,7 +59,7 @@ void error(int errnum, const char *fmt, ...) {
   _exit(1);
 }
 
-static int recheck = 60;	/* interval between checks for reload */
+static unsigned recheck = 60;	/* interval between checks for reload */
 static int accept_in_cidr;	/* accept 127.0.0.1/8-style CIDRs */
 static int initialized;		/* 1 when initialized */
 static char *logfile;		/* log file name */
@@ -219,13 +219,12 @@ static int init(int argc, char **argv, struct zone **zonep) {
     case 'w': workdir = optarg; break;
     case 'p': pidfile = optarg; break;
     case 't':
-      if (!(p = parse_time(optarg, defttl)) || *p)
+      if (!(p = parse_time_nb(optarg, defttl)) || *p)
         error(0, "invalid ttl (-t) value `%.50s'", optarg);
       break;
     case 'c':
-      if ((c = satoi(optarg)) < 0)
+      if (!(p = parse_time(optarg, &recheck)) || *p)
         error(0, "invalid check interval (-c) value `%.50s'", optarg);
-      recheck = c;
       break;
     case 'n': nodaemon = 1; break;
     case 'e': accept_in_cidr = 1; break;
