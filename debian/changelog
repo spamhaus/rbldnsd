@@ -11,10 +11,14 @@ rbldnsd (0.993p1) unstable; urgency=low
   * bugfix: wrong MX pref in dump (-d) in generic dataset.
     Fix by Andreas Pommer, apommer at cosy.sbg.ac.at
 
+  * bugfix: wrong subzone in $ORIGIN when dumping combined dataset.
+    Fix by Andreas Pommer, apommer at cosy.sbg.ac.at
+
   * bugfix: incorect (opposite) evaluation of maxttl.
     Fix by Bradley Baetz  bradley.baetz at optusnet.com.au
+  * 
 
- -- Michael Tokarev <mjt@corpit.ru>  Tue, 30 Mar 2004 01:02:41 +0400
+ -- Michael Tokarev <mjt@corpit.ru>  Wed, 31 Mar 2004 17:54:40 +0400
 
 rbldnsd (0.992) unstable; urgency=low
 

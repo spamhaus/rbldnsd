@@ -185,18 +185,17 @@ ds_combined_query(const struct dataset *ds, const struct dnsqinfo *qi,
 
 static void
 ds_combined_dump(const struct dataset *ds, const unsigned char *odn, FILE *f) {
-  char name[DNS_MAXDOMAIN*2+3];
-  unsigned l = dns_dntop(odn, name, DNS_MAXDOMAIN + 1);
+  char bname[DNS_MAXDOMAIN+1], sname[DNS_MAXDOMAIN+1];
   const struct zone *zone;
   const struct dslist *dsl;
+  dns_dntop(odn, bname, DNS_MAXDOMAIN + 1);
   for(zone = ds->ds_dsd->zlist; zone; zone = zone->z_next) {
     if (zone->z_dnlen == 1)
-      name[l] = '\0';
+      fprintf(f, "$ORIGIN %s.\n", bname);
     else {
-      name[l] = '.';
-      dns_dntop(zone->z_dn, name + l + 1, DNS_MAXDOMAIN + 1);
+      dns_dntop(zone->z_dn, sname, DNS_MAXDOMAIN + 1);
+      fprintf(f, "$ORIGIN %s.%s.\n", sname, bname);
     }
-    fprintf(f, "$ORIGIN %s.\n", name);
     for(dsl = zone->z_dsl; dsl; dsl = dsl->dsl_next)
       dsl->dsl_ds->ds_type->dst_dumpfn(dsl->dsl_ds, NULL/*XXX*/, f);
   }
