@@ -155,16 +155,13 @@ struct dsfile {	/* dsf */
 struct dssoa { /* dssoa */
   unsigned char dssoa_ttl[4];		/* TTL value */
   const unsigned char *dssoa_odn;	/* origin DN */
-  unsigned dssoa_odnlen;		/* len of dssoa_odn */
   const unsigned char *dssoa_pdn;	/* person DN */
-  unsigned dssoa_pdnlen;		/* len of dssoa_pdn */
   unsigned dssoa_serial;		/* SOA serial # */
   unsigned char dssoa_n[16];		/* refresh, retry, expire, minttl */
 };
 
 struct dsns { /* dsns, nameserver */
   struct dsns *dsns_next;		/* next nameserver in list */
-  unsigned dsns_dnlen;			/* len of dsns_dn */
   unsigned char dsns_ttl[4];		/* TTL value */
   unsigned char dsns_dn[1];		/* nameserver DN, varlen */
 };

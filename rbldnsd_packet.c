@@ -311,7 +311,6 @@ struct dnjump {	/* one DN "jump": */
 
 struct dnptr {	/* domain pointer for DN compression */
   const unsigned char *dn;	/* actual (complete) domain name */
-  unsigned dnlen;		/* it's length */
   int off;			/* jump offset relative to start of RRs */
 };
 
@@ -330,23 +329,21 @@ struct dncompr {	/* DN compression structure */
 static unsigned char *
 dnc_init(struct dncompr *compr,
          unsigned char *buf, unsigned bufsize, struct dnjump *jump,
-         const unsigned char *dn, unsigned dnlen) {
+         const unsigned char *dn) {
   struct dnptr *ptr;
   unsigned char *cpos;
 
   compr->buf = buf; compr->bend = buf + bufsize;
   compr->jump = jump;
 
-  cpos = buf - dnlen - 4;	/* current position: qDN BEFORE the RRs */
+  cpos = buf - dns_dnlen(dn) - 4; /* current position: qDN BEFORE the RRs */
   ptr = compr->ptr;
 
   while(*dn) {
     ptr->dn = dn;
-    ptr->dnlen = dnlen;
     ptr->off = cpos - buf;
     ++ptr;
     cpos += *dn + 1;
-    dnlen -= *dn + 1;
     dn += *dn + 1;
   }
   compr->lptr = ptr;
@@ -355,14 +352,13 @@ dnc_init(struct dncompr *compr,
 
 /* add one DN into cache, adjust compression pointers and current pointer */
 static unsigned char *
-dnc_add(struct dncompr *compr, unsigned char *cpos,
-        const unsigned char *dn, unsigned dnlen) {
+dnc_add(struct dncompr *compr, unsigned char *cpos, const unsigned char *dn) {
   struct dnptr *ptr;
 
   while(*dn) {
     /* lookup DN in already stored names */
     for(ptr = compr->ptr; ptr < compr->lptr; ++ptr) {
-      if (ptr->dnlen != dnlen || !dns_dnequ(ptr->dn, dn))
+      if (!dns_dnequ(ptr->dn, dn))
         continue;
       /* found one, make a jump to it */
       if (cpos + 2 >= compr->bend) return NULL;
@@ -376,14 +372,12 @@ dnc_add(struct dncompr *compr, unsigned char *cpos,
       return NULL;	/* does not fit */
     if (ptr < compr->ptr + sizeof(compr->ptr) / sizeof(compr->ptr[0])) {
       ptr->dn = dn;
-      ptr->dnlen = dnlen;
       ptr->off = cpos - compr->buf;
       ++compr->lptr;
     }
     /* ...and add one label into the "packet" */
     memcpy(cpos, dn, *dn + 1);
     cpos += *dn + 1;
-    dnlen -= *dn + 1;
     dn += *dn + 1;
   }
   if (cpos + 1 >= compr->bend)
@@ -461,18 +455,18 @@ int update_zone_soa(struct zone *zone, const struct dssoa *dssoa) {
    if (!(zone->z_dssoa = dssoa)) return 1;
 
    cpos = dnc_init(&compr, zsoa->data, sizeof(zsoa->data),
-                   zsoa->jump, zone->z_dn, zone->z_dnlen);
+                   zsoa->jump, zone->z_dn);
 
-   cpos = dnc_add(&compr, cpos, zone->z_dn, zone->z_dnlen);
+   cpos = dnc_add(&compr, cpos, zone->z_dn);
    *cpos++ = DNS_T_SOA>>8; *cpos++ = DNS_T_SOA;
    *cpos++ = DNS_C_IN >>8; *cpos++ = DNS_C_IN;
    zsoa->ttloff = cpos - compr.buf;
    memcpy(cpos, dssoa->dssoa_ttl, 4); cpos += 4;
    sizep = cpos;
    cpos += 2;
-   cpos = dnc_add(&compr, cpos, dssoa->dssoa_odn, dssoa->dssoa_odnlen);
+   cpos = dnc_add(&compr, cpos, dssoa->dssoa_odn);
    if (!cpos) return 0;
-   cpos = dnc_add(&compr, cpos, dssoa->dssoa_pdn, dssoa->dssoa_pdnlen);
+   cpos = dnc_add(&compr, cpos, dssoa->dssoa_pdn);
    if (!cpos) return 0;
    if (dssoa->dssoa_serial)
      PACK32(cpos, dssoa->dssoa_serial);
@@ -525,16 +519,16 @@ int update_zone_ns(struct zone *zone, const struct dsns **dsnsa, unsigned nns) {
   ns = 0;
   for(;;) {
     cpos = dnc_init(&compr, zns->data, sizeof(zns->data),
-                    zns->jump, zone->z_dn, zone->z_dnlen);
+                    zns->jump, zone->z_dn);
 
     for(i = 0; i < nns; ++i) {
-      cpos = dnc_add(&compr, cpos, zone->z_dn, zone->z_dnlen);
+      cpos = dnc_add(&compr, cpos, zone->z_dn);
       if (!cpos || cpos + 10 > compr.bend) return 0;
       *cpos++ = DNS_T_NS>>8; *cpos++ = DNS_T_NS;
       *cpos++ = DNS_C_IN>>8; *cpos++ = DNS_C_IN;
       memcpy(cpos, dsnsa[i]->dsns_ttl, 4); cpos += 4;
       sizep = cpos; cpos += 2;
-      cpos = dnc_add(&compr, cpos, dsnsa[i]->dsns_dn, dsnsa[i]->dsns_dnlen);
+      cpos = dnc_add(&compr, cpos, dsnsa[i]->dsns_dn);
       if (!cpos) return 0;
       size = cpos - sizep - 2;
       PACK16(sizep, size);

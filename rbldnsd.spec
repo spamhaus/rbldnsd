@@ -3,7 +3,7 @@
 
 Summary: Small fast daemon to serve DNSBLs
 Name: rbldnsd
-Version: 0.96
+Version: 0.97pre
 Release: 1
 License: GPL
 Group: System Environment/Daemons

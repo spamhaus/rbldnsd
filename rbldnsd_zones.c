@@ -149,6 +149,7 @@ int ds_special(struct dataset *ds, char *line, int lineno) {
     /* SOA record */
     struct dssoa dssoa;
     unsigned char odn[DNS_MAXDN], pdn[DNS_MAXDN];
+    unsigned odnlen, pdnlen;
 
     if (ds->ds_dssoa)
       return 1; /* ignore if already set */
@@ -157,8 +158,8 @@ int ds_special(struct dataset *ds, char *line, int lineno) {
     SKIPSPACE(line);
 
     if (!(line = parse_ttl_nb(line, dssoa.dssoa_ttl, ds->ds_ttl))) return 0;
-    if (!(line = parse_dn(line, odn, &dssoa.dssoa_odnlen))) return 0;
-    if (!(line = parse_dn(line, pdn, &dssoa.dssoa_pdnlen))) return 0;
+    if (!(line = parse_dn(line, odn, &odnlen))) return 0;
+    if (!(line = parse_dn(line, pdn, &pdnlen))) return 0;
     if (!(line = parse_uint32(line, &dssoa.dssoa_serial))) return 0;
     if (!(line = parse_time_nb(line, dssoa.dssoa_n+0))) return 0;
     if (!(line = parse_time_nb(line, dssoa.dssoa_n+4))) return 0;
@@ -166,8 +167,8 @@ int ds_special(struct dataset *ds, char *line, int lineno) {
     if (!(line = parse_time_nb(line, dssoa.dssoa_n+12))) return 0;
     if (*line) return 0;
 
-    dssoa.dssoa_odn = mp_memdup(ds->ds_mp, odn, dssoa.dssoa_odnlen);
-    dssoa.dssoa_pdn = mp_memdup(ds->ds_mp, pdn, dssoa.dssoa_pdnlen);
+    dssoa.dssoa_odn = mp_memdup(ds->ds_mp, odn, odnlen);
+    dssoa.dssoa_pdn = mp_memdup(ds->ds_mp, pdn, pdnlen);
     if (!dssoa.dssoa_odn || !dssoa.dssoa_pdn) return -1;
     ds->ds_dssoa = mp_talloc(ds->ds_mp, struct dssoa);
     if (!ds->ds_dssoa) return -1;
@@ -195,7 +196,6 @@ int ds_special(struct dataset *ds, char *line, int lineno) {
        mp_alloc(ds->ds_mp, sizeof(struct dsns) + dnlen - 1, 1);
      if (!dsns) return -1;
 
-     dsns->dsns_dnlen = dnlen;
      memcpy(dsns->dsns_dn, dn, dnlen);
      memcpy(dsns->dsns_ttl, ttl, 4);
      dsns->dsns_next = NULL;
@@ -326,8 +326,7 @@ static int updatezone(struct zone *zone) {
             dsnsa[nns++] = dsns;
           break;
         }
-        if (dsnsa[n]->dsns_dnlen == dsns->dsns_dnlen &&
-            dns_dnequ(dsnsa[n]->dsns_dn, dsns->dsns_dn))
+        if (dns_dnequ(dsnsa[n]->dsns_dn, dsns->dsns_dn))
           break;
       }
     }
