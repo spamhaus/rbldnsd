@@ -82,6 +82,9 @@ dns_nametab.c: dns.h dns_maketab.awk
 	mv -f $@.tmp $@
 
 rbldnsd.o: rbldnsd.c debian/changelog
+	@echo
+	@echo \ rbldnsd VERSION="\"$(VERSION) ($(VERSION_DATE))\""
+	@echo
 	$(COMPILE) -DVERSION="\"$(VERSION) ($(VERSION_DATE))\""
 
 clean:
