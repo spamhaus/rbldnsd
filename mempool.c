@@ -16,14 +16,17 @@
  * becomes less than an average allocated block size.
  */
 
+#define alignto sizeof(int)
+#define alignmask (alignto-1)
+
 void *emalloc(unsigned size);
 
-#define MEMPOOL_CHUNKSIZE (65536-sizeof(unsigned)*3)
+#define MEMPOOL_CHUNKSIZE (65536-sizeof(unsigned)*4)
 
 struct mempool_chunk {
+  char buf[MEMPOOL_CHUNKSIZE+alignto];
   struct mempool_chunk *next;
   unsigned size;
-  char buf[MEMPOOL_CHUNKSIZE];
 };
 
 struct mempool_cfull { /* pseudo-chunk: one entry into full list */
@@ -38,7 +41,7 @@ void mp_init(struct mempool *mp) {
   mp->mp_lastlen = 0;
 }
 
-char *mp_alloc(struct mempool *mp, unsigned size) {
+char *mp_alloc(struct mempool *mp, unsigned size, int align) {
   if (size >= MEMPOOL_CHUNKSIZE / 2) {
     /* for large blocks, allocate separate "full" chunk */
     struct mempool_cfull *c =
@@ -65,7 +68,10 @@ char *mp_alloc(struct mempool *mp, unsigned size) {
       }
     
     if (best != NULL) { /* found a free chunk */
-      char *b = best->buf + MEMPOOL_CHUNKSIZE - best->size;
+      char *b;
+      if (align && (best->size & alignmask))
+        best->size += alignto - (best->size & alignmask);
+      b = best->buf + MEMPOOL_CHUNKSIZE - best->size;
       best->size -= size;
       if (best->size < avg) {
         struct mempool_chunk **cp = &mp->mp_chunk;
@@ -104,7 +110,7 @@ void mp_free(struct mempool *mp) {
 }
 
 char *mp_memdup(struct mempool *mp, const void *buf, unsigned len) {
-  char *b = (char*)mp_alloc(mp, len);
+  char *b = (char*)mp_alloc(mp, len, 0);
   if (b)
     memcpy(b, buf, len);
   return b;

@@ -17,7 +17,8 @@ struct mempool { /* free-once memory pool.  All members are private */
 };
 
 void mp_init(struct mempool *mp);
-char *mp_alloc(struct mempool *mp, unsigned size);
+char *mp_alloc(struct mempool *mp, unsigned size, int align);
+#define mp_talloc(mp, type) ((type*)mp_alloc((mp), sizeof(type), 1))
 void mp_free(struct mempool *mp);
 char *mp_strdup(struct mempool *mp, const char *str);
 char *mp_memdup(struct mempool *mp, const void *buf, unsigned len);

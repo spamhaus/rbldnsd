@@ -9,7 +9,7 @@
 #include "rbldnsd.h"
 
 #define digit(c) ((c) >= '0' && (c) <= '9')
-#define d2n(c) ((c) - '0') 
+#define d2n(c) ((unsigned)((c) - '0'))
 
 static char *parse_uint32_s(char *s, unsigned *np) {
   unsigned char *t = (unsigned char*)s;
@@ -147,17 +147,28 @@ int dntoip4addr(const unsigned char *q, unsigned qlab, ip4addr_t *ap) {
   if (qlab != 4) return 0;
 
 #define oct(q,o)					\
-    o = 0;						\
-    switch(*q++) {					\
+    switch(*q) {					\
+    case 1:						\
+      if (!digit(q[1]))					\
+        return 0;					\
+      o = d2n(q[1]);					\
+      break;						\
+    case 2:						\
+      if (!digit(q[1]) || !digit(q[2]))			\
+        return 0;					\
+      o = d2n(q[1]) * 10 + d2n(q[2]);			\
+      break;						\
+    case 3:						\
+      if (!digit(q[1]) || !digit(q[2]) || !digit(q[3]))	\
+        return 0;					\
+      o = d2n(q[1]) * 100 + d2n(q[2]) * 10 + d2n(q[3]);	\
+      if (o > 255) return 0;				\
+      break;						\
     default: return 0;					\
-    case 3: if (!digit(*q)) return 0; o += d2n(*q++);	\
-    case 2: if (!digit(*q)) return 0; o += d2n(*q++);	\
-    case 1: if (!digit(*q)) return 0; o += d2n(*q++);	\
-    }							\
-    if (o > 255) return 0
-  oct(q,o); a |= o;
-  oct(q,o); a |= o << 8;
-  oct(q,o); a |= o << 16;
+    }
+  oct(q,o); a |= o;  q += *q + 1;
+  oct(q,o); a |= o << 8;  q += *q + 1;
+  oct(q,o); a |= o << 16;  q += *q + 1;
   oct(q,o); a |= o << 24;
   *ap = a;
   return 1;

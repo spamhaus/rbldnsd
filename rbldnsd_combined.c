@@ -21,7 +21,6 @@ struct dataset {
   struct zonedataset *zdslist;		/* list of subzone datasets */
   unsigned ndatasets;			/* number of datasets in zdslist */
   struct zone *zlist;			/* list of subzones */
-  struct mempool mp;			/* mempool for various structures */
 };
 
 definedstype(combined, 0, "several datasets/subzones combined");
@@ -32,7 +31,6 @@ static void ds_combined_reset(struct dataset *ds) {
     zds->zds_type->dst_resetfn(zds->zds_ds);
     mp_free(&zds->zds_mp);
   }
-  mp_free(&ds->mp);
   memset(ds, 0, sizeof(*ds));
 }
 
@@ -96,11 +94,12 @@ int ds_combined_newset(struct zonedataset *zds, char *line, int lineno) {
   dst = *dstp;
 
   zdssub = (struct zonedataset *)
-    mp_alloc(&ds->mp, sizeof(*zdssub) + dst->dst_size);
-  if (!zdssub) return -1;
-  memset(zdssub, 0, sizeof(*zdssub) + dst->dst_size);
-  zdssub->zds_ds = (struct dataset *)(zdssub + 1);
+     mp_alloc(&zds->zds_mp, sizeof(struct zonedataset) + dst->dst_size, 1);
+  if (!zdssub)
+    return -1;
+  memset(zdssub, 0, sizeof(struct zonedataset) + dst->dst_size);
   zdssub->zds_type = dst;
+  zdssub->zds_ds = (struct dataset *)(zdssub + 1);
 
   zdssub->zds_next = ds->zdslist;
   ds->zdslist = zdssub;
@@ -114,8 +113,8 @@ int ds_combined_newset(struct zonedataset *zds, char *line, int lineno) {
       dswarn(lineno, "invalid domain name `%.60s'", p);
       continue;
     }
-    zone = newzone(&ds->zlist, dn, dnlen, &ds->mp);
-    zdl = (struct zonedatalist *)mp_alloc(&ds->mp, sizeof(*zdl));
+    zone = newzone(&ds->zlist, dn, dnlen, &zds->zds_mp);
+    zdl = mp_talloc(&zds->zds_mp, struct zonedatalist);
     if (!zone || !zdl) return -1;
     connectzonedataset(zone, zdssub, zdl);
   }

@@ -168,7 +168,7 @@ struct zonesoa { /* zsoa */
 
 struct zonens { /* zns */
   struct zonens *zns_next;	/* next pointer in the list */
-  unsigned char *zns_ttlldn;	/* domain name of a nameserver */
+  unsigned char zns_ttlldn[1];	/* domain name of a nameserver, varchar */
     /* first 4 bytes in zns_ttllds are TTL value;
      * next is length of DN;
      * rest is DN itself

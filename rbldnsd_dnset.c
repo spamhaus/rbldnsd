@@ -110,7 +110,7 @@ ds_dnset_line(struct zonedataset *zds, char *s, int lineno) {
 
   /* fill up an entry */
   e += ds->n[idx]++;
-  if (!(e->ldn = (unsigned char*)mp_alloc(&zds->zds_mp, dnlen + 1)))
+  if (!(e->ldn = (unsigned char*)mp_alloc(&zds->zds_mp, dnlen + 1, 0)))
     return 0;
   e->ldn[0] = (unsigned char)(dnlen - 1);
   memcpy(e->ldn + 1, dn, dnlen);

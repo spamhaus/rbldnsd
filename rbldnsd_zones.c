@@ -150,7 +150,7 @@ struct zone *newzone(struct zone **zonelist,
   for (;;) {
     if (!(zone = *zonep)) {
       if (mp)
-        zone = (struct zone *)mp_alloc(mp, sizeof(*zone));
+        zone = mp_talloc(mp, struct zone);
       else
         zone = tmalloc(struct zone);
       if (!zone)
@@ -273,13 +273,11 @@ int zds_special(struct zonedataset *zds, char *line, int lineno) {
 
      if (!(line = parse_dn(line, dn + 5, &n))) return 0;
      dn[4] = (unsigned char)n;
-     n += 5;
+     n += 4;
 
-     /*XXXX unaligned allocation! */
-     zns = (struct zonens *)mp_alloc(&zds->zds_mp, sizeof(struct zonens) + n);
+     zns = (struct zonens*)mp_alloc(&zds->zds_mp, sizeof(struct zonens) + n, 1);
      if (!zns) return 0;
-     zns->zns_ttlldn = (unsigned char*)(zns + 1);
-     memcpy(zns->zns_ttlldn, dn, n);
+     memcpy(zns->zns_ttlldn, dn, n + 1);
 
      znsp = &zds->zds_zns;
      while(*znsp) znsp = &(*znsp)->zns_next;

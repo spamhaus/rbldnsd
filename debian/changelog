@@ -21,7 +21,12 @@ rbldnsd (0.95pre) unstable; urgency=low
 
   * change names of zsoa, zns to reflect content more accurately
 
- -- Michael Tokarev <mjt@corpit.ru>  Tue, 27 May 2003 17:31:51 +0400
+  * align argument for mp_alloc(), to align object(s) to sizeof(int).
+    This allows to eliminate one mempool in combined dataset.
+
+  * use varlen zns_ttldn[]
+
+ -- Michael Tokarev <mjt@corpit.ru>  Tue, 27 May 2003 20:55:04 +0400
 
 rbldnsd (0.94) unstable; urgency=low
 

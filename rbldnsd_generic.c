@@ -118,7 +118,7 @@ static int ds_generic_parseany(struct zonedataset *zds, char *s) {
 
   e->dtyp = dtyp;
   dsiz += 4;
-  if (!(e->data = mp_alloc(&zds->zds_mp, dsiz)))
+  if (!(e->data = mp_alloc(&zds->zds_mp, dsiz, 0)))
     return 0;
   memcpy(e->data, data, dsiz);
 
