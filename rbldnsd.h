@@ -132,6 +132,7 @@ struct dstype {	/* dst */
    descr }
 
 declaredstype(ip4set);
+declaredstype(ip4tset);
 declaredstype(ip4trie);
 declaredstype(dnset);
 declaredstype(dnhash);

@@ -386,6 +386,13 @@ it is ok to use it to store many possible wide CIDR ranges.
 Note: ip4trie dataset \fIcannot\fR be converted into master zone format
 (\fB\-d\fR option).
 
+.IP \fBip4tset\fR
+"trivial" ip4set: a set of single IP addresses (one per line), with
+the same A+TXT template.  This dataset type is more efficient than
+ip4set (in both memory usage and access times), but have obvious
+limitation.  It is intended for DNSBLs like DSBL.org, ORDB.org and
+similar.
+
 .IP \fBdnset\fR
 Set of (possible wildcarded) domain names with associated A and TXT values.
 Similar to \fBip4set\fR, but instead of IP addresses, data consists of

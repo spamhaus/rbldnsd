@@ -94,15 +94,18 @@ int lazy;			/* don't return AUTH section by default */
 
 /* a list of zonetypes. */
 const struct dstype *ds_types[] = {
-  &dataset_ip4set_type,
-  &dataset_ip4trie_type,
-  &dataset_dnset_type,
+#define ds(x) &dataset_##x##_type
+  ds(ip4set),
+  ds(ip4tset),
+  ds(ip4trie),
+  ds(dnset),
 #ifdef DNHASH
-  &dataset_dnhash_type,
+  ds(dnhasn),
 #endif
-  &dataset_generic_type,
-  &dataset_combined_type,
+  ds(generic),
+  ds(combined),
   NULL
+#undef ds
 };
 
 static int satoi(const char *s) {
