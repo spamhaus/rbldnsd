@@ -187,22 +187,23 @@ void logreply(const struct dnspacket *pkt, const char *ip, FILE *flog) {
   const unsigned char *p;
   unsigned q;
   char *v;
-  time_t now;
 
-  now = time(NULL);
   p = pkt->p + 12;
   dns_dntop(p, domain, sizeof(domain));
   p += dns_dnlen(p);
-  fprintf(flog, "%.19s %s %s ", ctime(&now), ip, domain);
+  fprintf(flog, "%lu %s %s ", (unsigned long)time(NULL), ip, domain);
 
   q = ((unsigned)p[0]<<8)|p[1];
   switch(q) {
-  case DNS_T_A:   v = "A"; break;
-  case DNS_T_TXT: v = "TXT"; break;
-  case DNS_T_NS:  v = "NS"; break;
-  case DNS_T_SOA: v = "SOA"; break;
-  case DNS_T_MX:  v = "MX"; break;
-  case DNS_T_ANY: v = "ANY"; break;
+  case DNS_T_A:     v = "A"; break;
+  case DNS_T_TXT:   v = "TXT"; break;
+  case DNS_T_NS:    v = "NS"; break;
+  case DNS_T_SOA:   v = "SOA"; break;
+  case DNS_T_MX:    v = "MX"; break;
+  case DNS_T_AAAA:  v = "AAAA"; break;
+  case DNS_T_CNAME: v = "CNAME"; break;
+  case DNS_T_PTR:   v = "PTR"; break;
+  case DNS_T_ANY:   v = "ANY"; break;
   default: fprintf(flog, "type0x%x ", q); v = NULL;
   }
   if (v) fprintf(flog, "%s ", v);
