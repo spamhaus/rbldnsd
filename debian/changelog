@@ -11,7 +11,7 @@ rbldnsd (0.993p2) unstable; urgency=low
       $DATASET ip4set:http proxies @
       $DATASET ip4set:relays relays @
 
- -- Michael Tokarev <mjt@corpit.ru>  Thu, 10 Jun 2004 04:03:19 +0400
+ -- Michael Tokarev <mjt@corpit.ru>  Thu,  1 Jul 2004 15:27:30 +0400
 
 rbldnsd (0.993p1) unstable; urgency=low
 
