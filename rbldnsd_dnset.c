@@ -180,7 +180,7 @@ ds_dnset_find(const struct entry *e, int n,
       /* found exact match, seek back to
        * first entry with this domain name */
       dn = (t--)->ldn;
-      while(t > e && t->ldn == dn)
+      while(t >= e && t->ldn == dn)
         --t;
       return t + 1;
     }
