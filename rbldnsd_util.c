@@ -279,10 +279,13 @@ vdslog(int level, int lineno, const char *fmt, va_list ap) {
     fmt = buf + pl;
     syslog(level, strchr(fmt, '%') ? "%s" : fmt, fmt);
   }
-  if (logto & (LOGTO_STDOUT | LOGTO_STDERR)) {
-    buf[l++] = '\n';
-    write(level <= LOG_WARNING ? 2 : 1, buf, l);
+  buf[l++] = '\n';
+  if (level <= LOG_WARNING) {
+    if (logto & (LOGTO_STDERR|LOGTO_STDOUT))
+      write(2, buf, l);
   }
+  else if (logto & LOGTO_STDOUT)
+    write(1, buf, l);
 }
 
 void dslog(int level, int lineno, const char *fmt, ...) {
