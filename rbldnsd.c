@@ -398,6 +398,7 @@ static struct zone *init(int argc, char **argv) {
     logto = LOGTO_STDERR;
     for(c = 0; c < argc; ++c)
       zonelist = addzone(zonelist, argv[c]);
+    init_zones_caches(zonelist);
     if (rootdir && (chdir(rootdir) < 0 || chroot(rootdir) < 0))
       error(errno, "unable to chroot to %.50s", rootdir);
     if (workdir && chdir(workdir) < 0)
