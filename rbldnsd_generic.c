@@ -15,7 +15,8 @@
 definedstype(generic, DSTF_DNREV, "generic simplified bind-format");
 
 struct entry {
-  unsigned char *rdn;	/* reversed DN, mp-allocated; first byte is length */
+  const unsigned char *lrdn;
+  	/* reversed DN, mp-allocated; first byte is length */
   u_int16_t dtyp;	/* data (query) type */
   u_int16_t dsiz;	/* data size */
   unsigned char *data;	/* data of size dsize, mp-allocated */
@@ -50,7 +51,7 @@ static int ds_generic_parseany(struct dataset *ds, char *line) {
   struct entry *e;
   char *t;
   unsigned dtyp, dsiz;
-  char data[DNS_MAXDN*2+10];
+  char data[DNS_MAXDN*2+20];
   char *dp;
 
   /* allocate new entry */
@@ -69,10 +70,12 @@ static int ds_generic_parseany(struct dataset *ds, char *line) {
     data[0] = '\0';
     dsiz = 1;
   }
-  if (!(e->rdn = (unsigned char*)mp_ealloc(&ds->mp, dsiz + 1)))
+  dns_dnreverse(data, data + DNS_MAXDN + 1, dsiz);
+  data[DNS_MAXDN] = (unsigned char)dsiz;
+  dtyp = (dsiz + sizeof(int)) / sizeof(int) * sizeof(int); /* align (memcmp) */
+  memset(data + DNS_MAXDN + 1 + dsiz, 0, sizeof(int));
+  if (!(e->lrdn = (unsigned char*)mp_edmemdup(&ds->mp, data + DNS_MAXDN, dtyp)))
     return 0;
-  e->rdn[0] = (unsigned char)dsiz;
-  dns_dnreverse(data, e->rdn + 1, dsiz);
 
   skipspace(line);
 
@@ -136,7 +139,7 @@ static int ds_generic_parseany(struct dataset *ds, char *line) {
   memcpy(e->data, data, dsiz);
 
   ++ds->n;
-  dsiz = dns_dnlabels(e->rdn);
+  dsiz = dns_dnlabels(e->lrdn);
   if (ds->maxlab < dsiz) ds->maxlab = dsiz;
 
   return 1;
@@ -160,12 +163,12 @@ static int ds_generic_load(struct zonedataset *zds, FILE *f) {
 }
 
 static struct dataset *ds_generic_alloc() {
-  struct dataset *ds = tzalloc(struct dataset);
-  return ds;
+  return tzalloc(struct dataset);
 }
 
+#define max(a,b) ((a)>(b)?(a):(b))
 static inline int ds_generic_lt(const struct entry *a, const struct entry *b) {
-  int r = strcmp(a->rdn + 1, b->rdn + 1);
+  int r = memcmp(a->lrdn + 1, b->lrdn + 1, max(a->lrdn[0], b->lrdn[0]));
   return
      r < 0 ? 1 :
      r > 0 ? 0 :
@@ -184,8 +187,9 @@ static int ds_generic_finish(struct dataset *ds) {
     /* collect all equal DNs to point to the same place */
     { struct entry *e, *t;
       for(e = ds->e, t = e + ds->n - 1; e < t; ++e)
-        if (e[0].rdn != e[1].rdn && strcmp(e[0].rdn, e[1].rdn) == 0)
-          e[1].rdn = e[0].rdn;
+        if (e[0].lrdn != e[1].lrdn && e[0].lrdn[0] == e[1].lrdn[0] &&
+            memcmp(e[0].lrdn, e[1].lrdn, e[0].lrdn[0]) == 0)
+          e[1].lrdn = e[0].lrdn;
     }
     SHRINK_ARRAY(struct entry, ds->e, ds->n, ds->a);
   }
@@ -193,56 +197,32 @@ static int ds_generic_finish(struct dataset *ds) {
   return 1;
 }
 
-#if 0
-static int
-ds_generic_find(const struct entry *e, int n,
-                const unsigned char *q, unsigned qlen,
-                const struct entry **ep) {
-  int a = 0, b = n - 1, m, r;
-  while(a <= b) {
-    if (!(r = strcmp(e[(m = (a + b) >> 1)].rdn + 1, q))) {
-      const struct entry *p = e + m;
-      q = (p--)->rdn;
-      while(p >= e && p->rdn == q)
-        --p;
-      *ep = p + 1;
-      return 1;
-    }
-    else if (r < 0) a = m + 1;
-    else b = m - 1;
-  }
-  if (a < n && qlen < e[a].rdn[0] && !memcmp(q, e[a].rdn + 1, qlen - 1))
-    return 0;
-  return -1;
-}
-#endif
-
 static int
 ds_generic_query(const struct dataset *ds,
                  const struct dnsquery *query, unsigned qtyp,
                  struct dnspacket *packet) {
-  const unsigned char *rdn = query->qrdn;
+  const unsigned char *rdn = query->q_rdn;
   const struct entry *e = ds->e, *t;
   int a = 0, b = ds->n - 1, m, r;
-
-  if (query->qlab > ds->maxlab) return 0;
+  if (query->q_dnlab > ds->maxlab || b < 0) return 0;
 
   for(;;) {
     if (a > b) {
       /* we should not return NXDOMAIN if a subdomain of a query exists */
-      if ((unsigned)a < ds->n && query->qlen < e[a].rdn[0] &&
-          memcmp(rdn, e[a].rdn + 1, query->qlen - 1) == 0)
+      if ((unsigned)a < ds->n && query->q_dnlen < e[a].lrdn[0] &&
+          memcmp(rdn, e[a].lrdn + 1, query->q_dnlen - 1) == 0)
        return 1;
       return 0;
     }
-    if (!(r = strcmp(e[(m = (a + b) >> 1)].rdn + 1, rdn))) break;
+    if (!(r = strcmp(e[(m = (a + b) >> 1)].lrdn + 1, rdn))) break;
     else if (r < 0) a = m + 1;
     else b = m - 1;
   }
 
+  /* find first entry with the DN in question */
   t = e + m;
-  rdn = (t--)->rdn;
-  while(t >= e && t->rdn == rdn)
+  rdn = (t--)->lrdn;
+  while(t >= e && t->lrdn == rdn)
     --t;
   e = t + 1;
 
@@ -261,6 +241,6 @@ ds_generic_query(const struct dataset *ds,
       addrec_any(packet, e->dtyp & 0xff, e->data, e->dsiz);
       break;
     }
-  } while(++e < t && e->rdn == rdn);
+  } while(++e < t && e->lrdn == rdn);
   return 1;
 }

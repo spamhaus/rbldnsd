@@ -188,15 +188,15 @@ static int
 ds_ip4vset_query(const struct dataset *ds,
                  const struct dnsquery *query, unsigned qtyp,
                  struct dnspacket *packet) {
-  ip4addr_t q = query->qip4;
+  ip4addr_t q = query->q_ip4;
   ip4addr_t f;
   const struct entry *e, *t;
   const char *ipsubst;
 
-  if (query->qip4octets != 4) {
+  if (query->q_ip4oct != 4) {
     unsigned n, l;
 
-    if (!(l = query->qip4octets)) return 0;
+    if (!(l = query->q_ip4oct)) return 0;
 
     /* we can't return NXDOMAIN for 3.2.1.bl.example.com -
      * e.g. if 4.3.2.1.bl.example.com exists */

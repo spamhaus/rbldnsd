@@ -181,23 +181,23 @@ static int
 ds_dnvset_query(const struct dataset *ds,
                 const struct dnsquery *query, unsigned qtyp,
                 struct dnspacket *packet) {
-  const unsigned char *dn = query->qdn;
+  const unsigned char *dn = query->q_dn;
   const struct entry *e, *t;
   char name[DNS_MAXDOMAIN+1];
-  unsigned labels = query->qlab;
-  if (!labels)
+  unsigned lab = query->q_dnlab;
+  if (!lab)
     return 0;
-  if (labels > ds->maxlab[EP] || labels < ds->minlab[EP] ||
+  if (lab > ds->maxlab[EP] || lab < ds->minlab[EP] ||
       !(e = ds_dnvset_find(ds->e[EP], ds->n[EP] - 1, dn))) {
     /* try wildcard; require at least 1 label on the left */
     do
-      --labels, dn += 1 + *dn;
-    while(labels > ds->maxlab[EW]);
+      --lab, dn += 1 + *dn;
+    while(lab > ds->maxlab[EW]);
     for(;;) {
-      if (labels < ds->minlab[EW]) return 0;
+      if (lab < ds->minlab[EW]) return 0;
       if ((e = ds_dnvset_find(ds->e[EW], ds->n[EW]-1, dn)) != NULL) break;
       dn += 1 + *dn;
-      --labels;
+      --lab;
     }
     t = ds->e[EW] + ds->n[EW];
   }
@@ -208,7 +208,7 @@ ds_dnvset_query(const struct dataset *ds,
 
   dn = e->dn;
   if (qtyp & NSQUERY_TXT)
-    dns_dntop(query->qdn, name, sizeof(name));
+    dns_dntop(query->q_dn, name, sizeof(name));
   do {
     if (qtyp & NSQUERY_A)
       addrec_a(packet, e->r_a);

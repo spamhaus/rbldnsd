@@ -53,13 +53,14 @@ struct dnspacket {		/* private structure */
   struct dnsdncompr compr;	/* DN compression state */
 };
 
-struct dnsquery {
-  unsigned char qdn[DNS_MAXDN];		/* original query DN, lowercased */
-  unsigned char qrdn[DNS_MAXDN];	/* reverse of qdn */
-  unsigned qlen;			/* length of DN */
-  unsigned qlab;			/* number of labels in DN */
-  ip4addr_t qip4;			/* parsed IP4 address */
-  unsigned qip4octets;			/* number of valid octets in ip4 */
+struct dnsquery {	/* q */
+  unsigned char q_dn[DNS_MAXDN];	/* original query DN, lowercased */
+  unsigned char q_rdn_b[DNS_MAXDN];	/* reverse of q_dn - buffer */
+  unsigned char *q_rdn;			/* pointer into q_rdn_b */
+  unsigned q_dnlen;			/* length of qdn */
+  unsigned q_dnlab;			/* number of labels in qldn */
+  ip4addr_t q_ip4;			/* parsed IP4 address */
+  unsigned q_ip4oct;			/* number of valid octets in ip4 */
 };
 
 #define skipspace(s) while(*s == ' ' || *s == '\t') ++s
@@ -156,15 +157,16 @@ struct zonedatalist {	/* zdl */
 };
 
 struct zone {	/* zone, list of zones */
-  char *z_name;			/* name of the zone */
-  time_t z_stamp;		/* timestamp, 0 if not loaded */
-  unsigned char *z_dn;		/* domain name */
-  unsigned z_dnlen;		/* length of dn */
-  unsigned z_dnlab;		/* number of dn labels */
-  unsigned z_dstflags;		/* flags of all datasets */
-  struct zonedatalist *z_zdl;	/* list of datas */
-  struct zonesoa z_zsoa;	/* SOA record */
-  struct zone *z_next;		/* next in list */
+  char *z_name;				/* name of the zone */
+  time_t z_stamp;			/* timestamp, 0 if not loaded */
+  unsigned char *z_dn;			/* zone domain name */
+  unsigned char *z_rdn;			/* reverse domain name */
+  unsigned z_dnlen;			/* length of z_dnr[] */
+  unsigned z_dnlab;			/* number of dnr labels */
+  unsigned z_dstflags;			/* flags of all datasets */
+  struct zonedatalist *z_zdl;		/* list of datas */
+  struct zonesoa z_zsoa;		/* SOA record */
+  struct zone *z_next;			/* next in list */
 };
 
 /* parse query and construct a reply to it, return len of answer or 0 */

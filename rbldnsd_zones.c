@@ -148,18 +148,18 @@ struct zone *addzone(struct zone *zonelist, const char *spec) {
   struct zone *zone, **zonep;
   struct zonedatalist *zdl, **zdlp;
   char *p;
-  char name[DNS_MAXDOMAIN+1];
+  char name[DNS_MAXDOMAIN];
   unsigned char dn[DNS_MAXDN];
   unsigned dnlen;
 
   p = strchr(spec, ':');
-  if (!p || p - spec > DNS_MAXDOMAIN)
+  if (!p || p - spec >= DNS_MAXDOMAIN)
     error(0, "invalid zone spec `%.60s'", spec);
 
   memcpy(name, spec, p - spec);
   name[p - spec] = '\0';
 
-  dnlen = dns_ptodn(name, dn, sizeof(dn));
+  dnlen = dns_ptodn(name, dn, DNS_MAXDN);
   if (!dnlen)
     error(0, "invalid domain name `%s'", name);
   dns_dntol(dn, dn);
@@ -168,8 +168,10 @@ struct zone *addzone(struct zone *zonelist, const char *spec) {
   for (;;) {
     if (!(zone = *zonep)) {
       *zonep = zone = tzalloc(struct zone);
-      zone->z_dn = (unsigned char *)emalloc(dnlen);
+      zone->z_dn = (unsigned char*)emalloc(dnlen*2+sizeof(int)); /* align */
+      zone->z_rdn = zone->z_dn + dnlen;
       memcpy(zone->z_dn, dn, dnlen);
+      dns_dnreverse(dn, zone->z_rdn, dnlen);
       zone->z_dnlen = dnlen;
       zone->z_dnlab = dns_dnlabels(dn);
       dns_dntop(dn, name, sizeof(name));

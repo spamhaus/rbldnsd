@@ -148,27 +148,27 @@ static int
 ds_dnset_query(const struct dataset *ds,
                const struct dnsquery *query, unsigned qtyp,
                struct dnspacket *packet) {
-  const unsigned char *dn = query->qdn;
-  unsigned labels = query->qlab;
-  if (!labels)
+  const unsigned char *dn = query->q_dn;
+  unsigned lab = query->q_dnlab;
+  if (!lab)
     return 0;
-  if (labels > ds->maxlab[EP] || labels < ds->minlab[EP] ||
+  if (lab > ds->maxlab[EP] || lab < ds->minlab[EP] ||
       !ds_dnset_find(ds->e[EP], ds->n[EP] - 1, dn)) {
     /* try wildcard; require at least 1 label on the left */
     do
-      --labels, dn += 1 + *dn;
-    while(labels > ds->maxlab[EW]);
+      --lab, dn += 1 + *dn;
+    while(lab > ds->maxlab[EW]);
     for(;;) {
-      if (labels < ds->minlab[EW]) return 0;
+      if (lab < ds->minlab[EW]) return 0;
       if (ds_dnset_find(ds->e[EW], ds->n[EW]-1, dn)) break;
       dn += 1 + *dn;
-      --labels;
+      --lab;
     }
   }
   if (qtyp & NSQUERY_A) addrec_a(packet, ds->r_a);
   if (ds->r_txt && (qtyp & NSQUERY_TXT)) {
     char name[DNS_MAXDOMAIN+1];
-    dns_dntop(query->qdn, name, sizeof(name));
+    dns_dntop(query->q_dn, name, sizeof(name));
     addrec_txt(packet, ds->r_txt, name);
   }
   return 1;

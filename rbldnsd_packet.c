@@ -48,9 +48,6 @@ int replypacket(struct dnspacket *p, unsigned qlen, const struct zone *zone) {
   unsigned qcls, qtyp;			/* query qclass and qtype */
   unsigned qlab;			/* number of labels in qDN */
 
-#define DNS_MAXLAB (DNS_MAXDN/2)	/* maximum number of labels in a DN */
-  unsigned char *qlp[DNS_MAXLAB];	/* labels: pointers to p->qdn[] */
-
   register unsigned char *const q = p->p;	/* start of query */
   unsigned char *x;
 
@@ -71,16 +68,15 @@ int replypacket(struct dnspacket *p, unsigned qlen, const struct zone *zone) {
 
   {	/* parse and lowercase query DN, count labels */
     register unsigned char *s = q + 12;	/* orig src DN in question (<= x) */
-    register unsigned char *d = query.qdn; /* dest lowercased ptr */
+    register unsigned char *d = query.q_dn; /* dest lowercased ptr */
     register unsigned char *e;		/* end of current label */
     qlab = 0;
     while((qlen = (*d++ = *s++)) != 0) { /* loop by DN lables */
       if (qlen > DNS_MAXLABEL || (e = s + qlen) > x) return 0;
-      qlp[qlab++] = d - 1;	/* remember start of current label */
       do *d++ = dns_dnlc(*s);	/* lowercase current label */
       while (++s < e);		/* ..until it's end */
     }
-    qlen = d - query.qdn;	/* d points past the end of qdn now */
+    qlen = d - query.q_dn;	/* d points past the end of qdn now */
 
     /* s is end of qdn. decode qtype and qclass, and prepare for an answer */
     qtyp = ((unsigned)(s[0]) << 8) | s[1];
@@ -125,38 +121,37 @@ int replypacket(struct dnspacket *p, unsigned qlen, const struct zone *zone) {
   if (qcls == DNS_C_IN) q[2] |= 0x04; /* AA */
   q[3] = DNS_R_NOERROR;
 
+  /* make reverse of qdn */
+  dns_dnreverse(query.q_dn, query.q_rdn_b, qlen);
+
   /* find matching zone */
   for(;; zone = zone->z_next) {
     if (!zone) /* not authoritative */
       return refuse(DNS_R_REFUSED);
-
-    if (zone->z_dnlab > qlab) continue;
-    x = qlp[qlab - zone->z_dnlab];
-    if (zone->z_dnlen != qlen - (x - query.qdn)) continue;
-    if (memcmp(zone->z_dn, x, zone->z_dnlen) != 0) continue;
-
-    break;
+    if (zone->z_dnlen <= qlen &&
+        memcmp(zone->z_rdn, query.q_rdn_b, zone->z_dnlen - 1) == 0)
+      break;
   }
 
-  /* found a zone, query it */
+  /* found matching zone */
   if (!zone->z_stamp)	/* do not answer if not loaded */
     return refuse(DNS_R_SERVFAIL);
 
-  *x = '\0';	/* terminate dn to end at zone base dn */
+  /* initialize query */
+  query.q_dnlen = (qlen -= zone->z_dnlen - 1);
+  query.q_dn[qlen] = '\0';
+  query.q_rdn = query.q_rdn_b + zone->z_dnlen - 1;
+  query.q_dnlab = (qlab -= zone->z_dnlab);
 
-  query.qlab = (qlab -= zone->z_dnlab);
   found = qlab == 0;	/* no NXDOMAIN if it's a query for the zone base DN */
-  query.qlen = (qlen -= zone->z_dnlen - 1);
   /* vars still in use:
    *  p (packet struct); q (p->p); qlab is #of labels w/o zone dn;
    *  qtyp (converted to a bitmask); found (flag - if we found smth) */
 
   /* initialize various query variations */
   if (zone->z_dstflags & DSTF_IP4REV) /* ip4 address */
-    query.qip4octets =
-      qlab && qlab <= 4 ? dntoip4addr(query.qdn, &query.qip4) : 0;
-  if (zone->z_dstflags & DSTF_DNREV) /* reverse qdn */
-    dns_dnreverse(query.qdn, query.qrdn, qlen);
+    query.q_ip4oct =
+      qlab && qlab <= 4 ? dntoip4addr(query.q_dn, &query.q_ip4) : 0;
 
   { /* initialize DN compression */
     /* start at zone DN, not at query DN, as it may contain
