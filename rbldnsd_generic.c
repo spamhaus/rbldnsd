@@ -79,21 +79,18 @@ static int ds_generic_parseany(struct dataset *ds, char *s) {
   dp = data + 4;
 
   /* type */
+  if ((s[0] == 'i' || s[0] == 'I') &&
+      (s[1] == 'n' || s[1] == 'N') &&
+      ISSPACE(s[2])) { /* skip IN class name */
+    s += 2;
+    SKIPSPACE(s);
+  }
   t = s;
   while(!ISSPACE(*s))
     if (!*s) return -1;
     else { *s = dns_dnlc(*s); ++s; }
   *s++ = '\0';
   SKIPSPACE(s);
-
-  if (strcmp(t, "in") == 0) {
-    t = s;
-    while(!ISSPACE(*s))
-      if (!*s) return -1;
-      else { *s = dns_dnlc(*s); ++s; }
-    *s++ = '\0';
-    SKIPSPACE(s);
-  }
 
   if (strcmp(t, "a") == 0) {
     ip4addr_t a;
