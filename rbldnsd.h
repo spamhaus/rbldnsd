@@ -5,19 +5,17 @@
 #include <stdarg.h>
 #include "ip4addr.h"
 
+#if !defined(__GNUC__) && !defined(__attribute__)
+# define __attribute__(x)
+#endif
 #ifndef PRINTFLIKE
-# if __GNUC__
-#  define PRINTFLIKE(fmtp, ap) __attribute__((format(printf,fmtp,ap)))
-# else
-#  define PRINTFLIKE(fmtp, ap)
-# endif
+# define PRINTFLIKE(fmtp, ap) __attribute__((format(printf,fmtp,ap)))
 #endif
 #ifndef UNUSED
-# if __GNUC__
-#  define UNUSED __attribute__((unused))
-# else
-#  define UNUSED
-# endif
+# define UNUSED __attribute__((unused))
+#endif
+#ifndef NORETURN
+# define NORETURN __attribute__((noreturn))
 #endif
 
 extern char *progname; /* limited to 32 chars */
