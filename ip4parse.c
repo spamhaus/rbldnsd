@@ -70,7 +70,6 @@ unsigned ip4cidr(const char *s, ip4addr_t *ap, char **np) {
 
 unsigned ip4range(const char *s, ip4addr_t *ap, ip4addr_t *bp, char **np) {
   unsigned bits = ip4prefix(s, ap, (char**)&s);
-  ip4addr_t mask;
 
   if (!bits) return eret(np, s);
   else if (*s == '-') {
@@ -90,9 +89,7 @@ unsigned ip4range(const char *s, ip4addr_t *ap, ip4addr_t *bp, char **np) {
       bits = ip4mbits(s + 1, (char**)&s);
       if (!bits) return eret(np, s);
     }
-    mask = ip4mask(bits);
-    *ap &= mask;
-    *bp = *ap | ~mask;
+    *bp = *ap | ~ip4mask(bits);
     return cret(bits, np, s);
   }
 }
