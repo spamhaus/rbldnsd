@@ -791,6 +791,8 @@ int start_loading() {
   pid_t cpid;
   int pfd[2];
   if (!fork_on_reload || bgq_pid) return 0;
+  if (flog && !flushlog)
+    fflush(flog);
   if (pipe(pfd) < 0) {
     bgq_pid = -1;
     return 0;
@@ -831,6 +833,8 @@ static void do_signalled(void) {
         if (write(ipc_fd, &z->z_stats, sizeof(z->z_stats)) <= 0)
           break;
 #endif
+      if (flog && !flushlog)
+        fflush(flog);
       _exit(0);
     }
     dslog(LOG_INFO, 0, "terminating");
