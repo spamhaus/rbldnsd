@@ -191,9 +191,14 @@ ds_ip4trie_line(struct dataset *ds, char *s, struct dsctx *dsc) {
   else
     not = 0;
   if ((bits = ip4cidr(s, &a, &s)) <= 0 ||
-      (!accept_in_cidr && (a & ~ip4mask(bits))) ||
       (*s && !ISSPACE(*s) && !ISCOMMENT(*s) && *s != ':')) {
     dswarn(dsc, "invalid address");
+    return 1;
+  }
+  if (accept_in_cidr)
+    a &= ip4mask(bits);
+  else if (a & ~ip4mask(bits)) {
+    dswarn(dsc, "invalid range (non-zero host part)");
     return 1;
   }
   if (not)
