@@ -1,4 +1,6 @@
 /* $Id$
+ * dns_ptodn() parses external textual dot-separated format
+ * into a domain name
  */
 
 #include "dns.h"

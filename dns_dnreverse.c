@@ -1,4 +1,5 @@
 /* $Id$
+ * dns_dnreverse() produces reverse of a domain name
  */
 
 #include <string.h>

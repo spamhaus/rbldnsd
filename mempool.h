@@ -1,4 +1,5 @@
 /* $Id$
+ * memory pool #include file
  */
 
 #ifndef _MEMPOOL_H_INCLUDED

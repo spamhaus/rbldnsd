@@ -1,4 +1,8 @@
 /* $Id$
+ * rbldnsd zone data structures.
+ */
+
+/*
  * Each zone is composed of a set of zonedatasets.
  * There is a global list of zonedatas, each
  * with a timestamp etc.

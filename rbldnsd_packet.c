@@ -1,4 +1,5 @@
 /* $Id$
+ * DNS packet handling routines for rbldnsd
  */
 
 #include <string.h>

@@ -1,5 +1,7 @@
 #! /usr/bin/make -rf
+#
 # $Id$
+# Makefile for rbldnsd
 
 CC = cc
 CFLAGS = -O

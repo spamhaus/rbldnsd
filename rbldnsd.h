@@ -1,4 +1,5 @@
 /* $Id$
+ * common rbldnsd #include header
  */
 
 #include <stdarg.h>

@@ -1,4 +1,5 @@
 /* $Id$
+ * dns_dnlabels() returns number of individual labels in a domain name
  */
 
 #include "dns.h"

@@ -1,4 +1,6 @@
 /* $Id$
+ * ip4atos() converts binary IP4 address into textual printable
+ * dotted-quad form.
  */
 
 #include "ip4addr.h"

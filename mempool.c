@@ -1,4 +1,5 @@
 /* $Id$
+ * memory pool implementation
  */
 
 #include <stdlib.h>

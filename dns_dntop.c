@@ -1,4 +1,6 @@
 /* $Id$
+ * dns_dntop() produces printable ascii representation (external form)
+ * of a domain name
  */
 
 #include "dns.h"

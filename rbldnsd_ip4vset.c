@@ -1,4 +1,7 @@
 /* $Id$
+ * ip4vset zonetype: IP4 addresses (ranges), with A and TXT
+ * values for every individual entry.  More flexible than
+ * ip4set but requires more memory.
  */
 
 #include <stdio.h>

@@ -1,4 +1,6 @@
 /* $Id$
+ * common #include header for various helper routines to
+ * manipulate IP4 addreses
  */
 
 #ifndef _IP4ADDR_H_INCLUDED
