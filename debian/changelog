@@ -19,7 +19,10 @@ rbldnsd (0.990pre0) unstable; urgency=low
   * $NS records change: accept all NS in single line or in multiple
     lines
 
- -- Michael Tokarev <mjt@corpit.ru>  Sun, 30 Nov 2003 13:13:08 +0300
+  * increase dataset reading line length from 512 bytes to 8k to
+    allow large list of nameservers in one $NS record
+
+ -- Michael Tokarev <mjt@corpit.ru>  Sun, 30 Nov 2003 14:13:06 +0300
 
 rbldnsd (0.99) unstable; urgency=medium
 

@@ -93,7 +93,7 @@ char *parse_dn(char *s, unsigned char *dn, unsigned *dnlenp) {
 }
 
 int readdslines(FILE *f, struct dataset *ds) {
-#define bufsiz 512
+#define bufsiz 8192
   char _buf[bufsiz+4], *line, *eol;
 #define buf (_buf+4)  /* keep room for 4 IP octets in addrtxt() */
   int lineno = 0, noeol = 0;
