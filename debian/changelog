@@ -1,10 +1,16 @@
+rbldnsd (0.90) unstable; urgency=low
+
+  * 0.90 final.  Some little mods for IPv6.
+
+ -- Michael Tokarev <mjt@corpit.ru>  Sat, 10 May 2003 01:54:52 +0400
+
 rbldnsd (0.89p4.ip6) unstable; urgency=low
 
- * IPv6 transport support.  Default is to try any,
-   specify -6 or -4 to select IPv6 or IPv4.
+  * IPv6 transport support.  Default is to try any,
+    specify -6 or -4 to select IPv6 or IPv4.
 
- * -a (ACL) and -L (log ACL) options are gone for now,
-   because there is no IPv6 versions.
+  * -a (ACL) and -L (log ACL) options are gone for now,
+    because there is no IPv6 versions.
 
  -- Michael Tokarev <mjt@corpit.ru>  Thu,  8 May 2003 21:24:02 +0400
 
