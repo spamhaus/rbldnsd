@@ -611,7 +611,7 @@ static void setup_signals(void) {
 
 #ifndef NOSTATS
 
-static struct dnsstats gstats;
+struct dnsstats gstats;
 static time_t stats_time;
 
 static void dumpstats(void) {
@@ -629,21 +629,20 @@ static void dumpstats(void) {
   tot = gstats;
   for(z = zonelist; z; z = z->z_next) {
 #define add(x) tot.x += z->z_stats.x
-    add(nnxd); add(inxd); add(onxd);
-    add(nrep); add(irep); add(orep);
-    add(nerr); add(ierr); add(oerr);
+    add(b_in); add(b_out);
+    add(q_ok); add(q_nxd); add(q_err);
 #undef add
     dns_dntop(z->z_dn, name, sizeof(name));
-    fprintf(f, " %s" C C C,
+    fprintf(f, " %s" C C C C C C,
       name,
-      z->z_stats.nrep + z->z_stats.nnxd + z->z_stats.nerr,
-      z->z_stats.irep + z->z_stats.inxd + z->z_stats.ierr,
-      z->z_stats.orep + z->z_stats.onxd + z->z_stats.oerr);
+      z->z_stats.q_ok + z->z_stats.q_nxd + z->z_stats.q_err,
+      z->z_stats.q_ok, z->z_stats.q_nxd, z->z_stats.q_err,
+      z->z_stats.b_in, z->z_stats.b_out);
   }
-  fprintf(f, " *" C C C "\n",
-    tot.nrep + tot.nnxd + tot.nerr,
-    tot.irep + tot.inxd + tot.ierr,
-    tot.orep + tot.onxd + tot.oerr);
+  fprintf(f, " *" C C C C C C "\n",
+    tot.q_ok + tot.q_nxd + tot.q_err,
+    tot.q_ok, tot.q_nxd, tot.q_err,
+    tot.b_in, tot.b_out);
 #undef C
   fclose(f);
 }
@@ -663,44 +662,29 @@ static void logstats(int reset) {
   char name[DNS_MAXDOMAIN+1];
   struct zone *z;
 
-#define C "%" PRI_DNSCNT
-#define CC "/%" PRI_DNSCNT
+#define C(x) " " #x "=%" PRI_DNSCNT
   for(z = zonelist; z; z = z->z_next) {
 #define add(x) tot.x += z->z_stats.x
-    add(nnxd); add(inxd); add(onxd);
-    add(nrep); add(irep); add(orep);
-    add(nerr); add(ierr); add(oerr);
+    add(b_in); add(b_out);
+    add(q_ok); add(q_nxd); add(q_err);
 #undef add
     dns_dntop(z->z_dn, name, sizeof(name));
     dslog(LOG_INFO, 0,
-      "stats for %ldsecs zone %.60s (num/in/out): "
-      "tot=" C CC CC " "
-      "ok="  C CC CC " "
-      "nxd=" C CC CC " "
-      "err=" C CC CC "",
+      "stats for %ldsecs zone %.60s:"
+      C(tot) C(ok) C(nxd) C(err) C(in) C(out),
       (long)d, name,
-      z->z_stats.nrep + z->z_stats.nnxd + z->z_stats.nerr,
-      z->z_stats.irep + z->z_stats.inxd + z->z_stats.ierr,
-      z->z_stats.orep + z->z_stats.onxd + z->z_stats.oerr,
-      z->z_stats.nrep, z->z_stats.irep, z->z_stats.orep,
-      z->z_stats.nnxd, z->z_stats.inxd, z->z_stats.onxd,
-      z->z_stats.nerr, z->z_stats.ierr, z->z_stats.oerr);
+      z->z_stats.q_ok + z->z_stats.q_nxd + z->z_stats.q_err,
+      z->z_stats.b_in, z->z_stats.b_out,
+      z->z_stats.q_ok, z->z_stats.q_nxd, z->z_stats.q_err);
   }
   dslog(LOG_INFO, 0,
     "stats for %ldsec (num/in/out): "
-    "tot=" C CC CC " "
-    "ok="  C CC CC " "
-    "nxd=" C CC CC " "
-    "err=" C CC CC,
+    C(tot) C(ok) C(nxd) C(err) C(in) C(out),
     (long)d,
-    tot.nrep + tot.nnxd + tot.nerr,
-    tot.irep + tot.inxd + tot.ierr,
-    tot.orep + tot.onxd + tot.oerr,
-    tot.nrep, tot.irep, tot.orep,
-    tot.nnxd, tot.inxd, tot.onxd,
-    tot.nerr, tot.ierr, tot.oerr);
+    tot.q_ok + tot.q_nxd + tot.q_err,
+    tot.b_in, tot.b_out,
+    tot.q_ok, tot.q_nxd, tot.q_err);
 #undef C
-#undef CC
   if (reset) {
     for(z = zonelist; z; z = z->z_next)
       memset(&z->z_stats, 0, sizeof(z->z_stats));
@@ -739,10 +723,12 @@ static void do_signalled(void) {
   sigprocmask(SIG_BLOCK, &ssblock, &ssorig);
   if (signalled & SIGNALLED_TERM) {
     if (fork_on_reload < 0) {
+#ifndef NOSTATS
       struct zone *z;
       for(z = zonelist; z; z = z->z_next)
         if (write(500, &z->z_stats, sizeof(z->z_stats)) < 0)
           break;
+#endif
       _exit(0);
     }
     dslog(LOG_INFO, 0, "terminating");
@@ -769,13 +755,16 @@ static void do_signalled(void) {
     if (!setjmp(reload_ctx)) {
       do_reload();
       if (bgq_pid > 0) {
-        struct zone *z;
         int s;
         kill(bgq_pid, SIGTERM);
-        for(z = zonelist; z; z = z->z_next)
-          if (read(500, &z->z_stats, sizeof(z->z_stats)) < 0)
-            break;
-        close(500);
+#ifndef NOSTATS
+        { struct zone *z;
+          for(z = zonelist; z; z = z->z_next)
+            if (read(500, &z->z_stats, sizeof(z->z_stats)) < 0)
+              break;
+          close(500);
+	}
+#endif
         wait(&s);
         bgq_pid = 0;
       }
@@ -810,37 +799,45 @@ static void do_signalled(void) {
  */
 
 int start_loading() {
-  int pfd[2];
   pid_t cpid;
+#ifndef NOSTATS
+  int pfd[2];
+#endif
   if (!fork_on_reload || bgq_pid) return 0;
+#ifndef NOSTATS
   if (pipe(pfd) < 0) {
     bgq_pid = -1;
     return 0;
   }
+#endif
   cpid = fork();
   if (cpid < 0) {
+#ifndef NOSTATS
     close(pfd[0]);
     close(pfd[1]);
+#endif
     bgq_pid = -1;
     return 0;
   }
   if (!cpid) { /* child, continue answering queries */
-    close(pfd[0]);
-    dup2(pfd[1], 500);
-    close(pfd[1]);
     fork_on_reload = -1;
     alarm(0);
     signal(SIGALRM, SIG_IGN);
     signal(SIGHUP, SIG_IGN);
-#ifndef NO_STATS
+#ifndef NOSTATS
     signal(SIGUSR1, SIG_IGN);
     signal(SIGUSR2, SIG_IGN);
+    close(pfd[0]);
+    dup2(pfd[1], 500);
+    close(pfd[1]);
 #endif
     longjmp(reload_ctx, 1);
   }
+#ifndef NOSTATS
   close(pfd[1]);
   dup2(pfd[0], 500);
   close(pfd[0]);
+#endif
   bgq_pid = cpid;
   return 0;
 }
@@ -854,10 +851,6 @@ static void request(int fd) {
 #endif
   socklen_t salen = sizeof(sa);
   struct dnspacket pkt;
-  struct zone *zone;
-#ifndef NOSTATS
-  struct dnsstats *sp;
-#endif
 
   salen = sizeof(sa);
   q = recvfrom(fd, pkt.p_buf, sizeof(pkt.p_buf), 0,
@@ -865,31 +858,11 @@ static void request(int fd) {
   if (q <= 0)			/* interrupted? */
     return;
 
-  zone = NULL;
-  r = replypacket(&pkt, q, zonelist, &zone);
-  if (!r) {
-#ifndef NOSTATS
-    gstats.nerr += 1;
-    gstats.ierr += q;
-#endif
+  r = replypacket(&pkt, q, zonelist);
+  if (!r)
     return;
-  }
   if (flog)
     logreply(&pkt, (struct sockaddr *)&sa, salen, flog, flushlog);
-#ifndef NOSTATS
-  sp = zone ? &zone->z_stats : &gstats;
-  switch(pkt.p_buf[3]) {
-  case DNS_R_NOERROR:
-    sp->nrep += 1; sp->irep += q; sp->orep += r;
-    break;
-  case DNS_R_NXDOMAIN:
-    sp->nnxd += 1; sp->inxd += q; sp->onxd += r;
-    break;
-  default:
-    sp->nerr += 1; sp->ierr += q; sp->oerr += r;
-    break;
-  }
-#endif
 
   /* finally, send a reply */
   while(sendto(fd, pkt.p_buf, r, 0, (struct sockaddr *)&sa, salen) < 0)

@@ -218,9 +218,14 @@ findqzone(const struct zone *zone,
   return zone;
 }
 
+#ifdef NOSTATS
+# define do_stats(x)
+#else
+# define do_stats(x) x
+#endif
+
 /* construct reply to a query. */
-int replypacket(struct dnspacket *pkt, unsigned qlen, const struct zone *zone,
-                struct zone **mzone) {
+int replypacket(struct dnspacket *pkt, unsigned qlen, struct zone *zone) {
 
   struct dnsquery qry;			/* query structure */
   struct dnsqinfo qi;			/* query info structure */
@@ -229,13 +234,20 @@ int replypacket(struct dnspacket *pkt, unsigned qlen, const struct zone *zone,
   int found;
   extern int lazy; /*XXX hack*/
 
-  if (!(pkt->p_cur = pkt->p_sans = parsequery(h, qlen, &qry)))
+  do_stats(gstats.b_in += qlen);
+
+  if (!(pkt->p_cur = pkt->p_sans = parsequery(h, qlen, &qry))) {
+    do_stats(gstats.q_err += 1);
     return 0;
+  }
 
   /* from now on, we see (almost?) valid dns query, should reply */
 
 #define setnonauth(h) (h[p_f1] &= ~pf1_aa)
-#define refuse(code) (setnonauth(h), h[p_f2] = (code), pkt->p_sans - h)
+#define _refuse(code,lab) \
+    do { setnonauth(h); h[p_f2] = (code); goto lab; } while(0)
+#define refuse(code) _refuse(code, err_nz)
+#define rlen() pkt->p_cur - h
 
   /* construct reply packet */
 
@@ -247,16 +259,20 @@ int replypacket(struct dnspacket *pkt, unsigned qlen, const struct zone *zone,
   h[p_nscnt1] = h[p_nscnt2] = 0;
   h[p_arcnt1] = h[p_arcnt2] = 0;
 
-  if (h[p_f1] & (pf1_opcode | pf1_aa | pf1_tc | pf1_qr))
-    return h[p_f1] = pf1_qr, refuse(DNS_R_NOTIMPL);
+  if (h[p_f1] & (pf1_opcode | pf1_aa | pf1_tc | pf1_qr)) {
+    h[p_f1] = pf1_qr;
+    refuse(DNS_R_NOTIMPL);
+  }
   h[p_f1] |= pf1_qr;
   if (qry.q_class == DNS_C_IN)
     h[p_f1] |= pf1_aa;
   else if (qry.q_class != DNS_C_ANY) {
-    if (version_req(pkt, &qry))
-      return pkt->p_cur - h;
+    if (version_req(pkt, &qry)) {
+      do_stats(gstats.q_ok += 1; gstats.b_out += rlen());
+      return rlen();
+    }
     else
-      return refuse(DNS_R_REFUSED);
+      refuse(DNS_R_REFUSED);
   }
   switch(qry.q_type) {
   case DNS_T_ANY: qi.qi_tflag = NSQUERY_ANY; break;
@@ -267,21 +283,23 @@ int replypacket(struct dnspacket *pkt, unsigned qlen, const struct zone *zone,
   case DNS_T_MX:  qi.qi_tflag = NSQUERY_MX;  break;
   default:
     if (qry.q_type >= DNS_T_TSIG)
-      return refuse(DNS_R_NOTIMPL);
+      refuse(DNS_R_NOTIMPL);
     qi.qi_tflag = NSQUERY_OTHER;
   }
   h[p_f2] = DNS_R_NOERROR;
 
   /* find matching zone */
-  zone = findqzone(zone, qry.q_dnlen, qry.q_dnlab, qry.q_lptr, &qi);
+  zone = (struct zone*)
+      findqzone(zone, qry.q_dnlen, qry.q_dnlab, qry.q_lptr, &qi);
   if (!zone) /* not authoritative */
-    return refuse(DNS_R_REFUSED);
+    refuse(DNS_R_REFUSED);
 
   /* found matching zone */
-  *mzone = (struct zone *)zone;
+#undef refuse
+#define refuse(code)  _refuse(code, err_z)
 
   if (!zone->z_stamp)	/* do not answer if not loaded */
-    return refuse(DNS_R_SERVFAIL);
+    refuse(DNS_R_SERVFAIL);
 
   if (qi.qi_dnlab == 0) {	/* query to base zone: SOA and NS */
 
@@ -295,7 +313,7 @@ int replypacket(struct dnspacket *pkt, unsigned qlen, const struct zone *zone,
     if (!found) {
       pkt->p_cur = pkt->p_sans;
       h[p_ancnt] = h[p_nscnt] = 0;
-      return refuse(DNS_R_REFUSED);
+      refuse(DNS_R_REFUSED);
     }
 
   }
@@ -311,15 +329,28 @@ int replypacket(struct dnspacket *pkt, unsigned qlen, const struct zone *zone,
   if (!found) {			/* negative result */
     addrr_soa(pkt, zone, 1);	/* add SOA if any to AUTHORITY */
     h[p_f2] = DNS_R_NXDOMAIN;
+    do_stats(zone->z_stats.q_nxd += 1);
   }
-  else if (!h[p_ancnt]) {	/* positive reply, no answers */
-    addrr_soa(pkt, zone, 1);	/* add SOA if any to AUTHORITY */
+  else {
+    do_stats(zone->z_stats.q_ok += 1);
+    if (!h[p_ancnt]) {	/* positive reply, no answers */
+      addrr_soa(pkt, zone, 1);	/* add SOA if any to AUTHORITY */
+    }
+    else if (zone->z_nns &&
+             (!(qi.qi_tflag & NSQUERY_NS) || qi.qi_dnlab) &&
+             !lazy)
+      addrr_ns(pkt, zone, 1); /* add nameserver records to positive reply */
   }
-  else if (zone->z_nns && (!(qi.qi_tflag & NSQUERY_NS) || qi.qi_dnlab) && !lazy)
-    addrr_ns(pkt, zone, 1); /* add nameserver records to positive reply */
+  do_stats(zone->z_stats.b_out += rlen());
+  return rlen();
 
-  return pkt->p_cur - h;
+err_nz:
+  do_stats(gstats.q_err += 1; gstats.b_out += rlen());
+  return rlen();
 
+err_z:
+  do_stats(zone->z_stats.q_err += 1; zone->z_stats.b_out += rlen());
+  return rlen();
 }
 
 #define fit(p, c, bytes) ((c) + (bytes) <= (p)->p_buf + DNS_MAXPACKET)

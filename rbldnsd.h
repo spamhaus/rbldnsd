@@ -200,6 +200,7 @@ struct dslist {	/* dsl */
 struct zonesoa;
 struct zonens;
 
+#ifndef NOSTATS
 #if !defined(NOSTDINT_H)
 typedef uint64_t dnscnt_t;
 #define PRI_DNSCNT PRIu64
@@ -211,14 +212,11 @@ typedef unsigned long dnscnt_t;
 #define PRI_DNSCNT "lu"
 #endif
 struct dnsstats {
-  /* n - number of requests;
-   * i - number of bytes read
-   * o - number of bytes written
-   */
-  dnscnt_t nnxd, inxd, onxd;		/* NXDOMAINs */
-  dnscnt_t nrep, irep, orep;		/* OK replies */
-  dnscnt_t nerr, ierr, oerr;		/* other errors (REFUSED, FORMERR...) */
+  dnscnt_t b_in, b_out;		/* number of bytes: in, out */
+  dnscnt_t q_ok, q_nxd, q_err;	/* number of requests: OK, NXDOMAIN, ERROR */
 };
+extern struct dnsstats gstats;	/* global statistics counters */
+#endif /* NO_STATS */
 
 #define MAX_NS 20
 
@@ -249,8 +247,7 @@ int update_zone_soa(struct zone *zone, const struct dssoa *dssoa);
 int update_zone_ns(struct zone *zone, const struct dsns *dsns, unsigned ttl);
 
 /* parse query and construct a reply to it, return len of answer or 0 */
-int replypacket(struct dnspacket *p, unsigned qlen, const struct zone *zone,
-                struct zone **mzone);
+int replypacket(struct dnspacket *p, unsigned qlen, struct zone *zone);
 const struct zone *
 findqzone(const struct zone *zonelist,
           unsigned dnlen, unsigned dnlab, unsigned char *const *const dnlptr,

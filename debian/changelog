@@ -1,3 +1,13 @@
+rbldnsd (0.992pre4) unstable; urgency=low
+
+  * reviewed statistics again:
+    - use different structure (smaller and simpler anyway)
+    - moved all stats updating to rbldnsd_packet.c
+    - different syslogging (simpler)
+    - different statslogging (more details)
+
+ -- Michael Tokarev <mjt@corpit.ru>  Mon,  1 Mar 2004 22:04:41 +0300
+
 rbldnsd (0.992pre3) unstable; urgency=low
 
   * added ip4tset ("trivial" set of IPv4 addresses) -
