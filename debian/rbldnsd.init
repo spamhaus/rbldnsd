@@ -67,7 +67,7 @@ function restart() {
   if [ "$pid" ]; then
     report Restarting 
     kill $pid
-    sleep .5
+    sleep 1
     runit
   else
     start
