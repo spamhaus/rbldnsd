@@ -139,6 +139,15 @@ This is done in order to catch possible typos in zones (\fBrbldnsd\fR
 will warn about a problem and will ignore such entry).  This option
 removes a check whenever CIDR prefix fits within network mask.
 
+.IP \fB\-q\fR
+Quick and quiet start.  Normally,
+.B rbldnsd
+does zone load in foreground, printing progress and statistic info,
+and aborts in case of any errors.  With this flag, nothing will
+be printed and first zone load will be done in background (unless
+.B \-n
+option is also given), and zone load errors will be non\-fatal.
+
 .IP "\fB\-p\fR \fIpidfile\fR"
 Write rbldnsd's pid to the specified \fIpidfile\fR, so it will be easily
 findable.  This file gets written before entering chroot jail (if specified)

@@ -136,6 +136,7 @@ static void NORETURN usage(int exitcode) {
 " -c check - check for file updates every `check' secs (60)\n"
 " -p pidfile - write backgrounded pid to specified file\n"
 " -n - do not become a daemon\n"
+" -q - quickstart, load zones after backgrounding\n"
 " -l logfile - log queries and answers to this file\n"
 "  (relative to chroot directory)\n"
 " -L netlist - only log queries from IPs matching netlist\n"
@@ -221,6 +222,13 @@ parsenetlist(char *list) {
   return iplist;
 }
 
+static volatile int signalled;
+#define SIGNALLED_ALRM	0x01
+#define SIGNALLED_HUP	0x02
+#define SIGNALLED_USR1	0x04
+#define SIGNALLED_USR2	0x08
+#define SIGNALLED_TERM	0x10
+
 static int init(int argc, char **argv, struct zone **zonep) {
   int c;
   char *p;
@@ -232,7 +240,7 @@ static int init(int argc, char **argv, struct zone **zonep) {
   struct sockaddr_in sin;
   ip4addr_t saddr;
   int fd;
-  int nodaemon = 0;
+  int nodaemon = 0, quickstart = 0;
 
   if ((progname = strrchr(argv[0], '/')) != NULL)
     argv[0] = ++progname;
@@ -241,7 +249,7 @@ static int init(int argc, char **argv, struct zone **zonep) {
 
   if (argc <= 1) usage(1);
 
-  while((c = getopt(argc, argv, "u:r:b:w:t:c:p:nel:L:a:sh")) != EOF)
+  while((c = getopt(argc, argv, "u:r:b:w:t:c:p:nel:L:a:qsh")) != EOF)
     switch(c) {
     case 'u': user = optarg; break;
     case 'r': rootdir = optarg; break;
@@ -264,6 +272,7 @@ static int init(int argc, char **argv, struct zone **zonep) {
     case 'L': logfilt = parsenetlist(optarg); break;
     case 'a': qryfilt = parsenetlist(optarg); break;
     case 's': logmemtms = 1; break;
+    case 'q': quickstart = 1; break;
     case 'h': usage(0);
     default: error(0, "type `%.50s -h' for help", progname);
     }
@@ -379,10 +388,15 @@ static int init(int argc, char **argv, struct zone **zonep) {
   for(c = 0; c < argc; ++c)
     *zonep = addzone(*zonep, argv[c]);
 
-  if (!do_reload(*zonep))
+#define logstarted() dslog(LOG_INFO, 0, "version %s started", version)
+  if (quickstart)
+    signalled = SIGNALLED_ALRM;	/* zones will be (re)loaded after fork */
+  else if (!do_reload(*zonep))
     error(0, "zone loading errors, aborting");
+  else
+    logstarted();
+
   initialized = 1;
-  dslog(LOG_INFO, 0, "version %s started", version);
 
   if (!nodaemon) {
     if (fork() > 0) exit(0);
@@ -395,15 +409,11 @@ static int init(int argc, char **argv, struct zone **zonep) {
     fclose(fpid);
   }
 
+  if (quickstart)
+    logstarted();
+
   return fd;
 }
-
-static volatile int signalled;
-#define SIGNALLED_ALRM	0x01
-#define SIGNALLED_HUP	0x02
-#define SIGNALLED_USR1	0x04
-#define SIGNALLED_USR2	0x08
-#define SIGNALLED_TERM	0x10
 
 static void sighandler(int sig) {
   switch(sig) {
