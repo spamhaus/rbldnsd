@@ -93,19 +93,16 @@ int ds_combined_newset(struct dataset *ds, char *line, struct dsctx *dsc) {
 
   ds_combined_finishlast(dsc);
 
-  p = line;
-  while(*p && !ISCOMMENT(*p))
-    ++p;
-  *p = '\0';
+  /* remove comment. only recognize # after a space. */
+  for (p = line; *p; ++p)
+    if (ISCOMMENT(*p) && (p == line || ISSPACE(p[-1]))) {
+      *p = '\0';
+      break;
+    }
   p = strtok(line, space);	/* dataset type */
   if (!p) return 0;
-  if ((name = strchr(p, ':')) != NULL) {
-     *name++ = '\0';
-    if (!*name)
-      name = NULL;
-    else
-      if (strlen(name) > 20) name[20] = '\0';
-  }
+  if ((name = strchr(p, ':')) != NULL)
+    *name++ = '\0';
 
   for(;;) {	/* search appropriate dataset */
 
@@ -146,11 +143,15 @@ int ds_combined_newset(struct dataset *ds, char *line, struct dsctx *dsc) {
   dssub->ds_next = NULL;
   *dsd->dslastp = dssub;
   dsd->dslastp = &dssub->ds_next;
-  if (name &&
-      !(dssub->ds_spec = mp_strdup(ds->ds_mp, name)))
-    return -1;
+  if (name && *name) {
+    if (strlen(name) > 20) name[20] = '\0';
+    if (!(dssub->ds_spec = mp_strdup(ds->ds_mp, name)))
+      return -1;
+  }
 
-  while((p = strtok(NULL, space)) != NULL) {
+  if (!(p = strtok(NULL, space)))
+    dswarn(dsc, "no subzone(s) specified for dataset, data will be ignored");
+  else do {
     if (p[0] == '@' && p[1] == '\0') {
       dn[0] = '\0';
       dnlen = 1;
@@ -163,7 +164,7 @@ int ds_combined_newset(struct dataset *ds, char *line, struct dsctx *dsc) {
     dsl = mp_talloc(ds->ds_mp, struct dslist);
     if (!zone || !dsl) return -1;
     connectdataset(zone, dssub, dsl);
-  }
+  } while((p = strtok(NULL, space)) != NULL);
 
   ++dsd->nds;
   dsc->dsc_subset = dssub;

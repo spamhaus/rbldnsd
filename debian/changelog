@@ -1,5 +1,10 @@
 rbldnsd (0.993p2) unstable; urgency=low
 
+  * warn when $DATASET specifies no subzones
+
+  * recognize # in $DATASET line only after a space,
+    so that one may have names with embedded #s.
+
   * allow names for subdatasets in combined dataset,
     for better logging.  Specify :name after type
     in $DATASET line, like
