@@ -276,18 +276,20 @@ vdslog(int level, struct dsctx *dsc, const char *fmt, va_list ap) {
   else
     return;
   if (dsc) {
-    l += ssprintf(buf + l, sizeof(buf) - l, "%s:%.60s:",
-                  dsc->dsc_ds->ds_type->dst_name, dsc->dsc_ds->ds_spec);
-    if (dsc->dsc_subset)
-      l += ssprintf(buf + l, sizeof(buf) - l, "%s:",
-                    dsc->dsc_subset->ds_type->dst_name);
     if (dsc->dsc_fname) {
-      l += ssprintf(buf + l, sizeof(buf) - l, " %.60s", dsc->dsc_fname);
+      l += ssprintf(buf + l, sizeof(buf) - l, "file %.60s", dsc->dsc_fname);
       l += ssprintf(buf + l, sizeof(buf) - l,
                     dsc->dsc_lineno ? "(%d): " : ": ", dsc->dsc_lineno);
     }
-    else
-      l += ssprintf(buf + l, sizeof(buf) - l, " ");
+    else {
+      l += ssprintf(buf + l, sizeof(buf) - l, "%s:%.60s:",
+                    dsc->dsc_ds->ds_type->dst_name, dsc->dsc_ds->ds_spec);
+      if (dsc->dsc_subset)
+        l += ssprintf(buf + l, sizeof(buf) - l, "%s: ",
+                      dsc->dsc_subset->ds_type->dst_name);
+      else
+        l += ssprintf(buf + l, sizeof(buf) - l, " ");
+    }
   }
   l += vssprintf(buf + l, sizeof(buf) - l, fmt, ap);
   if (logto & LOGTO_SYSLOG) {
@@ -333,7 +335,7 @@ void dsloaded(struct dsctx *dsc, const char *fmt, ...) {
     struct tm *tm = gmtime(&dsc->dsc_ds->ds_stamp);
     char buf[128];
     vssprintf(buf, sizeof(buf), fmt, ap);
-    dslog(LOG_INFO, 0, "%04d%02d%02d %02d%02d%02d: %s",
+    dslog(LOG_INFO, dsc, "%04d%02d%02d %02d%02d%02d: %s",
           tm->tm_year + 1900, tm->tm_mon + 1, tm->tm_mday,
           tm->tm_hour, tm->tm_min, tm->tm_sec,
           buf);
