@@ -54,7 +54,7 @@ RBLDNSD_HDRS = rbldnsd.h
 RBLDNSD_OBJS = $(RBLDNSD_SRCS:.c=.o) librbldnsd.a
 
 MISC = rbldnsd.8 qsort.c Makefile NEWS CHANGES \
- EasynetDynablock2rbldnsd.pl osirusoft2rbldnsd.pl
+ osirusoft2rbldnsd.pl
 
 SRCS = $(LIB_SRCS) $(RBLDNSD_SRCS)
 GSRC = $(LIB_GSRC)
