@@ -5,6 +5,12 @@ rbldnsd (0.992pre2) unstable; urgency=low
   * removed -s option (log memory usage and (re)load times) -
     turned (reworked) equivalent always on
 
+  * reworked memusage/times logging
+
+  * added -s back, to mean something different: log short
+    stats line on every check (-c) invocation, to help
+    collecting data for RRD-like applications
+
  -- Michael Tokarev <mjt@corpit.ru>  Sat, 28 Feb 2004 02:47:31 +0300
 
 rbldnsd (0.992pre1) unstable; urgency=low

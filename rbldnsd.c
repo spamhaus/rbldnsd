@@ -79,6 +79,7 @@ static unsigned recheck = 60;	/* interval between checks for reload */
 static int accept_in_cidr;	/* accept 127.0.0.1/8-style CIDRs */
 static int initialized;		/* 1 when initialized */
 static char *logfile;		/* log file name */
+static char *statsfile;		/* statistics file */
 unsigned def_ttl = 35*60;	/* default record TTL 35m */
 const char def_rr[5] = "\177\0\0\2\0";		/* default A RR */
 struct dataset *ds_loading;	/* a dataset currently being loaded if any */
@@ -114,9 +115,7 @@ static int satoi(const char *s) {
 
 static int do_reload(void) {
   int r;
-#ifndef NOMEMINFO
-  struct mallinfo mi;
-#endif /* NOMEMINFO */
+  char ibuf[256], *ip;
 #ifndef NOTIMES
   struct tms tms;
   clock_t utm, etm;
@@ -133,30 +132,25 @@ static int do_reload(void) {
   if (!r)
     return 1;
 
-#ifndef NOMEMINFO
-  mi = mallinfo();
-#endif
+  ip = ibuf + sprintf(ibuf, "zones reloaded");
 #ifndef NOTIMES
   etm = times(&tms) - etm;
   utm = tms.tms_utime - utm;
-#define sec(tm) (unsigned long)(tm/HZ), (unsigned long)((tm*100/HZ)%100)
-#endif
-  dslog(LOG_INFO, 0, "zones (re)loaded"
-#ifndef NOTIMES
-     ", time: %lu.%lue/%lu.%luu sec"
-#endif
+# define sec(tm) (unsigned long)(tm/HZ), (unsigned long)((tm*100/HZ)%100)
+  ip += sprintf(ip, ", time %lu.%lue/%lu.%luu sec", sec(etm), sec(utm));
+# undef sec
+#endif /* NOTIMES */
 #ifndef NOMEMINFO
-     ", mem: arena=%d/%d ord=%d free=%d keepcost=%d mmaps=%d/%d"
-#endif
-#ifndef NOTIMES
-     , sec(etm), sec(utm)
-#undef sec
-#endif
-#ifndef NOMEMINFO
-     , mi.arena, mi.ordblks, mi.uordblks, mi.fordblks, mi.keepcost,
-     mi.hblkhd, mi.hblks
-#endif
-    );
+  {
+    struct mallinfo mi = mallinfo();
+# define kb(x) ((mi.x + 512)>>10)
+    ip += sprintf(ip, ", mem arena=%d ord=%d free=%d keepcost=%d mmap=%d Kb",
+      kb(arena), kb(uordblks), kb(fordblks), kb(keepcost), kb(hblkhd));
+# undef kb
+  }
+#endif /* NOMEMINFO */
+  dslog(LOG_INFO, 0, ibuf);
+
   return r < 0 ? 0 : 1;
 }
 
@@ -184,8 +178,8 @@ static void NORETURN usage(int exitcode) {
 " -n - do not become a daemon\n"
 " -q - quickstart, load zones after backgrounding\n"
 " -l logfile - log queries and answers to this file\n"
-"  (relative to chroot directory)\n"
-/*" -s - print memory usage and (re)load time info on zone reloads\n"*/
+" -s statsfile - write a line with short statistics summary into this\n"
+"  file every `check' (-c) secounds, for rrdtool-like applications\n"
 " -a (experimental) - _omit_ AUTH section when constructing reply,\n"
 "  do not return list of auth nameservers in default replies, only\n"
 "  return NS info when explicitly asked\n"
@@ -202,9 +196,10 @@ static void NORETURN usage(int exitcode) {
 static volatile int signalled;
 #define SIGNALLED_RELOAD	0x01
 #define SIGNALLED_RELOG		0x02
-#define SIGNALLED_STATS		0x04
-#define SIGNALLED_ZEROSTATS	0x08
-#define SIGNALLED_TERM		0x10
+#define SIGNALLED_LSTATS	0x04
+#define SIGNALLED_SSTATS	0x08
+#define SIGNALLED_ZSTATS	0x10
+#define SIGNALLED_TERM		0x20
 
 #ifdef NOIPv6
 static void newsocket(struct sockaddr_in *sin) {
@@ -367,7 +362,7 @@ static void init(int argc, char **argv) {
 
   if (argc <= 1) usage(1);
 
-  while((c = getopt(argc, argv, "u:r:b:w:t:c:p:nel:qsh46dva")) != EOF)
+  while((c = getopt(argc, argv, "u:r:b:w:t:c:p:nel:qs:h46dva")) != EOF)
     switch(c) {
     case 'u': user = optarg; break;
     case 'r': rootdir = optarg; break;
@@ -396,6 +391,7 @@ static void init(int argc, char **argv) {
     case 'n': nodaemon = 1; break;
     case 'e': accept_in_cidr = 1; break;
     case 'l': logfile = optarg; break;
+    case 's': statsfile = optarg; break;
     case 'q': quickstart = 1; break;
     case 'd': dump = 1; break;
     case 'v': show_version = nover++ ? NULL : "rbldnsd"; break;
@@ -548,6 +544,8 @@ static void init(int argc, char **argv) {
     logto = LOGTO_SYSLOG;
   }
 
+  signalled |= SIGNALLED_SSTATS;
+
 }
 
 static void sighandler(int sig) {
@@ -557,13 +555,13 @@ static void sighandler(int sig) {
     break;
   case SIGALRM:
     alarm(recheck);
-    signalled |= SIGNALLED_RELOAD;
+    signalled |= SIGNALLED_RELOAD|SIGNALLED_SSTATS;
     break;
   case SIGUSR1:
-    signalled |= SIGNALLED_STATS;
+    signalled |= SIGNALLED_LSTATS|SIGNALLED_SSTATS;
     break;
   case SIGUSR2:
-    signalled |= SIGNALLED_STATS|SIGNALLED_ZEROSTATS;
+    signalled |= SIGNALLED_LSTATS|SIGNALLED_SSTATS|SIGNALLED_ZSTATS;
     break;
   case SIGTERM:
   case SIGINT:
@@ -598,6 +596,48 @@ static void setup_signals(void) {
 
 static struct dnsstats gstats;
 static time_t stats_time;
+
+static void dumpstats(void) {
+  struct dnsstats tot;
+  char name[DNS_MAXDOMAIN+1];
+  FILE *f;
+  struct zone *z;
+
+  f = fopen(statsfile, "a");
+  if (!f) return;
+
+  fprintf(f, "%ld", (long)time(NULL));
+
+#define C ":%" PRI_DNSCNT
+  tot = gstats;
+  for(z = zonelist; z; z = z->z_next) {
+#define add(x) tot.x += z->z_stats.x
+    add(nnxd); add(inxd); add(onxd);
+    add(nrep); add(irep); add(orep);
+    add(nerr); add(ierr); add(oerr);
+#undef add
+    dns_dntop(z->z_dn, name, sizeof(name));
+    fprintf(f, " %s" C C C,
+      name,
+      z->z_stats.nrep + z->z_stats.nnxd + z->z_stats.nerr,
+      z->z_stats.irep + z->z_stats.inxd + z->z_stats.ierr,
+      z->z_stats.orep + z->z_stats.onxd + z->z_stats.oerr);
+  }
+  fprintf(f, " tot" C C C "\n",
+    tot.nrep + tot.nnxd + tot.nerr,
+    tot.irep + tot.inxd + tot.ierr,
+    tot.orep + tot.onxd + tot.oerr);
+#undef C
+  fclose(f);
+}
+
+static void dumpstats_z(void) {
+  FILE *f = fopen(statsfile, "a");
+  if (f) {
+    fprintf(f, "%ld\n", (long)time(NULL));
+    fclose(f);
+  }
+}
 
 static void logstats(int reset) {
   time_t t = time(NULL);
@@ -652,7 +692,9 @@ static void logstats(int reset) {
   }
 }
 #else
-# define logstats(r)
+# define logstats(r) ((void)0)
+# define dumpstats() ((void)0)
+# define dumpstats_z() ((void)0)
 #endif
 
 static void reopenlog(void) {
@@ -678,11 +720,19 @@ static void do_signalled(void) {
   sigprocmask(SIG_BLOCK, &ssblock, &ssorig);
   if (signalled & SIGNALLED_TERM) {
     dslog(LOG_INFO, 0, "terminating");
+    if (statsfile)
+      dumpstats();
     logstats(0);
+    if (statsfile)
+      dumpstats_z();
     exit(0);
   }
-  if (signalled & SIGNALLED_STATS) {
-    logstats(signalled & SIGNALLED_ZEROSTATS);
+  if (signalled & SIGNALLED_SSTATS && statsfile)
+    dumpstats();
+  if (signalled & SIGNALLED_LSTATS) {
+    logstats(signalled & SIGNALLED_ZSTATS);
+    if (signalled & SIGNALLED_ZSTATS && statsfile)
+      dumpstats_z();
   }
   if (signalled & SIGNALLED_RELOG)
     reopenlog();
