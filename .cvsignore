@@ -3,3 +3,4 @@ rbldnsd-*.tar.gz
 dns_nametab.c
 config.log
 config.h
+Makefile
