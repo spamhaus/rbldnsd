@@ -37,7 +37,7 @@ enum dns_rtype {
 };
 
 enum dns_rcode {	/* reply code */
-  DNS_C_NOERR		= 0,	/* ok, no error */
+  DNS_C_NOERROR		= 0,	/* ok, no error */
   DNS_C_FORMERR		= 1,	/* format error */
   DNS_C_SERVFAIL	= 2,	/* server failed */
   DNS_C_NXDOMAIN	= 3,	/* domain does not exists */
