@@ -125,12 +125,12 @@ m for minutes, h for hours, d for days and w for weeks.  If no unit
 modifier given, secounds assumed.  Default \fIttl\fR is 35m.
 
 .IP "\fB\-c\fR \fIcheck\fR"
-Set interval between checking for zone file changes to be \fIcheck\fR
-secounds, default is 60 (one minute).  \fBrbldnsd\fR will check zone
-file's last modification time every so often, and if it detects a change,
-zone will be automatically reloaded.  Setting this value to 0 disables
-automatic zone change detection.  This procedure may also be triggered
-by sending SIGHUP signal to \fBrbldnsd\fR.
+Set interval between checking for zone file changes to be \fIcheck\fR,
+default is 1m (one minute).  \fBrbldnsd\fR will check zone file's last
+modification time every so often, and if it detects a change, zone will
+be automatically reloaded.  Setting this value to 0 disables automatic
+zone change detection.  This procedure may also be triggered by sending
+SIGHUP signal to \fBrbldnsd\fR (see SIGNALS section below).
 
 .IP \fB\-e\fR
 Allow non\-network addresses to be used in CIDR ranges.  Normally,

@@ -148,7 +148,7 @@ static void NORETURN usage(int exitcode) {
 " -t ttl - TTL value set in answers (35m)\n"
 " -e - enable CIDR ranges where prefix is not on the range boundary\n"
 "  (by default ranges such 127.0.0.1/8 will be rejected)\n"
-" -c check - check for file updates every `check' secs (60)\n"
+" -c check - time interval to check for file updates (1m)\n"
 " -p pidfile - write backgrounded pid to specified file\n"
 " -n - do not become a daemon\n"
 " -q - quickstart, load zones after backgrounding\n"
