@@ -1,3 +1,9 @@
+rbldnsd (0.97b) unstable; urgency=low
+
+  * fixed security bug in per-zone statistic counting
+
+ -- Michael Tokarev <mjt@corpit.ru>  Wed,  6 Aug 2003 03:20:36 +0400
+
 rbldnsd (0.97a) unstable; urgency=medium
 
   * recognize and ignore "in" in `generic' dataset, as in:

@@ -603,6 +603,7 @@ int main(int argc, char **argv) {
     if (q <= 0)			/* interrupted? */
       continue;
 
+    zone = NULL;
     r = replypacket(&pkt, q, zonelist, &zone);
     if (!r) {
 #ifndef NOSTATS
@@ -614,7 +615,8 @@ int main(int argc, char **argv) {
     if (flog)
       logreply(&pkt, (struct sockaddr *)&sa, salen, flog, flushlog);
 #ifndef NOSTATS
-    switch(pkt.p_buf[3]) {
+    if (!zone) { stats.nbad += 1; stats.ibad += 1; }
+    else switch(pkt.p_buf[3]) {
     case DNS_R_NOERROR:
       zone->z_stats.nrep += 1; zone->z_stats.irep += q; zone->z_stats.orep += r;
       zone->z_stats.arep += pkt.p_buf[7]; /* arcount */

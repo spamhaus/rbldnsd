@@ -3,6 +3,18 @@ $Id$
 This file describes user-visible changes in rbldnsd.
 Never news are at top.
 
+0.97b (6 Aug 2003)
+
+ - bugfix: there was an error in per-zone statistics counting code
+   introduced in 0.97.  This bug may be triggered remotely by *first*
+   DNS query since rbldnsd startup, provided the query is against a
+   zone for which rbldnsd is not authoritative.  If such out-of-zone
+   query will be first, it will result in instant crash of a server.
+   Subsequent out-of-zone queries will not result in a crash, just
+   wrong counters (for previously queried zone) will be incremented.
+   Impact of this bug is low, since it is difficult to trigger the
+   bug and made rbldnsd crash.
+
 0.97a (1 Aug 2003)
 
  - bugfix: ip4parse_range(): invalid addresses was not marked as such,
