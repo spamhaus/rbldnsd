@@ -8,8 +8,9 @@ rbldnsd (0.97c) unstable; urgency=low
     a single zone, and move a call to this routine from newzone()
     to init().  Fixes a memory leak in combined dataset (caches
     was allocated but never used/freed).
+  * properly (but still ugly) fix stats counting
 
- -- Michael Tokarev <mjt@corpit.ru>  Thu,  7 Aug 2003 21:01:21 +0400
+ -- Michael Tokarev <mjt@corpit.ru>  Thu,  7 Aug 2003 21:10:13 +0400
 
 rbldnsd (0.97b) unstable; urgency=low
 
