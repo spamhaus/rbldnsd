@@ -39,20 +39,20 @@ RBLDNSD_SRCS = rbldnsd.c rbldnsd_zones.c rbldnsd_packet.c \
   rbldnsd_dnset.c rbldnsd_dnvset.c \
   rbldnsd_util.c
 RBLDNSD_HDRS = rbldnsd.h rbldnsd_zones.h
-RBLDNSD_OBJS = $(RBLDNSD_SRCS:.c=.o)
+RBLDNSD_OBJS = $(RBLDNSD_SRCS:.c=.o) librbldnsd.a
 
 MISC = rbldnsd.8 qsort.c Makefile NEWS CHANGES WirehubDynablock2rbldnsd.pl
 
 SRCS = $(LIB_SRCS) $(RBLDNSD_SRCS) ip4rangetest.c
 HDRS = $(LIB_HDRS) $(RBLDNSD_HDRS)
 
-VERSION = 0.83p1
-VERSION_DATE = 2003-04-17
+VERSION = 0.83
+VERSION_DATE = 2003-04-19
 
 all: rbldnsd
 
-rbldnsd: $(RBLDNSD_OBJS) librbldnsd.a
-	$(LD) $(LDFLAGS) -o $@ $(RBLDNSD_OBJS) librbldnsd.a $(SOCKET_LIBS)
+rbldnsd: $(RBLDNSD_OBJS)
+	$(LD) $(LDFLAGS) -o $@ $(RBLDNSD_OBJS) $(SOCKET_LIBS)
 
 librbldnsd.a: $(LIB_OBJS)
 	-rm -f $@

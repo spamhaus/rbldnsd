@@ -3,7 +3,14 @@ $Id$
 This file describes user-visible changes in rbldnsd.
 Never news are at top.
 
-0.83
+0.83 (released 2003-04-19)
+
+ - critical security fix in query parsing code - that check was
+   here initially, in version 0.1, but was removed when I optimized
+   that code.  Ugh!..
+
+ - portability: 4.4 FreeBSD does not have mallinfo() and stdint.h
+   (use appropriate -Ddefines, Makefile)
 
  - access control and filtering logging by IP
 

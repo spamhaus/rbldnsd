@@ -1,3 +1,11 @@
+rbldnsd (0.83) unstable; urgency=high
+
+  * critical buffer overflow fix in dns query parsing code.
+    Initial code (0.1 version) was right, but it was rewritten
+    in 0.2 - the bug was here since 0.2!..  Ughhh!..
+
+ -- Michael Tokarev <mjt@corpit.ru>  Sat, 19 Apr 2003 05:24:09 +0400
+
 rbldnsd (0.83p1) unstable; urgency=low
 
   * -DNOSTDINT_H to use <sys/types.h> instead of <stdint.h> for uint32_t.
