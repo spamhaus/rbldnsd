@@ -137,7 +137,7 @@ parsequery(struct dnspacket *pkt, unsigned qlen,
       d[p_nscnt1] == 0 && d[p_nscnt2] == 0 &&
       d[p_arcnt1] == 0 && d[p_arcnt2] == 1 &&
       q[0] == 0 /* empty DN */ &&
-      q[1] == 0 && q[2] == DNS_T_OPT) {
+      q[1] == (DNS_T_OPT>>8) && q[2] == (DNS_T_OPT&255)) {
     qlen = (((unsigned)q[3]) << 8) | q[4];
     /* 11 bytes are needed to encode minimal EDNS0 OPT record */
     if (qlen < DNS_MAXPACKET + 11)
@@ -392,7 +392,7 @@ int replypacket(struct dnspacket *pkt, unsigned qlen, struct zone *zone) {
     h[p_arcnt1] = 1;
     h = pkt->p_cur;
     *h++ = 0;			/* empty (root) DN */
-    *h++ = 0; *h++ = DNS_T_OPT;	/* OPT record, <255 */
+    PACK16S(h, DNS_T_OPT);
     PACK16S(h, DNS_EDNS0_MAXPACKET);
     *h++ = 0; *h++ = 0;		/* RCODE and version */
     *h++ = 0; *h++ = 0;		/* rest of the TTL field */
