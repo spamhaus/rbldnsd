@@ -31,8 +31,11 @@ rbldnsd (0.98) unstable; urgency=low
     have proper pid tag. This also slightly simplified init routine.
   * made array of listening sockets to be global
   * added ip4trie (experimental) dataset: set of IP4 CIDR ranges.
+  * yet again, fix CIDR parsing (mask vs ~mask)
+  * fix ip4trie common length calculation in case diff == 0
+  * fix dslog() to use vprintf, not printf
 
- -- Michael Tokarev <mjt@corpit.ru>  Sun, 17 Aug 2003 20:11:05 +0400
+ -- Michael Tokarev <mjt@corpit.ru>  Sun, 17 Aug 2003 21:48:54 +0400
 
 rbldnsd (0.97b) unstable; urgency=low
 
