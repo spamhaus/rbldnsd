@@ -3,7 +3,7 @@ $Id$
 This file describes user-visible changes in rbldnsd.
 Never news are at top.
 
-0.95
+0.95 (27 May 2003)
 
  - new dataset: combined: a container for other datasets.
    See manpage for details.

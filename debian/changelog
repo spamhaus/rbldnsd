@@ -1,4 +1,4 @@
-rbldnsd (0.95pre) unstable; urgency=low
+rbldnsd (0.95) unstable; urgency=low
 
   * Portability: #include <netinet/in.h> for sockaddr_in definition in
     rbldnsd_packet.c
@@ -37,7 +37,7 @@ rbldnsd (0.95pre) unstable; urgency=low
 
   * made ip4mask() to be an indexed array access to ip4addr_cidr_netmasks[]
 
- -- Michael Tokarev <mjt@corpit.ru>  Tue, 27 May 2003 22:07:04 +0400
+ -- Michael Tokarev <mjt@corpit.ru>  Tue, 27 May 2003 22:18:20 +0400
 
 rbldnsd (0.94) unstable; urgency=low
 
