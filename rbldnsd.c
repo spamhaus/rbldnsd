@@ -98,11 +98,14 @@ static int do_reload(struct zone *zonelist) {
     return 1;
 
 #ifndef NOTIMES
-  etm = times(&tms) - etm;
-  utm = tms.tms_utime - utm;
+  if (logmemtms) {
+    etm = times(&tms) - etm;
+    utm = tms.tms_utime - utm;
 #define sec(tm) tm/HZ, (etm*100/HZ)%100
-  zlog(LOG_INFO, 0, "zones (re)loaded (%lu.%lu/%lu.%lu sec)",
-       sec(etm), sec(utm));
+    zlog(LOG_INFO, 0, "zones (re)loaded: %lu.%lue/%lu.%luu sec",
+         sec(etm), sec(utm));
+#undef sec
+  }
 #endif
   logmemusage();
   return r < 0 ? 0 : 1;
