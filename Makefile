@@ -23,6 +23,8 @@ AWK = awk
 #DEFS = -DNOSTDINT_H
 # If you don't want/have IPv6 support (transport only)
 #DEFS = -DNOIPv6
+# To turn on recognision of ipv6-mapped ipv4 queries (silly idea?)
+#DEFS = -DRECOGNIZE_IP4IN6
 #
 # For FreeBSD 4, use DEFS="-DNOMEMINFO -DNOSTDINT_H"
 # For Solaris, use DEFS="-DNOMEMINFO -DNOSTDINT_H -DNOIPv6"

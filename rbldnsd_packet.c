@@ -123,10 +123,42 @@ parsequery(register const unsigned char *q, unsigned qlen,
   return (unsigned char*)q + 4;	/* answers will start here */
 }
 
+#ifdef RECOGNIZE_IP4IN6
+static const unsigned char *const ip6p =
+  "\001f\001f\001f\001f\0010\0010\0010\0010"
+  "\0010\0010\0010\0010\0010\0010\0010\0010"
+  "\0010\0010\0010\0010\0010\0010\0010\0010"
+  "\003ip6";
+#endif
+
 /* parse DN (as in 4.3.2.1.in-addr.arpa) to ip4addr_t */
-static int dntoip4addr(const unsigned char *q, unsigned qlab, ip4addr_t *ap) {
+static int dntoip4addr(const unsigned char *q, unsigned qlen0, unsigned qlab,
+                       ip4addr_t *ap) {
   ip4addr_t a = 0, o;
-  if (qlab != 4) return 0;
+  if (qlab != 4) {
+
+#ifdef RECOGNIZE_IP4IN6
+
+     if ((qlab != 33 || qlen0 != 68 || memcmp(q + 16, ip6p, 28) != 0) &&
+         (qlab != 32 || qlen0 != 64 || memcmp(q + 16, ip6p, 24) != 0))
+       return 0;
+     for (o = 0; o < 32; o += 4) {
+       ++q;
+       if (*q >= '0' && *q <= '9')
+         a |= (unsigned)(*q++ - '0') << o;
+       else if (*q >= 'a' && *q <= 'f')
+         a |= (unsigned)(*q++ - 'a' + 10) << o;
+       else
+         return 0;
+     }
+     *ap = a;
+     return 1;
+
+#else /* RECOGNIZE_IP4IN6 */
+     return 0;
+#endif
+
+  }
 
 #define digit(c) ((c) >= '0' && (c) <= '9')
 #define d2n(c) ((unsigned)((c) - '0'))
@@ -180,7 +212,8 @@ findqzone(const struct zone *zone,
   qi->qi_dnlab = dnlab - zone->z_dnlab;
   qi->qi_dnlen0 = dnlen - zone->z_dnlen;
   if (zone->z_dstflags & DSTF_IP4REV) /* ip4 address */
-    qi->qi_ip4valid = dntoip4addr(qi->qi_dn, qi->qi_dnlab, &qi->qi_ip4);
+    qi->qi_ip4valid =
+      dntoip4addr(qi->qi_dn, qi->qi_dnlen0, qi->qi_dnlab, &qi->qi_ip4);
 
   return zone;
 }
