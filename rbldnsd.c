@@ -65,7 +65,7 @@ static int accept_in_cidr;	/* accept 127.0.0.1/8-style CIDRs */
 static int initialized;		/* 1 when initialized */
 static char *logfile;		/* log file name */
 static int logmemtms;		/* print memory usage and (re)load time info */
-const char def_rr[5] = "\2\0\0\177\0";	/* default A RR */
+const char def_rr[5] = "\177\0\0\2\0";	/* default A RR */
 
 /* a list of zonetypes. */
 const struct dataset_type *dataset_types[] = {

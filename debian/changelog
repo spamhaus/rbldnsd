@@ -7,8 +7,9 @@ rbldnsd (0.91pre) unstable; urgency=low
   * rotate nameserver records (simple cyclic rotation)
   * do not reallocate memory for dataset headers on every reload
   * fixed glitch in dnset - min DN labels was always 0 (tiny speedup only)
+  * fixed default A RR to be 127.0.0.2, not 2.0.0.127
 
- -- Michael Tokarev <mjt@corpit.ru>  Sat, 10 May 2003 03:55:46 +0400
+ -- Michael Tokarev <mjt@corpit.ru>  Wed, 14 May 2003 19:20:28 +0400
 
 rbldnsd (0.90) unstable; urgency=low
 
