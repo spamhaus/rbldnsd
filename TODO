@@ -8,9 +8,6 @@ TODO list for rbldnsd, in no particular order.
    There should be a quick way to determine size of all
    NS records, in context of DN compression.
 
- * recheck whenever SOA/NS behaviour is correct
-   (seems to be ok)
-
  * review logging.  It should be possible to specify which packets
    (qtype, rcode, bad etc) to log in addition to filtering by client's IP.
    Probably not needed as logfile may be FIFO now.
