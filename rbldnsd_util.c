@@ -79,6 +79,33 @@ zds_special(struct zonedataset *zds, char *line) {
     return 1;
   }
 
+  if ((line[0] == 'n' || line[0] == 'N') &&
+      (line[1] == 's' || line[1] == 'S') &&
+      (line[2] == ' ' || line[2] == '\t')) {
+
+     struct zonens *zns, **znsp;
+     unsigned char dn[DNS_MAXDN+1];
+     unsigned n;
+
+     line += 3;
+     skipspace(line);
+
+     if (!(line = parse_dn(line, dn + 1, &n))) return 0;
+     dn[0] = (unsigned char)n++;
+
+     zns = (struct zonens *)emalloc(sizeof(struct zonens) + n);
+     if (!zns) return 0;
+     memcpy(zns->zns_dn, dn, n);
+     zns->zns_dn = (unsigned char*)(zns + 1);
+
+     znsp = &zds->zds_ns;
+     while(*znsp) znsp = &(*znsp)->zns_next;
+     *znsp = zns;
+     zns->zns_next = NULL;
+
+     return 1;
+  }
+
 #if 0
   if ((line[0] == 't' || line[0] == 'T') &&
       (line[1] == 't' || line[1] == 'T') &&

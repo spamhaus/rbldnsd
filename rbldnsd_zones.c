@@ -200,6 +200,15 @@ struct zone *addzone(struct zone *zonelist, const char *spec) {
   return zonelist;
 }
 
+static struct zonens *freezonens(struct zonens *zns) {
+  while(zns) {
+    struct zonens *znst = zns;
+    zns = zns->zns_next;
+    free(znst);
+  }
+  return NULL;
+}
+
 static int loadzonedataset(struct zonedataset *zds) {
   struct zonefile *zf;
   time_t stamp = 0;
@@ -208,9 +217,10 @@ static int loadzonedataset(struct zonedataset *zds) {
   if (zds->zds_ds)
     zds->zds_type->dst_freefn(zds->zds_ds);
   zds->zds_zsoa.zsoa_valid = 0;
+  zds->zds_ns = freezonens(zds->zds_ns);
   if (!(zds->zds_ds = zds->zds_type->dst_allocfn()))
     return 0;
-
+  
   for(zf = zds->zds_zf; zf; zf = zf->zf_next) {
     curloading.fname = zf->zf_name;
     f = fopen(zf->zf_name, "r");
@@ -241,11 +251,60 @@ static int loadzonedataset(struct zonedataset *zds) {
   return 1;
 }
 
+static int updatezone(struct zone *zone) {
+  time_t stamp = 0;
+  const struct zonesoa *zsoa = NULL;
+  struct zonens *zns, **znsp;
+  const struct zonens *znsds;
+  struct zonedatalist *zdl;
+
+  zone->z_zns = freezonens(zone->z_zns);
+
+  for(zdl = zone->z_zdl; zdl; zdl = zdl->zdl_next) {
+    const struct zonedataset *zds = zdl->zdl_zds;
+    zdl->zdl_ds = zds->zds_ds;
+    if (!zds->zds_stamp)
+      return 0;
+    if (stamp < zds->zds_stamp)
+      stamp = zds->zds_stamp;
+    if (!zsoa && zds->zds_zsoa.zsoa_valid)
+      zsoa = &zds->zds_zsoa;
+    for(znsds = zds->zds_ns; znsds; znsds = znsds->zns_next) {
+      znsp = &zone->z_zns;
+      for(;;) {
+        if (!(zns = *znsp)) {
+          if (!(zns = tmalloc(struct zonens)))
+            return 0;
+	  zns->zns_dn = znsds->zns_dn;
+	  zns->zns_next = NULL;
+	  *znsp = zns;
+	  break;
+        }
+        if (memcmp(zns->zns_dn, znsds->zns_dn, znsds->zns_dn[0]) == 0)
+          break;
+        zns = zns->zns_next;
+      }
+    }
+  }
+  zone->z_stamp = stamp;
+  if (zsoa) {
+    unsigned char *ser;
+    zone->z_zsoa = *zsoa;
+    ser = zone->z_zsoa.zsoa_n;	/* serial # */
+    if (memcmp(ser, "\0\0\0\0", 4) == 0) { /* it is 0, set it to stamp */
+      ser[0] = stamp >> 24; ser[1] = stamp >> 16;
+      ser[2] = stamp >> 8; ser[3] = stamp;
+    }
+  }
+  else
+    zone->z_zsoa.zsoa_valid = 0;
+
+  return 1;
+}
+
 int reloadzones(struct zone *zonelist) {
   struct zonedataset *zds;
   struct zonefile *zf;
-  struct zonedatalist *zdl;
-  struct zone *zone;
   int reloaded = 0;
   int errors = 0;
 
@@ -291,39 +350,15 @@ int reloadzones(struct zone *zonelist) {
 
   if (reloaded) {
 
-    for (zone = zonelist; zone; zone = zone->z_next) {
-      time_t stamp = 0;
-      struct zonesoa *zsoa = NULL;
-      for(zdl = zone->z_zdl; zdl; zdl = zdl->zdl_next) {
-        zds = zdl->zdl_zds;
-        zdl->zdl_ds = zds->zds_ds;
-        if (!zds->zds_stamp)
-          break;
-        else if (stamp < zds->zds_stamp)
-          stamp = zds->zds_stamp;
-        if (!zsoa && zds->zds_zsoa.zsoa_valid)
-          zsoa = &zds->zds_zsoa;
-      }
-      if (zdl) {
-        dslog(LOG_WARNING, 0,
-              "partially loaded zone %.60s will not be serviced",
-              zone->z_name);
-        zone->z_stamp = 0;
-	zone->z_zsoa.zsoa_valid = 0;
+    for(; zonelist; zonelist = zonelist->z_next) {
+      if (updatezone(zonelist))
         continue;
-      }
-      zone->z_stamp = stamp;
-      if (zsoa) {
-        unsigned char *ser;
-        zone->z_zsoa = *zsoa;
-        ser = zone->z_zsoa.zsoa_n;	/* serial # */
-        if (memcmp(ser, "\0\0\0\0", 4) == 0) { /* it is 0, set it to stamp */
-          ser[0] = stamp >> 24; ser[1] = stamp >> 16;
-          ser[2] = stamp >> 8; ser[3] = stamp;
-        }
-      }
-      else
-        zone->z_zsoa.zsoa_valid = 0;
+      dslog(LOG_WARNING, 0,
+            "partially loaded zone %.60s will not be serviced",
+             zonelist->z_name);
+      zonelist->z_stamp = 0;
+      zonelist->z_zsoa.zsoa_valid = 0;
+      zonelist->z_zns = freezonens(zonelist->z_zns);
     }
 
   }

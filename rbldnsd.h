@@ -40,21 +40,23 @@ struct dnsdnptr {	/* used for DN name compression */
 };
 
 struct dnsdncompr {
-  struct dnsdnptr ptr[DNS_MAXDN/2];	/* array of pointers */
+  struct dnsdnptr ptr[DNS_MAXLABELS];	/* array of pointers */
   struct dnsdnptr *cptr;		/* current (last) pointer */
   unsigned char dnbuf[1024];		/* buffer for saved domain names */
   unsigned char *cdnp;			/* current (last) position in dnbuf */
 };
 
 struct dnspacket {		/* private structure */
-  unsigned char p[DNS_MAXPACKET]; /* packet buffer */
-  unsigned char *c;		/* current pointer */
-  unsigned char *sans;		/* start of answers */
-  struct dnsdncompr compr;	/* DN compression state */
+  unsigned char p_buf[DNS_MAXPACKET]; /* packet buffer */
+  unsigned char *p_cur;		/* current pointer */
+  unsigned char *p_sans;	/* start of answers */
+  struct dnsdncompr p_dncompr;	/* DN compression state */
 };
 
 struct dnsquery {	/* q */
-  unsigned q_type;			/* query RR type (NSQUERY_XXX) */
+  unsigned q_type;			/* query RR type */
+  unsigned q_class;			/* query class */
+  unsigned q_tflag;			/* query RR type flag (NSQUERY_XX) */
   unsigned char q_dn[DNS_MAXDN];	/* original query DN, lowercased */
   unsigned char q_rdn_b[DNS_MAXDN];	/* reverse of q_dn - buffer */
   unsigned char *q_rdn;			/* pointer into q_rdn_b */
@@ -133,6 +135,11 @@ struct zonesoa { /* zsoa */
   unsigned char zsoa_n[20];	/* serial, refresh, retry, expire, minttl */
 };
 
+struct zonens { /* zns */
+  struct zonens *zns_next;	/* next pointer in the list */
+  unsigned char *zns_dn;	/* domain name of a nameserver */
+};
+
 struct zonefile {	/* zf */
   time_t zf_stamp;		/* last timestamp of this file */
   struct zonefile *zf_next;	/* next file in list */
@@ -146,6 +153,7 @@ struct zonedataset {	/* zds */
   const char *zds_spec;			/* original specification */
   struct zonefile *zds_zf;		/* list of files for this data */
   struct zonesoa zds_zsoa;		/* SOA record */
+  struct zonens *zds_ns;		/* NS records */
   struct zonedataset *zds_next;		/* next in global list */
 };
 
@@ -166,6 +174,7 @@ struct zone {	/* zone, list of zones */
   unsigned z_dstflags;			/* flags of all datasets */
   struct zonedatalist *z_zdl;		/* list of datas */
   struct zonesoa z_zsoa;		/* SOA record */
+  struct zonens *z_zns;			/* list of NS records */
   struct zone *z_next;			/* next in list */
 };
 
