@@ -50,12 +50,13 @@ LIB_OBJS = $(LIBDNS_OBJS) $(LIBIP4_OBJS) mempool.o
 LIB_GSRC = $(LIBDNS_GSRC) $(LIBIP4_GSRC)
 
 RBLDNSD_SRCS = rbldnsd.c rbldnsd_zones.c rbldnsd_packet.c \
-  rbldnsd_ip4set.c rbldnsd_dnset.c rbldnsd_generic.c rbldnsd_combined.c \
+  rbldnsd_ip4set.c rbldnsd_dnset.c rbldnsd_dnhash.c rbldnsd_generic.c rbldnsd_combined.c \
   rbldnsd_util.c
 RBLDNSD_HDRS = rbldnsd.h
 RBLDNSD_OBJS = $(RBLDNSD_SRCS:.c=.o) librbldnsd.a
 
-MISC = rbldnsd.8 qsort.c Makefile NEWS CHANGES EasynetDynablock2rbldnsd.pl
+MISC = rbldnsd.8 qsort.c Makefile NEWS CHANGES \
+ EasynetDynablock2rbldnsd.pl osirusoft2rbldnsd.pl
 
 SRCS = $(LIB_SRCS) $(RBLDNSD_SRCS) ip4rangetest.c
 GSRC = $(LIB_GSRC)
