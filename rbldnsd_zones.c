@@ -159,7 +159,7 @@ int ds_special(struct dataset *ds, char *line, int lineno) {
     line += 4;
     SKIPSPACE(line);
 
-    if (!(line = parse_ttl_nb(line, dssoa.dssoa_ttl, ds->ds_ttl))) return 0;
+    if (!(line = parse_ttl(line, &dssoa.dssoa_ttl, ds->ds_ttl))) return 0;
     if (!(line = parse_dn(line, odn, &odnlen))) return 0;
     if (!(line = parse_dn(line, pdn, &pdnlen))) return 0;
     if (!(line = parse_uint32(line, &dssoa.dssoa_serial))) return 0;
@@ -185,26 +185,67 @@ int ds_special(struct dataset *ds, char *line, int lineno) {
   if ((line[1] == 's' || line[1] == 'S') &&
       ISSPACE(line[2])) {
 
-     unsigned char dn[DNS_MAXDN], ttl[4];
+     unsigned char dn[DNS_MAXDN];
      unsigned dnlen;
-     struct dsns *dsns;
+     struct dsns *dsns, **dsnslp;
+     unsigned ttl;
+
+#ifndef INCOMPAT_0_99
+#warning NS record compatibility mode: remove for 1.0 final
+     struct dsns *dsns_first = 0;
+     unsigned cnt;
+#endif
+
+#ifndef INCOMPAT_0_99
+     if (ds->ds_nsflags & DSF_NEWNS) return 1;
+     if (ds->ds_dsns) {
+       dsns = ds->ds_dsns;
+       while(dsns->dsns_next)
+         dsns = dsns->dsns_next;
+       dsnslp = &dsns->dsns_next;
+     }
+     else
+       dsnslp = &ds->ds_dsns;
+     cnt = 0;
+#else
+     if (ds->ds_dsns) return 1; /* ignore 2nd nameserver line */
+     dsnslp = &ds->ds_dsns;
+#endif
 
      line += 3;
      SKIPSPACE(line);
 
-     if (!(line = parse_ttl_nb(line, ttl, ds->ds_ttl))) return 0;
+     if (!(line = parse_ttl(line, &ttl, ds->ds_ttl))) return 0;
 
-     if (!(line = parse_dn(line, dn, &dnlen))) return 0;
+     do {
+       if (!(line = parse_dn(line, dn, &dnlen))) return 0;
+       dsns = (struct dsns*)
+         mp_alloc(ds->ds_mp, sizeof(struct dsns) + dnlen - 1, 1);
+       if (!dsns) return -1;
+       memcpy(dsns->dsns_dn, dn, dnlen);
+       *dsnslp = dsns;
+       dsnslp = &dsns->dsns_next;
+       *dsnslp = NULL;
+#ifndef INCOMPAT_0_99
+       if (!cnt++)
+         dsns_first = dsns;
+#endif
+     } while(*line);
 
-     dsns = (struct dsns*)
-       mp_alloc(ds->ds_mp, sizeof(struct dsns) + dnlen - 1, 1);
-     if (!dsns) return -1;
-
-     memcpy(dsns->dsns_dn, dn, dnlen);
-     memcpy(dsns->dsns_ttl, ttl, 4);
-     dsns->dsns_next = NULL;
-     *ds->ds_dsnslp = dsns;
-     ds->ds_dsnslp = &dsns->dsns_next;
+#ifndef INCOMPAT_0_99
+     if (cnt > 1) {
+       ds->ds_nsflags |= DSF_NEWNS;
+       ds->ds_dsns = dsns_first; /* throw away all NS recs */
+     }
+     else if (dsns_first != ds->ds_dsns && !(ds->ds_nsflags & DSF_NSWARN)) {
+       dswarn(lineno, "compatibility mode: specify all NS records in ONE line");
+       ds->ds_nsflags |= DSF_NSWARN;
+     }
+     if (!ds->ds_nsttl || ds->ds_nsttl > ttl)
+       ds->ds_nsttl = ttl;
+#else
+     ds->ds_nsttl = ttl;
+#endif
 
      return 1;
   }
@@ -214,13 +255,13 @@ int ds_special(struct dataset *ds, char *line, int lineno) {
   if ((line[1] == 't' || line[1] == 'T') &&
       (line[2] == 'l' || line[2] == 'L') &&
       ISSPACE(line[3])) {
-    unsigned char ttl[4];
+    unsigned ttl;
     line += 4;
     SKIPSPACE(line);
-    if (!(line = parse_ttl_nb(line, ttl, def_ttl))) return 0;
+    if (!(line = parse_ttl(line, &ttl, def_ttl))) return 0;
     if (*line) return 0;
     if (ds->ds_subset) ds = ds->ds_subset;
-    memcpy(ds->ds_ttl, ttl, 4);
+    ds->ds_ttl = ttl;
     return 1;
   }
   break;
@@ -264,9 +305,12 @@ static void freedataset(struct dataset *ds) {
   ds->ds_type->dst_resetfn(ds->ds_dsd, 0);
   mp_free(ds->ds_mp);
   ds->ds_dssoa = NULL;
-  memcpy(ds->ds_ttl, def_ttl, 4);
+  ds->ds_ttl = def_ttl;
   ds->ds_dsns = NULL;
-  ds->ds_dsnslp = &ds->ds_dsns;
+  ds->ds_nsttl = 0;
+#ifndef INCOMPAT_0_99
+  ds->ds_nsflags = 0;
+#endif
   memset(ds->ds_subst, 0, sizeof(ds->ds_subst));
   ds->ds_warn = 0;
   ds->ds_subset = NULL;
@@ -319,6 +363,7 @@ static int updatezone(struct zone *zone) {
   const struct dsns *dsnsa[MAX_NS];
   unsigned n, nns;
   struct dslist *dsl;
+  unsigned nsttl = 0;
 
   nns = 0;
 
@@ -330,21 +375,25 @@ static int updatezone(struct zone *zone) {
       stamp = ds->ds_stamp;
     if (!dssoa)
       dssoa = ds->ds_dssoa;
-    for(dsns = ds->ds_dsns; dsns; dsns = dsns->dsns_next) {
-      for(n = 0; ; ++n) {
-        if (n == nns) {
-          if (n < MAX_NS)
-            dsnsa[nns++] = dsns;
-          break;
+    if (ds->ds_dsns) {
+      if (!nsttl || nsttl > ds->ds_nsttl)
+        nsttl = ds->ds_nsttl;
+      for(dsns = ds->ds_dsns; dsns; dsns = dsns->dsns_next) {
+        for(n = 0; ; ++n) {
+          if (n == nns) {
+            if (n < MAX_NS)
+              dsnsa[nns++] = dsns;
+            break;
+          }
+          if (dns_dnequ(dsnsa[n]->dsns_dn, dsns->dsns_dn))
+            break;
         }
-        if (dns_dnequ(dsnsa[n]->dsns_dn, dsns->dsns_dn))
-          break;
       }
     }
   }
   zone->z_stamp = stamp;
   if (!update_zone_soa(zone, dssoa) ||
-      !update_zone_ns(zone, dsnsa, nns)) {
+      !update_zone_ns(zone, dsnsa, nns, nsttl)) {
     char name[DNS_MAXDOMAIN+1];
     dns_dntop(zone->z_dn, name, sizeof(name));
     dslog(LOG_WARNING, 0,
@@ -423,7 +472,7 @@ void dumpzone(const struct zone *z, FILE *f) {
     dns_dntop(z->z_dn, name, sizeof(name));
     fprintf(f, "$ORIGIN\t%s.\n", name);
     if (z->z_dssoa) {
-      fprintf(f, "@\t%u\tSOA", unpack32(dssoa->dssoa_ttl));
+      fprintf(f, "@\t%u\tSOA", dssoa->dssoa_ttl);
       dns_dntop(dssoa->dssoa_odn, name, sizeof(name));
       fprintf(f, "\t%s.", name);
       dns_dntop(dssoa->dssoa_pdn, name, sizeof(name));
@@ -437,11 +486,11 @@ void dumpzone(const struct zone *z, FILE *f) {
     }
     for(n = 0; n < nns; ++n) {
       dns_dntop(dsnsa[n]->dsns_dn, name, sizeof(name));
-      fprintf(f, "\t%u\tNS\t%s.\n", unpack32(dsnsa[n]->dsns_ttl), name);
+      fprintf(f, "\t%u\tNS\t%s.\n", z->z_nsttl, name);
     }
   }
   for (dsl = z->z_dsl; dsl; dsl = dsl->dsl_next) {
-    fprintf(f, "$TTL %u\n", unpack32(dsl->dsl_ds->ds_ttl));
+    fprintf(f, "$TTL %u\n", dsl->dsl_ds->ds_ttl);
     dsl->dsl_ds->ds_type->dst_dumpfn(dsl->dsl_ds, z->z_dn, f);
   }
 }

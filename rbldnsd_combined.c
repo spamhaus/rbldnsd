@@ -158,7 +158,7 @@ int ds_combined_newset(struct dataset *ds, char *line, int lineno) {
   ++dsd->nds;
   ds->ds_subset = dssub;
   dssub->ds_type->dst_resetfn(dssub->ds_dsd, 0);
-  memcpy(dssub->ds_ttl, ds->ds_ttl, 4);
+  dssub->ds_ttl = ds->ds_ttl;
   memcpy(dssub->ds_subst, ds->ds_subst, sizeof(ds->ds_subst));
   dssub->ds_type->dst_startfn(dssub);
 

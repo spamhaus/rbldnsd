@@ -10,8 +10,8 @@
 struct entry {
   const unsigned char *ldn;	/* DN, first byte is length, w/o EON */
   unsigned dtyp;		/* data (query) type (NSQUERY_XX) */
+  unsigned ttl;			/* time-to-live */
   unsigned char *data;	/* data, mp-allocated (size depends on dtyp) */
-    /* first 4 bytes is ttl */
 };
 
 struct dsdata {
@@ -70,12 +70,13 @@ static int ds_generic_parseany(struct dataset *ds, char *s, int lineno) {
   SKIPSPACE(s);
 
   if (*s >= '0' && *s <= '9') { /* ttl */
-    if (!(s = parse_ttl_nb(s, data, ds->ds_ttl))) return 0;
+    if (!(s = parse_ttl(s, &e->ttl, ds->ds_ttl))) return 0;
     SKIPSPACE(s);
   }
   else
-    memcpy(data, ds->ds_ttl, 4);
-  dp = data + 4;
+    e->ttl = ds->ds_ttl;
+
+  dp = data;
 
   /* type */
   if ((s[0] == 'i' || s[0] == 'I') &&
@@ -202,16 +203,17 @@ ds_generic_find(const struct entry *e, int b, const unsigned char *dn, unsigned 
 }
 
 static void
-ds_generic_add_rr(struct dnspacket *pkt, unsigned dtyp, const unsigned char *d) {
-  switch(dtyp) {
+ds_generic_add_rr(struct dnspacket *pkt, const struct entry *e) {
+  const unsigned char *d = e->data;
+  switch(e->dtyp) {
   case NSQUERY_A:
-    addrr_any(pkt, DNS_T_A, d + 4, 4, d);
+    addrr_any(pkt, DNS_T_A, d, 4, e->ttl);
     break;
   case NSQUERY_TXT:
-    addrr_any(pkt, DNS_T_TXT, d + 4, (unsigned)(d[4]) + 1, d);
+    addrr_any(pkt, DNS_T_TXT, d, (unsigned)(d[0]) + 1, e->ttl);
     break;
   case NSQUERY_MX:
-    addrr_any(pkt, DNS_T_MX, d + 5, (unsigned)(d[4]) + 2, d);
+    addrr_any(pkt, DNS_T_MX, d + 1, (unsigned)(d[0]) + 2, e->ttl);
     break;
   }
 }
@@ -226,8 +228,8 @@ ds_generic_add_rrs(struct dnspacket *pkt, const struct entry *e, const struct en
   static unsigned nn;
   const struct entry *m = (l - e > 1) ? e + nn++ % (l - e) : e;
   const struct entry *t;
-  for(t = m; t < l; ++t) ds_generic_add_rr(pkt, t->dtyp, t->data);
-  for(t = e; t < m; ++t) ds_generic_add_rr(pkt, t->dtyp, t->data);
+  for(t = m; t < l; ++t) ds_generic_add_rr(pkt, t);
+  for(t = e; t < m; ++t) ds_generic_add_rr(pkt, t);
 }
 
 static int

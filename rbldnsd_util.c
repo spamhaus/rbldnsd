@@ -72,11 +72,10 @@ char *parse_time_nb(char *s, unsigned char nb[4]) {
   return s;
 }
 
-char *parse_ttl_nb(char *s, unsigned char ttl[4],
-                   const unsigned char defttl[4]) {
-  s = parse_time_nb(s, ttl);
-  if (s && memcmp(ttl, "\0\0\0\0", 4) == 0)
-    memcpy(ttl, defttl, 4);
+char *parse_ttl(char *s, unsigned *ttlp, unsigned defttl) {
+  s = parse_time(s, ttlp);
+  if (*ttlp == 0)
+    *ttlp = defttl;
   return s;
 }
 

@@ -60,7 +60,9 @@ struct dnsqinfo {	/* qi */
 };
 
 #define PACK32(b,n) ((b)[0]=(n)>>24,(b)[1]=(n)>>16,(b)[2]=(n)>>8,(b)[3]=(n))
+#define PACK32S(b,n) (*b++=(n)>>24,*b++=(n)>>16,*b++=(n)>>8,*b++=n)
 #define PACK16(b,n) ((b)[0]=(n)>>8,(b)[1]=(n))
+#define PACK16S(b,n) (*b++=(n)>>8,*b++=(n))
 
 unsigned unpack32(const unsigned char nb[4]);
 
@@ -72,8 +74,7 @@ char *parse_uint32(char *s, unsigned *np);
 char *parse_uint32_nb(char *s, unsigned char nb[4]);
 char *parse_time(char *s, unsigned *tp);
 char *parse_time_nb(char *s, unsigned char nb[4]);
-char *parse_ttl_nb(char *s, unsigned char ttl[4],
-                   const unsigned char defttl[4]);
+char *parse_ttl(char *s, unsigned *ttlp, unsigned defttl);
 char *parse_dn(char *s, unsigned char *dn, unsigned *dnlenp);
 /* parse line in form :ip:text into rr
  * where first 4 bytes is ip in network byte order.
@@ -153,7 +154,7 @@ struct dsfile {	/* dsf */
 };
 
 struct dssoa { /* dssoa */
-  unsigned char dssoa_ttl[4];		/* TTL value */
+  unsigned dssoa_ttl;			/* TTL value */
   const unsigned char *dssoa_odn;	/* origin DN */
   const unsigned char *dssoa_pdn;	/* person DN */
   unsigned dssoa_serial;		/* SOA serial # */
@@ -162,7 +163,6 @@ struct dssoa { /* dssoa */
 
 struct dsns { /* dsns, nameserver */
   struct dsns *dsns_next;		/* next nameserver in list */
-  unsigned char dsns_ttl[4];		/* TTL value */
   unsigned char dsns_dn[1];		/* nameserver DN, varlen */
 };
 
@@ -174,8 +174,13 @@ struct dataset {	/* ds */
   struct dsfile *ds_dsf;		/* list of files for this data */
   struct dssoa *ds_dssoa;		/* SOA record */
   struct dsns *ds_dsns;			/* list of nameservers */
-  struct dsns **ds_dsnslp;		/* last nameserver pointer */
-  unsigned char ds_ttl[4];		/* default ttl for a dataset */
+  unsigned ds_nsttl;			/* TTL for NS records */
+#ifndef INCOMPAT_0_99
+  int ds_nsflags;
+#define DSF_NEWNS  0x01			/* new-style NS on one line */
+#define DSF_NSWARN 0x02			/* warned about new-style NS */
+#endif
+  unsigned ds_ttl;			/* default ttl for a dataset */
   char *ds_subst[10];			/* substitution variables */
   struct mempool *ds_mp;		/* memory pool for data */
   struct dataset *ds_next;		/* next in global list */
@@ -229,6 +234,7 @@ struct zone {	/* zone, list of zones */
   struct zonesoa *z_zsoa;		/* pre-packed SOA record */
   const struct dsns *z_dsnsa[MAX_NS];	/* array of nameservers */
   unsigned z_nns;			/* number of NSes in z_dsnsa[] */
+  unsigned z_nsttl;			/* ttl for NS records */
   unsigned z_cns;			/* current NS in rotation */
   struct zonens *z_zns;			/* pre-packed NS records */
 #ifndef NOSTATS
@@ -239,7 +245,8 @@ struct zone {	/* zone, list of zones */
 
 void init_zones_caches(struct zone *zonelist);
 int update_zone_soa(struct zone *zone, const struct dssoa *dssoa);
-int update_zone_ns(struct zone *zone, const struct dsns **dsnsa, unsigned nns);
+int update_zone_ns(struct zone *zone, const struct dsns **dsnsa, unsigned nns,
+                   unsigned ttl);
 
 /* parse query and construct a reply to it, return len of answer or 0 */
 int replypacket(struct dnspacket *p, unsigned qlen, const struct zone *zone,
@@ -262,8 +269,7 @@ void addrr_a_txt(struct dnspacket *pkt, unsigned qtflag,
                  const char *rr, const char *subst,
                  const struct dataset *ds);
 void addrr_any(struct dnspacket *pkt, unsigned dtp,
-               const void *data, unsigned dsz,
-               const unsigned char ttl[4]);
+               const void *data, unsigned dsz, unsigned ttl);
 void dump_a_txt(const char *name, const unsigned char *rr,
                 const char *subst, const struct dataset *ds, FILE *f);
 
@@ -289,7 +295,7 @@ int ds_special(struct dataset *ds, char *line, int lineno);
 /* from rbldnsd_combined.c, special routine used inside ds_special() */
 int ds_combined_newset(struct dataset *ds, char *line, int lineno);
 
-extern unsigned char def_ttl[4];
+extern unsigned def_ttl;
 extern const char def_rr[5];
 
 extern const char *show_version; /* version.bind CH TXT */

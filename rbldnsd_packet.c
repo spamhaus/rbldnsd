@@ -495,7 +495,7 @@ int update_zone_soa(struct zone *zone, const struct dssoa *dssoa) {
    struct zonesoa *zsoa;
    unsigned char *cpos;
    struct dncompr compr;
-   unsigned size;
+   unsigned t;
    unsigned char *sizep;
 
    zsoa = zone->z_zsoa;
@@ -506,25 +506,22 @@ int update_zone_soa(struct zone *zone, const struct dssoa *dssoa) {
                    zsoa->jump, zone->z_dn);
 
    cpos = dnc_add(&compr, cpos, zone->z_dn);
-   *cpos++ = DNS_T_SOA>>8; *cpos++ = DNS_T_SOA;
-   *cpos++ = DNS_C_IN >>8; *cpos++ = DNS_C_IN;
+   PACK16S(cpos, DNS_T_SOA);
+   PACK16S(cpos, DNS_C_IN);
    zsoa->ttloff = cpos - compr.buf;
-   memcpy(cpos, dssoa->dssoa_ttl, 4); cpos += 4;
+   PACK32S(cpos, dssoa->dssoa_ttl);
    sizep = cpos;
    cpos += 2;
    cpos = dnc_add(&compr, cpos, dssoa->dssoa_odn);
    if (!cpos) return 0;
    cpos = dnc_add(&compr, cpos, dssoa->dssoa_pdn);
    if (!cpos) return 0;
-   if (dssoa->dssoa_serial)
-     PACK32(cpos, dssoa->dssoa_serial);
-   else
-     PACK32(cpos, zone->z_stamp);
-   cpos += 4;
+   t = dssoa->dssoa_serial ? dssoa->dssoa_serial : zone->z_stamp;
+   PACK32S(cpos, t);
    memcpy(cpos, dssoa->dssoa_n, 16); cpos += 16;
    zsoa->minttl = cpos - 4;
-   size = cpos - sizep - 2;
-   PACK16(sizep, size);
+   t = cpos - sizep - 2;
+   PACK16(sizep, t);
    dnc_finish(&compr, cpos, &zsoa->size, &zsoa->jend);
 
    return 1;
@@ -549,7 +546,8 @@ static int addrr_soa(struct dnspacket *pkt, const struct zone *zone, int auth) {
   return 1;
 }
 
-int update_zone_ns(struct zone *zone, const struct dsns **dsnsa, unsigned nns) {
+int update_zone_ns(struct zone *zone, const struct dsns **dsnsa, unsigned nns,
+                   unsigned ttl) {
   struct zonens *zns;
   unsigned char *cpos, *sizep;
   struct dncompr compr;
@@ -561,6 +559,7 @@ int update_zone_ns(struct zone *zone, const struct dsns **dsnsa, unsigned nns) {
   if (!nns)
     return 1;
   memcpy(zone->z_dsnsa, dsnsa, sizeof(zone->z_dsnsa));
+  zone->z_nsttl = ttl;
 
   /* fill up nns variants of NS RRs ordering:
    * zns is actually an array, not single structure */
@@ -572,9 +571,9 @@ int update_zone_ns(struct zone *zone, const struct dsns **dsnsa, unsigned nns) {
     for(i = 0; i < nns; ++i) {
       cpos = dnc_add(&compr, cpos, zone->z_dn);
       if (!cpos || cpos + 10 > compr.bend) return 0;
-      *cpos++ = DNS_T_NS>>8; *cpos++ = DNS_T_NS;
-      *cpos++ = DNS_C_IN>>8; *cpos++ = DNS_C_IN;
-      memcpy(cpos, dsnsa[i]->dsns_ttl, 4); cpos += 4;
+      PACK16S(cpos, DNS_T_NS);
+      PACK16S(cpos, DNS_C_IN);
+      PACK32S(cpos, ttl);
       sizep = cpos; cpos += 2;
       cpos = dnc_add(&compr, cpos, dsnsa[i]->dsns_dn);
       if (!cpos) return 0;
@@ -617,7 +616,7 @@ static int addrr_ns(struct dnspacket *pkt, const struct zone *zone, int auth) {
  * We just ignore any data that exceeds packet size */
 void addrr_any(struct dnspacket *pkt, unsigned dtp,
                const void *data, unsigned dsz,
-               const unsigned char ttl[4]) {
+               unsigned ttl) {
   register unsigned char *c, *e, *f;
 
   c = pkt->p_sans; e = pkt->p_cur;
@@ -629,6 +628,7 @@ void addrr_any(struct dnspacket *pkt, unsigned dtp,
 
   /* check whenever we already have this (type of) RR in reply */
   while(hasRR(c,e)) {
+    unsigned t;
     if (!sameRRT(c,dtp)) { c = nextRR(c); continue; } /* skip different type */
     if (sameDATA(c,dsz,data)) return; /* first RR has this data - nothing to do */
     f = c; /* remember first RR of this type */
@@ -642,14 +642,14 @@ void addrr_any(struct dnspacket *pkt, unsigned dtp,
      * If new RR has larger TTL, use existing (smaller) TTL instead.
      * If new TTL is smaller, made all other TTLs this small too.
      */
-    if (memcmp(rrTTL(f), ttl, 4) == 0) break; /* the same, nothing to do */
-    if (unpack32(ttl) > unpack32(rrTTL(f)))
-      ttl = rrTTL(f); /* use existing, smaller TTL for new RR */
+    if (ttl >= (t = unpack32(rrTTL(f))))
+      ttl = t; /* use existing, smaller TTL for new RR */
     else { /* change TTLs of existing RRs to new */
-      memcpy(rrTTL(f), ttl, 4);
+      unsigned char *ttlnb = rrTTL(f);
+      PACK32(ttlnb, ttl);
       for(f = nextRR(f); hasRR(f,e); f = nextRR(f))
         if (sameRRT(f,dtp))
-          memcpy(rrTTL(f), ttl, 4);
+          memcpy(rrTTL(f), ttlnb, 4);
     }
     break;
   }
@@ -664,10 +664,10 @@ void addrr_any(struct dnspacket *pkt, unsigned dtp,
     return;
   }
   *c++ = 192; *c++ = p_hdrsize;	/* jump after header: query DN */
-  *c++ = dtp>>8; *c++ = dtp;
-  *c++ = DNS_C_IN>>8; *c++ = DNS_C_IN;
-  memcpy(c, ttl, 4); c += 4;
-  PACK16(c, dsz); c += 2;	/* dsize */
+  PACK16S(c, dtp);
+  PACK16S(c, DNS_C_IN);
+  PACK32S(c, ttl);
+  PACK16S(c, dsz);
   memcpy(c, data, dsz);
   pkt->p_cur = c + dsz;
   pkt->p_buf[p_ancnt] += 1; /* increment numanswers */

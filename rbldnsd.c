@@ -77,7 +77,7 @@ static int accept_in_cidr;	/* accept 127.0.0.1/8-style CIDRs */
 static int initialized;		/* 1 when initialized */
 static char *logfile;		/* log file name */
 static int logmemtms;		/* print memory usage and (re)load time info */
-unsigned char def_ttl[4] = "\0\0\010\064";	/* default record TTL 35m */
+unsigned def_ttl = 35*60;	/* default record TTL 35m */
 const char def_rr[5] = "\177\0\0\2\0";		/* default A RR */
 struct dataset *ds_loading;	/* a dataset currently being loaded if any */
 
@@ -379,7 +379,7 @@ static void init(int argc, char **argv) {
     case 'w': workdir = optarg; break;
     case 'p': pidfile = optarg; break;
     case 't':
-      if (!(p = parse_time_nb(optarg, def_ttl)) || *p)
+      if (!(p = parse_time(optarg, &def_ttl)) || *p)
         error(0, "invalid ttl (-t) value `%.50s'", optarg);
       break;
     case 'c':
