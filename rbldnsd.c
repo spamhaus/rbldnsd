@@ -21,9 +21,11 @@
 #include "rbldnsd.h"
 
 #ifdef NOPOLL
-#include <sys/select.h>
+# ifndef NOSELECT_H
+#  include <sys/select.h>
+# endif
 #else
-#include <sys/poll.h>
+# include <sys/poll.h>
 #endif
 #ifndef NOMEMINFO
 # include <malloc.h>

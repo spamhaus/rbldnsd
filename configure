@@ -45,7 +45,8 @@ cat >confdef.h <<EOF
    SIZEOF_LONG_LONG (if supported)
  NOIPv6 - system lacks IPv6 support
  NOMEMINFO - system lacks mallinfo()
- NOPOLL - system lacks poll()
+ NOPOLL - system lacks poll(), use select() instead
+  NOSELECT_H - system lacks <sys/select.h> too
 */
 
 EOF
@@ -274,6 +275,20 @@ if $CC -o conftest conftest.c 2>&5; then
 else
   echo "no, using select()"
   echo "#define NOPOLL 1" >>confdef.h
+  echo $en "checking for <sys/select.h>... $ec"
+  rm -f conftest*; cat >conftest.c <<EOF
+#include <sys/time.h>
+#include <sys/types.h>
+#include <unistd.h>
+#include <sys/select.h>
+int foo() { return 0; }
+EOF
+  if $CC -c conftest.c 2>&5 ; then
+    echo yes
+  else
+    echo no
+    echo "#define NOSELECT_H 1" >>confdefs.h
+  fi
 fi
 
 echo $en "creating Makefile... $ec"

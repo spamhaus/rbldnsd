@@ -11,6 +11,7 @@ rbldnsd (0.98a.pre) unstable; urgency=low
     made Makefile depend on debian/changelog.
   * debian/rules: do not attempt to make distclean if there's no
     Makefile
+  * another config test: <sys/select.h> (NOSELECT_H)
 
  -- Michael Tokarev <mjt@corpit.ru>  Fri, 22 Aug 2003 13:55:58 +0400
 
