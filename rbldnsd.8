@@ -1,7 +1,7 @@
 .\" $Id$
 .\" rbldnsd manpage
 .\"
-.TH rbldnsd 8 "Apr 2003"
+.TH rbldnsd 8 "Jun 2004"
 .SH NAME
 rbldnsd \- DNS daemon suitable for running DNS\-based blocklists
 .SH SYNOPSIS
@@ -295,8 +295,11 @@ to specify SOA record for every zone.  If no SOA is given, negative replies
 will not be cacheable by caching nameservers.  Only one, first $SOA line is
 recognized in every dataset (all subsequent $SOA lines encountered in the
 same dataset are silently ignored).  When constructing a zone, SOA will
-be used from first dataset where $SOA line is given, in an order as
-specified in command line.
+be taken from \fIfirst\fR dataset where $SOA line is found, in an order as
+specified in command line, subsequent $SOA lines, if any, are ignored.
+This way, one may overwrite $SOA found in 3rd party data by \fIprepending\fR
+small local file to the dataset in question, listing it before any other
+files.
 .IP
 If \fIserial\fR value specified is zero, timestamp of most recent
 modified file will be substituted as \fIserial\fR.
@@ -318,6 +321,9 @@ Individual nameserver(s) may be prefixed with a minus sign (\-), which
 means this single nameserver will be ignored by \fBrbldnsd\fR.  This
 is useful to temporary comment out one nameserver entry without removing
 it from the list.  If \fIttl\fR is zero, default ttl will be used.
+The list of NS records, just like $SOA value, are taken from the \fIfirst\fR
+data file in a dataset where the $NS line is found, subsequent $NS lines,
+if any, are ignored.
 
 .IP "\fB$TTL\fR \fItime-to-live\fR"
 Specifies TTL (time-to-live) value for all records in current dataset.
@@ -429,7 +435,9 @@ Note: ip4trie dataset \fIcannot\fR be converted into master zone format
 the same A+TXT template.  This dataset type is more efficient than
 ip4set (in both memory usage and access times), but have obvious
 limitation.  It is intended for DNSBLs like DSBL.org, ORDB.org and
-similar.
+similar, where each entry uses the same default A+TXT template.
+This dataset uses only half a memory for the same list of IP
+addresses compared to \fBip4set\fR.
 
 .IP \fBdnset\fR
 Set of (possible wildcarded) domain names with associated A and TXT values.
@@ -453,10 +461,9 @@ one may either specify two lines (example.com and *.example.com), or
 one line (.example.com).
 .RE
 .IP
-This zone type may be used instead of \fBip4set\fR,
+This dataset type may be used instead of \fBip4set\fR,
 provided all CIDR ranges are expanded and reversed (but in
 this case, TXT template will be expanded differently).
-Any text in line after domain name is ignored.
 
 .IP \fBgeneric\fR
 Generic type, simplified bind\-style format.  Every record
@@ -634,6 +641,10 @@ period.
 .SH NOTES
 
 .PP
+Some unsorted usage notes follows.
+
+.SS "Generating and transferring data files"
+.PP
 When creating a data file for \fBrbldnsd\fR (and for anything
 else, it is a general advise), it is a good idea to create the
 data in temporary file and rename the temp file when all is
@@ -686,6 +697,8 @@ should never be removed) and flock/fcntl it in exclusive
 mode without waiting, exiting if lock fails) before
 attempting to do other file manipulation.
 
+.SS "Absolute vs relative domain names"
+
 .PP
 All \fIkeys\fR specified in dataset files are always relative
 to the zone base DN.  In contrast, all the \fIvalues\fR (NS
@@ -694,6 +707,7 @@ This is different from BIND behaviour, where trailing dot
 indicates whenever this is an absolute or relative DN.
 Trailing dots in domain names are ignored by \fBrbldnsd\fR.
 
+.SS "Aggregating datasets"
 .PP
 Several zones may be served by \fBrbldnsd\fR,
 every zone may consist of several datasets.  There are numerous
@@ -726,19 +740,18 @@ or:
 all its subzones in a command line, or else subzones
 will not be consulted at all).
 .PP
-In the first form, there will be 3 independant data
-sets, and every record will be stored 2 times in
-memory, but only one lookup will be needed to resolve
-queries for combined bl.ex.com.  In second form,
-there will be only 2 data sets, every record will be
-stored only once (both datasets will be reused), but
-2 lookups will be needed to resolve queries against
-combined bl.ex.com zone (but difference in speed is
-almost unnoticeable).  Note that when combining
-several data files into one dataset, an exclusion entry
-in one file becomes exclusion entry in the whole dataset
-(which may be a problem when combining dialups, where
-exclusions are common, with open relays/proxies, where
+In the first form, there will be 3 independent data sets,
+and every record will be stored 2 times in memory, but only
+one search in internal data structures will be needed to
+resolve queries for aggregate bl.ex.com.  In second form,
+there will be only 2 data sets, every record will be stored
+only once (both datasets will be reused), but 2 searches will
+be performed by \fBrbldnsd\fR to answer queries against aggregate
+zone (but difference in speed is almost unnoticeable).
+Note that when aggregating several data files into one dataset,
+an exclusion entry in one file becomes exclusion entry in the
+whole dataset (which may be a problem when aggregating dialups,
+where exclusions are common, with open relays/proxies, where
 exclusions are rare if at all used).
 .PP
 Similar effect may be achieved by using \fBcombined\fR
@@ -762,13 +775,43 @@ SORBS.net zones, where several subzones used and main zone is
 a combination of several subzones, \fBcombined\fR dataset is a
 way to go.
 
+.SS "All authoritative nameservers should be set up similarily"
+.PP
+When you have several nameservers for your zone, set them
+all in a similar way.  Namely, if one is set up using \fBcombined\fR
+dataset, all the rest should be too, or else DNS meta\-data will
+be broken.  This is because metadata (SOA and NS) records returned
+by nameservers using \fBcombined\fR and other datasets will have
+different origin.  With \fRcombined\fR dataset, \fBrbldnsd\fR
+return NS and SOA records for the base zone, not for any subzone
+defined inside the dataset.  Given the above example with
+dialups.bl.ex.com, spammers.bl.ex.com and aggregate bl.ex.com
+zones, and two nameservers, first is set up in any ways described
+above (using individual datasets for every of the 3 zones), and
+second is set up for the whole bl.ex.com zone using \fBcombined\fR
+dataset.  In this case, for queries against dialups.bl.ex.com, first
+nameserver will return NS records like
+.nf
+  dialups.bl.ex.com. IN NS a.ns.ex.com.
+.fi
+while second will always use base zone, and NS records will
+look like
+.nf
+  bl.ex.com. IN NS a.ns.ex.com.
+.fi
+All authoritative nameservers for a zone must have consistent
+metadata records.  The only way to achieve this is to use
+similar configuration (combined or not) on all nameservers.
+Have this in mind when using other software for a nameserver.
+
+.SS "Generic dataset usage"
 .PP
 .B generic
 dataset type is very rudimentary.  It's purpose is to
 complement all the other type to form complete nameserver
 that may answer to A, TXT and MX queries.  This is useful
-mostly to define A records for HTTP access (relays.osirusoft.com
-A, www.relays.osirusoft.com A just in case), and maybe description
+mostly to define A records for HTTP access (relays.bl.example.com
+A, www.bl.example.com A just in case), and maybe descriptive
 texts as a TXT record.
 
 .PP
@@ -789,11 +832,20 @@ is the same, the same, single dataset may be used, but it should
 be specified for every zone it should apply to (see \fBcombined\fR
 dataset usage example above).
 
+.SS "NS records belongs to separate zone"
 .PP
-For nameserver records, it is highly recommended to list
-nameservers for a zone to be in different zone (e.g. in parent
-zone), not controlled by \fBrbldnsd\fR.  \fBrbldnsd\fR does not
-fill ADDITIONAL answer section with addresses of nameservers.
+.B Rbldnsd
+does not insert A records for nameservers into the ADDITIONAL
+section in replies, so NS records \fIshould not\fR point to the
+zone served by \fBrbldnsd\fR, or else you will have chicken\-and\-eggs
+problem and your zone will be broken from the DNS point of view.
+In order to work around this problem, set up nameservers inside
+another domain/zone that isn't handled by \fBrbldnsd\fR (and thus
+\fBrbldnsd\fR is not authoritative for that zone), i.e. instead of
+using quite natural ns0.bl.ex.com NS for bl.ex.com zone, use n0-bl.ex.com
+or ns0.blns.ex.com (inside parent zone, not controlled by \fBrbldnsd\fR).
+Since the parent zone is accessed much less frequently than the DNSBL
+zone itself, it usually requires less nameservers.
 
 .SH BUGS
 
@@ -828,16 +880,9 @@ section of every positive answer: NS records will be provided
 If records does not fit, AUTHORITY section will be empty.
 
 .PP
-Also, \fBrbldnsd\fR does not add A records into the ADDITIONAL
-section in answers for nameservers.  In order to work around
-this, set up nameservers inside another domain/zone that
-isn't handled by \fBrbldnsd\fR (and thus \fBrbldnsd\fR is
-not authoritative for that zone), i.e. instead of using
-e.g. ns0.list.dsbl.org NS for list.dsbl.org zone, use
-n0-list.dsbl.org (inside parent zone, not controlled by
-\fBrbldnsd\fR).  Since the parent zone is accessed much less
-frequently than the DNSBL zone itself, it may require less
-nameservers (and much less load).
+Also, \fBrbldnsd\fR does not add A records for nameservers into
+the ADDITIONAL section in replies.  See NOTES section above for
+more details.
 
 .PP
 .B rbldnsd
