@@ -94,20 +94,6 @@ void dsloaded(const char *fmt, ...) {
   va_end(ap);
 }
 
-void zlog(const struct zone *z, int level, const char *fmt, ...) {
-  char name[DNS_MAXDOMAIN+1];
-  unsigned len = dns_dntop(z->z_dn, name, sizeof(name));
-  char buf[512];
-  va_list ap;
-  if (len > 80) {
-    name[70] = name[71] = name[72] = '.'; name[73] = '\0';
-  }
-  va_start(ap, fmt);
-  vssprintf(buf, sizeof(buf), fmt, ap);
-  va_end(ap);
-  dslog(level, 0, "zone %s: %s", name, buf);
-}
-
 static struct dataset *newdataset(char *spec) {
   /* type:file,file,file... */
   struct dataset *ds;
@@ -432,8 +418,12 @@ static int updatezone(struct zone *zone) {
   }
   zone->z_stamp = stamp;
   if (!update_zone_soa(zone, dssoa) ||
-      !update_zone_ns(zone, dsnsa, nns))
-    zlog(zone, LOG_WARNING, "NS or SOA RRs are too long, will be ignored");
+      !update_zone_ns(zone, dsnsa, nns)) {
+    char name[DNS_MAXDOMAIN+1];
+    dns_dntop(zone->z_dn, name, sizeof(name));
+    dslog(LOG_WARNING, 0,
+          "zone %.70s: NS or SOA RRs are too long, will be ignored", name);
+  }
 
   return 1;
 }
@@ -484,8 +474,9 @@ int reloadzones(struct zone *zonelist) {
 
     for(; zonelist; zonelist = zonelist->z_next) {
       if (!updatezone(zonelist)) {
-        zlog(zonelist, LOG_WARNING,
-             "partially loaded zone will not be serviced");
+        char name[DNS_MAXDOMAIN+1];
+        dns_dntop(zonelist->z_dn, name, sizeof(name));
+        dslog(LOG_WARNING, 0, "zone %.70s will not be serviced", name);
         zonelist->z_stamp = 0;
       }
     }
