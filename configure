@@ -347,6 +347,7 @@ for var in $subst LIBS DEFS ; do
 done >>confdef.sed
 rm -f Makefile.tmp
 sed -f confdef.sed Makefile.in >Makefile.tmp
+chmod +x Makefile.tmp
 mv -f Makefile.tmp Makefile
 echo ok
 
