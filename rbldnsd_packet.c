@@ -332,14 +332,17 @@ static int addrr_soa(struct dnspacket *pkt, const struct zone *zone, int auth) {
 
 static int addrr_ns(struct dnspacket *pkt, const struct zone *zone, int auth) {
   register unsigned char *c = pkt->p_cur;
-  const struct zonens *zns = zone->z_zns;
-  if (!zns) return 0;
+  const unsigned char **nsp = zone->z_zns;
+  const unsigned char **nse = nsp + zone->z_nns;
+  const unsigned char *nsdn;
+  if (nsp == nse) return 0;
   do {
     if (fit(pkt, c, 10 + 2)) {
       addrr_start(c, DNS_T_NS, &defttl_nbo); /* 10 bytes */
       c[0] = 0;
-      if ((c = add_dn(pkt, c + 2, zns->zns_dn + 1, zns->zns_dn[0]))) {
-        pkt->p_cur[11] = zns->zns_dn[0];
+      nsdn = *nsp;
+      if ((c = add_dn(pkt, c + 2, nsdn + 1, nsdn[0]))) {
+        pkt->p_cur[11] = c - pkt->p_cur - 12;
         pkt->p_cur = c;
         pkt->p_buf[auth ? p_nscnt : p_ancnt] += 1;
         continue;
@@ -347,7 +350,7 @@ static int addrr_ns(struct dnspacket *pkt, const struct zone *zone, int auth) {
     }
     setnonauth(pkt->p_buf); /* non-auth answer as we can't fit the record */
     return 0;
-  } while((zns = zns->zns_next));
+  } while(++nsp < nse);
   return 1;
 }
 

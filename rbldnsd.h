@@ -149,7 +149,7 @@ struct zonedataset {	/* zds */
   const char *zds_spec;			/* original specification */
   struct zonefile *zds_zf;		/* list of files for this data */
   struct zonesoa zds_zsoa;		/* SOA record */
-  struct zonens *zds_ns;		/* NS records */
+  struct zonens *zds_zns;		/* NS records */
   struct zonedataset *zds_next;		/* next in global list */
 };
 
@@ -169,7 +169,8 @@ struct zone {	/* zone, list of zones */
   unsigned z_dstflags;			/* flags of all datasets */
   struct zonedatalist *z_zdl;		/* list of datas */
   struct zonesoa z_zsoa;		/* SOA record */
-  struct zonens *z_zns;			/* list of NS records */
+  const unsigned char *z_zns[10];	/* list of nameservers */
+  unsigned z_nns;			/* number of nameservers */
   struct zone *z_next;			/* next in list */
 };
 

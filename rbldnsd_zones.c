@@ -197,7 +197,7 @@ static int loadzonedataset(struct zonedataset *zds) {
   if (zds->zds_ds)
     zds->zds_type->dst_freefn(zds->zds_ds);
   zds->zds_zsoa.zsoa_valid = 0;
-  zds->zds_ns = freezonens(zds->zds_ns);
+  zds->zds_zns = freezonens(zds->zds_zns);
   if (!(zds->zds_ds = zds->zds_type->dst_allocfn()))
     return 0;
   
@@ -234,11 +234,12 @@ static int loadzonedataset(struct zonedataset *zds) {
 static int updatezone(struct zone *zone) {
   time_t stamp = 0;
   const struct zonesoa *zsoa = NULL;
-  struct zonens *zns, **znsp;
-  const struct zonens *znsds;
+  const struct zonens *zns;
+  const unsigned char **nsp = zone->z_zns;
+  unsigned n;
   struct zonedatalist *zdl;
 
-  zone->z_zns = freezonens(zone->z_zns);
+  zone->z_nns = 0;
 
   for(zdl = zone->z_zdl; zdl; zdl = zdl->zdl_next) {
     const struct zonedataset *zds = zdl->zdl_zds;
@@ -249,20 +250,16 @@ static int updatezone(struct zone *zone) {
       stamp = zds->zds_stamp;
     if (!zsoa && zds->zds_zsoa.zsoa_valid)
       zsoa = &zds->zds_zsoa;
-    for(znsds = zds->zds_ns; znsds; znsds = znsds->zns_next) {
-      znsp = &zone->z_zns;
-      for(;;) {
-        if (!(zns = *znsp)) {
-          if (!(zns = tmalloc(struct zonens)))
-            return 0;
-	  zns->zns_dn = znsds->zns_dn;
-	  zns->zns_next = NULL;
-	  *znsp = zns;
-	  break;
-        }
-        if (memcmp(zns->zns_dn, znsds->zns_dn, znsds->zns_dn[0]) == 0)
+    for(zns = zds->zds_zns; zns; zns = zns->zns_next) {
+      for(n = 0; ; ++n) {
+        if (n == zone->z_nns) {
+          if (n < sizeof(zone->z_zns) / sizeof(zone->z_zns[0]))
+            nsp[zone->z_nns++] = zns->zns_dn;
           break;
-        zns = zns->zns_next;
+        }
+        if (zns->zns_dn[0] == nsp[n][0] &&
+            memcmp(zns->zns_dn, nsp[n], nsp[n][0]) == 0)
+          break;
       }
     }
   }
@@ -338,7 +335,7 @@ int reloadzones(struct zone *zonelist) {
              zonelist->z_name);
       zonelist->z_stamp = 0;
       zonelist->z_zsoa.zsoa_valid = 0;
-      zonelist->z_zns = freezonens(zonelist->z_zns);
+      zonelist->z_nns = 0;
     }
 
   }

@@ -98,7 +98,7 @@ zds_special(struct zonedataset *zds, char *line) {
      zns->zns_dn = (unsigned char*)(zns + 1);
      memcpy(zns->zns_dn, dn, n);
 
-     znsp = &zds->zds_ns;
+     znsp = &zds->zds_zns;
      while(*znsp) znsp = &(*znsp)->zns_next;
      *znsp = zns;
      zns->zns_next = NULL;
