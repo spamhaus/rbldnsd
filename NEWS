@@ -3,7 +3,9 @@ $Id$
 This file describes user-visible changes in rbldnsd.
 Never news are at top.
 
-0.96
+0.96 (29 May 2003)
+
+ - fixed alignment bug in mempool.c that caused allocation slip
 
  - pre-compress SOA and NS records for faster access
 

@@ -50,6 +50,8 @@ rbldnsd (0.96pre) unstable; urgency=low
 
   * fixed alignment bug in mempool.c that caused allocation slip
 
+  * simplify dssoa allocation
+
  -- Michael Tokarev <mjt@corpit.ru>  Thu, 29 May 2003 12:09:24 +0400
 
 rbldnsd (0.95) unstable; urgency=low
