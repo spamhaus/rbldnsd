@@ -63,11 +63,9 @@ static int ds_generic_parseany(struct dataset *ds, char *line) {
   }
   data[DNS_MAXDN] = (unsigned char)dsiz;
   dns_dnreverse(data, data + DNS_MAXDN + 1, dsiz);
-  /* allocate a bit more than needed, so that memcmp() will work
-   * (align at sizeof(int) */
-  dtyp = (dsiz + sizeof(int)) / sizeof(int) * sizeof(int);
-  memset(data + DNS_MAXDN + 1 + dsiz, 0, sizeof(int));
-  if (!(e->lrdn = (unsigned char*)mp_edmemdup(&ds->mp, data + DNS_MAXDN, dtyp)))
+  e->lrdn =
+    (const unsigned char*)mp_edmemdup(&ds->mp, data + DNS_MAXDN, dsiz + 1);
+  if (!e->lrdn)
     return 0;
 
   skipspace(line);
@@ -158,14 +156,10 @@ static struct dataset *ds_generic_alloc() {
   return tzalloc(struct dataset);
 }
 
-#define max(a,b) ((a)>(b)?(a):(b))
-static inline int ds_generic_lt(const struct entry *a, const struct entry *b) {
-  int r = memcmp(a->lrdn + 1, b->lrdn + 1, max(a->lrdn[0], b->lrdn[0]));
-  return
-     r < 0 ? 1 :
-     r > 0 ? 0 :
-     a->dtyp < b->dtyp;
-}
+#define min(a,b) ((a)<(b)?(a):(b))
+
+/* comparision of first MINlen bytes of two DNs is sufficient
+ * due to the nature of domain name representation */
 
 static int ds_generic_finish(struct dataset *ds) {
   if (ds->n) {
@@ -173,7 +167,8 @@ static int ds_generic_finish(struct dataset *ds) {
 #   define QSORT_TYPE struct entry
 #   define QSORT_BASE ds->e
 #   define QSORT_NELT ds->n
-#   define QSORT_LT(a,b) ds_generic_lt(a,b)
+#   define QSORT_LT(a,b) \
+  memcmp(a->lrdn + 1, b->lrdn + 1, min(a->lrdn[0], b->lrdn[0])) < 0
 #   include "qsort.c"
 
     /* collect all equal DNs to point to the same place */
@@ -208,7 +203,7 @@ ds_generic_query(const struct dataset *ds,
       return 0;
     }
     t = e + (m = (a + b) >> 1);
-    if (!(r = memcmp(t->lrdn + 1, rdn, max(qlen, t->lrdn[0])))) break;
+    if (!(r = memcmp(t->lrdn + 1, rdn, min(qlen, t->lrdn[0])))) break;
     else if (r < 0) a = m + 1;
     else b = m - 1;
   }
