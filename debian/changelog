@@ -1,4 +1,4 @@
-rbldnsd (0.98pre) unstable; urgency=low
+rbldnsd (0.98) unstable; urgency=low
 
   * use memmove() instead of memcpy() for overlapping regions,
     even if dstaddr is less than srcaddr (current memcpy() can
@@ -32,7 +32,7 @@ rbldnsd (0.98pre) unstable; urgency=low
   * made array of listening sockets to be global
   * added ip4trie (experimental) dataset: set of IP4 CIDR ranges.
 
- -- Michael Tokarev <mjt@corpit.ru>  Sun, 17 Aug 2003 19:33:16 +0400
+ -- Michael Tokarev <mjt@corpit.ru>  Sun, 17 Aug 2003 20:11:05 +0400
 
 rbldnsd (0.97b) unstable; urgency=low
 
