@@ -14,7 +14,7 @@ rbldnsd (0.83p1) unstable; urgency=low
 
   * fixed invocation w/o -b (bind address): rbldnsd wasn't work w/o -b at all
 
- -- Michael Tokarev <mjt@corpit.ru>  Sun,  6 Apr 2003 02:46:29 +0400
+ -- Michael Tokarev <mjt@corpit.ru>  Fri, 11 Apr 2003 05:18:27 +0400
 
 rbldnsd (0.82) unstable; urgency=low
 
