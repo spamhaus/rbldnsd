@@ -273,7 +273,7 @@ ds_ip4trie_query(const struct dataset *ds, const struct dnsqinfo *qi,
 
 static int
 ds_ip4trie_dump_octets(FILE *f, unsigned idx, ip4addr_t a, unsigned cnt,
-                       const struct node *n, const struct dataset *ds) {
+                       const char *rr, const struct dataset *ds) {
   char name[16];
   static const char * const fmt[4] = {
      "%u.%u.%u.%u", "*.%u.%u.%u", "*.%u.%u", "*.%u"
@@ -281,7 +281,7 @@ ds_ip4trie_dump_octets(FILE *f, unsigned idx, ip4addr_t a, unsigned cnt,
   const unsigned bits = 8 * idx;
   for(;;) {
     sprintf(name, fmt[idx], a&255, (a>>8)&255, (a>>16)&255, (a>>24));
-    dump_a_txt(name, n->rr, ip4atos(a<<bits), ds, f);
+    dump_a_txt(name, rr, ip4atos(a<<bits), ds, f);
     if (!--cnt)
       break;
     ++a;
@@ -291,11 +291,11 @@ ds_ip4trie_dump_octets(FILE *f, unsigned idx, ip4addr_t a, unsigned cnt,
 
 static int
 ds_ip4trie_dump_range(FILE *f, ip4addr_t a, ip4addr_t b,
-                      const struct node *n, const struct dataset *ds) {
+                      const char *rr, const struct dataset *ds) {
 
-  if (n->rr == excluded_rr) return 0;
+  if (rr == excluded_rr) return 0;
 
-#define fn(idx,start,count) ds_ip4trie_dump_octets(f, idx, start, count, n, ds)
+#define fn(idx,start,count) ds_ip4trie_dump_octets(f, idx, start, count, rr, ds)
 #define ip4range_expand_octet(bits)               \
   if ((a | 255u) >= b) {                          \
     if (b - a == 255u)                            \
@@ -330,7 +330,7 @@ ds_ip4trie_dump_node(FILE *f, const struct node *n,
                      const struct dataset *ds) {
   if (n->rr && (!super || super->rr != n->rr)) {
      if (super && a < n->prefix)
-       ds_ip4trie_dump_range(f, a, n->prefix - 1, super, ds);
+       ds_ip4trie_dump_range(f, a, n->prefix - 1, super->rr, ds);
      a = n->prefix;
      super = n;
   }
@@ -343,7 +343,7 @@ ds_ip4trie_dump_node(FILE *f, const struct node *n,
   if (super == n) {
     ip4addr_t b = n->prefix | ~ip4mask(n->bits);
     if (a <= b)
-      ds_ip4trie_dump_range(f, a, b, n, ds);
+      ds_ip4trie_dump_range(f, a, b, n->rr, ds);
     return b == 0xffffffffu ? 0 : b + 1;
   }
   else
