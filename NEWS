@@ -31,7 +31,7 @@ Never news are at top.
    allocated for subzones of combined dataset (NS/SOA are never
    used here).
 
- - feature: respond to version.bind CH IN requests (and version.server).
+ - feature: respond to version.bind CH TXT requests (and version.server).
    Use -v to hide version info from reply, or two -v's to disable this
    feature completely.
 
