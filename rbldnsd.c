@@ -435,6 +435,7 @@ static void setup_signals() {
 #endif
   sigaction(SIGTERM, &sa, NULL);
   sigaction(SIGINT, &sa, NULL);
+  signal(SIGPIPE, SIG_IGN);	/* in case logfile is FIFO */
 }
 
 #ifndef NOSTATS
