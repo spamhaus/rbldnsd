@@ -242,34 +242,65 @@ int replypacket(struct dnspacket *pkt, unsigned qlen, const struct zone *zone) {
 
 #define fit(p, c, bytes) ((c) + (bytes) <= (p)->p_buf + DNS_MAXPACKET)
 
-struct dnjump {
-  unsigned char *pos;
-  int off;
+
+/* DN compression pointers/structures */
+
+/* We store pre-computed RRs for NS and SOA records in special
+ * cache buffers referenced to by zone structure.
+ *
+ * The precomputed RRs consists of ready-to-be-sent data (with
+ * all record types/classes, TTLs, and data in place), modulo
+ * compressed DN backreferences.  When this cached data will be
+ * copied into answer packet, we'll need to adjust "jumps" in
+ * DN name compressions to reflect actual position of the data
+ * in answer packet.
+ *
+ * Cache data is calculated as if it where inside some packet,
+ * where it's start is exactly at the beginning of cached/precomputed
+ * record, and with zone's base DN (with class and type) being in
+ * question section immediately BEFORE the data (i.e. before our
+ * "virtual packet").  So some DN compression offsets (pointers)
+ * will be negative (referring to the query section of actual answer,
+ * as zone base DN will be present in answer anyway), and some will
+ * be positive (referring to this very record in actual answer).
+ */
+
+struct dnjump {	/* one DN "jump": */
+  unsigned char *pos;	/* position in precomputed packet where the jump is */
+  int off;		/* jump offset relative to beginning of the RRs */
 };
 
-struct dnptr {
-  const unsigned char *dn;
-  unsigned dnlen;
-  int off;
+struct dnptr {	/* domain pointer for DN compression */
+  const unsigned char *dn;	/* actual (complete) domain name */
+  unsigned dnlen;		/* it's length */
+  int off;			/* jump offset relative to start of RRs */
 };
 
-struct dncompr {
-  struct dnptr *cptr;
-  struct dnptr ptr[256];
-  unsigned char *buf;
-  unsigned char *bend;
-  struct dnjump *jump;
+struct dncompr {	/* DN compression structure */
+  struct dnptr ptr[256];	/* array of all known domain names */
+  struct dnptr *lptr;		/* last unused slot in ptr[] */
+  unsigned char *buf;		/* buffer for the cached RRs */
+  unsigned char *bend;		/* pointer to past the end of buf */
+  struct dnjump *jump;		/* current jump ptr (array of jumps) */
 };
 
+#define CACHEBUF_SIZE (DNS_MAXPACKET-p_hdrsize-4)
+/* maxpacket minus header minus (class+type) */
+
+/* initialize compression/cache structures */
 static unsigned char *
 dnc_init(struct dncompr *compr,
          unsigned char *buf, unsigned bufsize, struct dnjump *jump,
          const unsigned char *dn, unsigned dnlen) {
-  struct dnptr *ptr = compr->ptr;
-  unsigned char *cpos = buf - dnlen - 4;
-  compr->buf = buf;
-  compr->bend = buf + bufsize;
+  struct dnptr *ptr;
+  unsigned char *cpos;
+
+  compr->buf = buf; compr->bend = buf + bufsize;
   compr->jump = jump;
+
+  cpos = buf - dnlen - 4;	/* current position: qDN BEFORE the RRs */
+  ptr = compr->ptr;
+
   while(*dn) {
     ptr->dn = dn;
     ptr->dnlen = dnlen;
@@ -279,48 +310,57 @@ dnc_init(struct dncompr *compr,
     dnlen -= *dn + 1;
     dn += *dn + 1;
   }
-  compr->cptr = ptr;
+  compr->lptr = ptr;
   return cpos + 5;
 }
 
+/* add one DN into cache, adjust compression pointers and current pointer */
 static unsigned char *
 dnc_add(struct dncompr *compr, unsigned char *cpos,
         const unsigned char *dn, unsigned dnlen) {
   struct dnptr *ptr;
 
   while(*dn) {
-    for(ptr = compr->ptr; ptr < compr->cptr; ++ptr) {
+    /* lookup DN in already stored names */
+    for(ptr = compr->ptr; ptr < compr->lptr; ++ptr) {
       if (ptr->dnlen != dnlen || !dns_dnequ(ptr->dn, dn))
         continue;
+      /* found one, make a jump to it */
       if (cpos + 2 >= compr->bend) return NULL;
       compr->jump->pos = cpos;
       compr->jump->off = ptr->off;
       ++compr->jump;
       return cpos + 2;
     }
-    if (cpos + *dn + 1 >= compr->bend) return NULL;
+    /* not found, add it to the list of known DNs... */
+    if (cpos + *dn + 1 >= compr->bend)
+      return NULL;	/* does not fit */
     if (ptr < compr->ptr + sizeof(compr->ptr) / sizeof(compr->ptr[0])) {
       ptr->dn = dn;
       ptr->dnlen = dnlen;
       ptr->off = cpos - compr->buf;
-      ++compr->cptr;
+      ++compr->lptr;
     }
+    /* ...and add one label into the "packet" */
     memcpy(cpos, dn, *dn + 1);
     cpos += *dn + 1;
     dnlen -= *dn + 1;
     dn += *dn + 1;
   }
-  if (cpos + 1 >= compr->bend) return NULL;
+  if (cpos + 1 >= compr->bend)
+    return NULL;
   *cpos++ = '\0';
   return cpos;
 }
 
+/* finalize RRs: remember it's size and number of jumps */
 static void dnc_finish(struct dncompr *compr, unsigned char *cptr,
                        unsigned *sizep, struct dnjump **jendp) {
    *sizep = cptr - compr->buf;
    *jendp = compr->jump;
 }
 
+/* place pre-cached RRs into the packet, adjusting jumps */
 static int
 dnc_final(struct dnspacket *pkt,
           const unsigned char *data, unsigned dsize,
@@ -331,39 +371,44 @@ dnc_final(struct dnspacket *pkt,
   unsigned pos;
   if (!fit(pkt, pkt->p_cur, dsize))
     return 0;
+  /* first, adjust offsets - in cached data anyway */
   while(jump < jend) {
-    if (jump->pos) {
-      pos = jump->off + (jump->off < 0 ? qoff : coff);
-      PACK16(jump->pos, pos);
-    }
+    /* jump to either query section or this very RRs */
+    pos = jump->off + (jump->off < 0 ? qoff : coff);
+    PACK16(jump->pos, pos);
     ++jump;
   }
+  /* and finally, copy the RRs into answer packet */
   memcpy(pkt->p_cur, data, dsize);
   pkt->p_cur += dsize;
   return 1;
 }
 
-#define CACHEBUF_SIZE (DNS_MAXPACKET-p_hdrsize-4)
-/* maxpacket minus header minus (class+type) */
 
-struct zonesoa {
-  unsigned zsoa_size;
-  unsigned zsoa_ttloff;
-  const unsigned char *zsoa_minttl;
-  struct dnjump zsoa_jump[3], *zsoa_jend;
-  unsigned char zsoa_data[CACHEBUF_SIZE];
+struct zonesoa {	/* cached SOA RR */
+  unsigned size;		/* size of the RR */
+  unsigned ttloff;		/* offset of the TTL field */
+  const unsigned char *minttl;	/* pointer to minttl in data */
+  struct dnjump jump[3];	/* jumps to fix: 3 max (qdn, odn, pdn) */
+  struct dnjump *jend;		/* last jump */
+  unsigned char data[CACHEBUF_SIZE];
 };
 
-struct zonens {
-  unsigned zns_size;
-  struct dnjump zns_jump[MAX_NS*2], *zns_jend;
-  unsigned char zns_data[CACHEBUF_SIZE];
+struct zonens {		/* cached NS RRs */
+  unsigned size;		/* total size of all NS RRs */
+  struct dnjump jump[MAX_NS*2];	/* jumps: for qDNs and for NSes */
+  struct dnjump *jend;		/* last jump */
+  unsigned char data[CACHEBUF_SIZE];
 };
 
 void init_zone_caches(struct zone *zone) {
   zone->z_zsoa = tmalloc(struct zonesoa);
+  /* for NS RRs, we allocate MAX_NS caches:
+   * each stores one variant of NS rotation */
   zone->z_zns = (struct zonens *)emalloc(sizeof(struct zonens) * MAX_NS);
 }
+
+/* update SOA RR cache */
 
 int update_zone_soa(struct zone *zone, const struct dssoa *dssoa) {
    struct zonesoa *zsoa;
@@ -373,33 +418,33 @@ int update_zone_soa(struct zone *zone, const struct dssoa *dssoa) {
    unsigned char *sizep;
 
    zsoa = zone->z_zsoa;
-   zsoa->zsoa_size = 0;
+   zsoa->size = 0;
    if (!(zone->z_dssoa = dssoa)) return 1;
 
-   cpos = dnc_init(&compr, zsoa->zsoa_data, sizeof(zsoa->zsoa_data),
-                   zsoa->zsoa_jump, zone->z_dn, zone->z_dnlen);
+   cpos = dnc_init(&compr, zsoa->data, sizeof(zsoa->data),
+                   zsoa->jump, zone->z_dn, zone->z_dnlen);
 
-   /* SOA record */
-   /* SOA always fit in buffer */
    cpos = dnc_add(&compr, cpos, zone->z_dn, zone->z_dnlen);
    *cpos++ = DNS_T_SOA>>8; *cpos++ = DNS_T_SOA;
    *cpos++ = DNS_C_IN >>8; *cpos++ = DNS_C_IN;
-   zsoa->zsoa_ttloff = cpos - compr.buf;
+   zsoa->ttloff = cpos - compr.buf;
    memcpy(cpos, dssoa->dssoa_ttl, 4); cpos += 4;
    sizep = cpos;
    cpos += 2;
    cpos = dnc_add(&compr, cpos, dssoa->dssoa_odn, dssoa->dssoa_odnlen);
+   if (!cpos) return 0;
    cpos = dnc_add(&compr, cpos, dssoa->dssoa_pdn, dssoa->dssoa_pdnlen);
+   if (!cpos) return 0;
    if (dssoa->dssoa_serial)
      PACK32(cpos, dssoa->dssoa_serial);
    else
      PACK32(cpos, zone->z_stamp);
    cpos += 4;
    memcpy(cpos, dssoa->dssoa_n, 16); cpos += 16;
-   zsoa->zsoa_minttl = cpos - 4;
+   zsoa->minttl = cpos - 4;
    size = cpos - sizep - 2;
    PACK16(sizep, size);
-   dnc_finish(&compr, cpos, &zsoa->zsoa_size, &zsoa->zsoa_jend);
+   dnc_finish(&compr, cpos, &zsoa->size, &zsoa->jend);
 
    return 1;
 }
@@ -407,18 +452,18 @@ int update_zone_soa(struct zone *zone, const struct dssoa *dssoa) {
 static int addrr_soa(struct dnspacket *pkt, const struct zone *zone, int auth) {
   const struct zonesoa *zsoa = zone->z_zsoa;
   unsigned char *c = pkt->p_cur;
-  if (!zone->z_dssoa || !zsoa->zsoa_size) {
+  if (!zone->z_dssoa || !zsoa->size) {
     if (!auth)
       setnonauth(pkt->p_buf);
     return 0;
   }
-  if (!dnc_final(pkt, zsoa->zsoa_data, zsoa->zsoa_size,
-                 zsoa->zsoa_jump, zsoa->zsoa_jend)) {
+  if (!dnc_final(pkt, zsoa->data, zsoa->size, zsoa->jump, zsoa->jend)) {
     if (!auth)
       setnonauth(pkt->p_buf); /* non-auth answer as we can't fit the record */
     return 0;
   }
-  if (auth) memcpy(c + zsoa->zsoa_ttloff, zsoa->zsoa_minttl, 4);
+  /* for AUTHORITY section for NXDOMAIN etc replies, use minttl as TTL */
+  if (auth) memcpy(c + zsoa->ttloff, zsoa->minttl, 4);
   pkt->p_buf[auth ? p_nscnt : p_ancnt]++;
   return 1;
 }
@@ -436,10 +481,12 @@ int update_zone_ns(struct zone *zone, const struct dsns **dsnsa, unsigned nns) {
     return 1;
   memcpy(zone->z_dsnsa, dsnsa, sizeof(zone->z_dsnsa));
 
+  /* fill up nns variants of NS RRs ordering:
+   * zns is actually an array, not single structure */
   ns = 0;
   for(;;) {
-    cpos = dnc_init(&compr, zns->zns_data, sizeof(zns->zns_data),
-                    zns->zns_jump, zone->z_dn, zone->z_dnlen);
+    cpos = dnc_init(&compr, zns->data, sizeof(zns->data),
+                    zns->jump, zone->z_dn, zone->z_dnlen);
 
     for(i = 0; i < nns; ++i) {
       cpos = dnc_add(&compr, cpos, zone->z_dn, zone->z_dnlen);
@@ -454,7 +501,7 @@ int update_zone_ns(struct zone *zone, const struct dsns **dsnsa, unsigned nns) {
       PACK16(sizep, size);
     }
 
-    dnc_finish(&compr, cpos, &zns->zns_size, &zns->zns_jend);
+    dnc_finish(&compr, cpos, &zns->size, &zns->jend);
 
     if (++ns >= nns) break;
 
@@ -474,10 +521,10 @@ static int addrr_ns(struct dnspacket *pkt, const struct zone *zone, int auth) {
   const struct zonens *zns = zone->z_zns + cns;
   if (!zone->z_nns)
     return 0;
-  if (!dnc_final(pkt, zns->zns_data, zns->zns_size,
-                 zns->zns_jump, zns->zns_jend))
+  if (!dnc_final(pkt, zns->data, zns->size, zns->jump, zns->jend))
     return 0;
   pkt->p_buf[auth ? p_nscnt : p_ancnt] += zone->z_nns;
+  /* pick up next variation of NS ordering */
   ++cns;
   if (cns >= zone->z_nns)
     cns = 0;
