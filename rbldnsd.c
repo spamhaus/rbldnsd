@@ -34,6 +34,7 @@ struct ip4list {
   struct ip4list *next;
 };
 
+const char *version = VERSION;
 char *progname; /* limited to 32 chars */
 int logto;
 
@@ -121,7 +122,7 @@ static int do_reload(struct zone *zonelist) {
 
 static void NORETURN usage(int exitcode) {
    printf(
-"%s: rbl dns daemon version " VERSION "\n"
+"%s: rbl dns daemon version %s\n"
 "Usage is: %s [options] zone...\n"
 "where options are:\n"
 " -u user[:group] - run as this user:group (rbldns)\n"
@@ -142,7 +143,7 @@ static void NORETURN usage(int exitcode) {
 "each zone specified using `name:type:file,file...'\n"
 "syntax, repeated names constitute the same zone.\n"
 "Available zone types:\n"
-, progname, progname);
+, progname, version, progname);
   printzonetypes(stdout);
   printf(
 "netlist is a comma-separated list of CIDR network ranges or hosts,\n"
@@ -378,7 +379,7 @@ static int init(int argc, char **argv, struct zone **zonep) {
   if (!do_reload(*zonep))
     error(0, "zone loading errors, aborting");
   initialized = 1;
-  zlog(LOG_INFO, 0, "started");
+  zlog(LOG_INFO, 0, "started (version %s)", version);
 
   if (!nodaemon) {
     if (fork() > 0) exit(0);
