@@ -9,9 +9,8 @@
 
 struct entry {
   const unsigned char *ldn;	/* DN, first byte is length, w/o EON */
-  unsigned dtyp;		/* data (query) type */
-    /* last word is DNS RR type, first word is NSQUERY_XX bit */
-  unsigned char *data;	/* data, mp-allocated (size depends on qtyp) */
+  unsigned dtyp;		/* data (query) type (NSQUERY_XX) */
+  unsigned char *data;	/* data, mp-allocated (size depends on dtyp) */
     /* first 4 bytes is ttl */
 };
 
@@ -94,14 +93,14 @@ static int ds_generic_parseany(struct dataset *ds, char *s, int lineno) {
 
   if (strcmp(t, "a") == 0) {
     ip4addr_t a;
-    dtyp = NSQUERY_A | DNS_T_A;
+    dtyp = NSQUERY_A;
     if (ip4addr(s, &a, &s) <= 0) return -1;
     PACK32(dp, a);
     dsiz = 4;
   }
 
   else if (strcmp(t, "txt") == 0) {
-    dtyp = NSQUERY_TXT | DNS_T_TXT;
+    dtyp = NSQUERY_TXT;
     dsiz = strlen(s);
     if (dsiz >= 2 && s[0] == '"' && s[dsiz-1] == '"')
       ++s, dsiz -= 2;
@@ -115,7 +114,7 @@ static int ds_generic_parseany(struct dataset *ds, char *s, int lineno) {
   }
 
   else if (strcmp(t, "mx") == 0) {
-    dtyp = NSQUERY_MX | DNS_T_MX;
+    dtyp = NSQUERY_MX;
     if (!(s = parse_uint32_nb(s, dp)) || dp[0] || dp[1]) return -1;
     dp[1] = dp[2]; dp[2] = dp[3];
     if (!(s = parse_dn(s, dp + 3, &dsiz))) return 0;
@@ -158,6 +157,13 @@ ds_generic_line(struct dataset *ds, char *s, int lineno) {
 /* comparision of first MINlen bytes of two DNs is sufficient
  * due to the nature of domain name representation */
 
+static int ds_generic_lt(const struct entry *a, const struct entry *b) {
+  int r = memcmp(a->ldn, b->ldn, a->ldn[0] + 1);
+  if (r < 0) return 1;
+  else if (r > 0) return 0;
+  else return a->dtyp < b->dtyp;
+}
+
 static void ds_generic_finish(struct dataset *ds) {
   struct dsdata *dsd = ds->ds_dsd;
   if (dsd->n) {
@@ -165,8 +171,7 @@ static void ds_generic_finish(struct dataset *ds) {
 #   define QSORT_TYPE struct entry
 #   define QSORT_BASE dsd->e
 #   define QSORT_NELT dsd->n
-#   define QSORT_LT(a,b) \
-  memcmp(a->ldn, b->ldn, a->ldn[0] + 1) < 0
+#   define QSORT_LT(a,b) ds_generic_lt(a,b)
 #   include "qsort.c"
 
     /* collect all equal DNs to point to the same place */
@@ -214,14 +219,14 @@ ds_generic_query(const struct dataset *ds, const struct dnsqinfo *qi,
     if (!(qi->qi_tflag & e->dtyp))
       continue;
     d = e->data;
-    switch(e->dtyp & 0xff) {
-    case DNS_T_A:
+    switch(e->dtyp) {
+    case NSQUERY_A:
       addrr_any(pkt, DNS_T_A, d + 4, 4, d);
       break;
-    case DNS_T_TXT:
+    case NSQUERY_TXT:
       addrr_any(pkt, DNS_T_TXT, d + 4, (unsigned)(d[4]) + 1, d);
       break;
-    case DNS_T_MX:
+    case NSQUERY_MX:
       addrr_any(pkt, DNS_T_MX, d + 5, (unsigned)(d[4]) + 2, d);
       break;
     }
@@ -243,23 +248,23 @@ ds_generic_dump(const struct dataset *ds,
     if (ldn != e->ldn) {
       ldn = e->ldn;
       if (ldn[0] > 1)
-	dns_dntop(ldn + 1, name, sizeof(name));
+        dns_dntop(ldn + 1, name, sizeof(name));
       else
-	strcpy(name, "@");
+        strcpy(name, "@");
       d = name;
     }
     else
       d = "";
     fprintf(f, "%s\t%u\t", d, unpack32(e->data));
     d = e->data + 4;
-    switch(e->dtyp & 0xff) {
-    case DNS_T_A:
+    switch(e->dtyp) {
+    case NSQUERY_A:
       fprintf(f, "A\t%u.%u.%u.%u\n", d[0], d[1], d[2], d[3]);
       break;
-    case DNS_T_TXT:
+    case NSQUERY_TXT:
       fprintf(f, "TXT\t\"%.*s\"\n", *d, d + 1); /*XXX quotes */
       break;
-    case DNS_T_MX:
+    case NSQUERY_MX:
       dns_dntop(d + 3, name, sizeof(name));
       fprintf(f, "MX\t%u\t%s.\n",
               ((unsigned)d[0] << 8) | d[1],
