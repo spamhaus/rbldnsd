@@ -53,9 +53,8 @@ static void ds_dnset_free(struct dataset *ds) {
 
 static int
 ds_dnset_parseline(struct dataset *ds, char *line, int lineno) {
-  char *p;
   unsigned char dn[DNS_MAXDN];
-  unsigned idx, labels;
+  unsigned idx, dnlen;
   struct entry *e;
 
   if (line[0] == ':') {
@@ -65,24 +64,21 @@ ds_dnset_parseline(struct dataset *ds, char *line, int lineno) {
       dswarn(lineno, "second default entry ignored");
       return 1;
     }
-    if (!addrtxt(line, &ds->r_a, &p)) {
+    if (!addrtxt(line, &ds->r_a, &line)) {
       dswarn(lineno, "invalid default entry");
       return 1;
     }
     if (!ds->r_a) ds->r_a = R_A_DEFAULT;
-    if (p && !(ds->r_txt = mp_estrdup(&ds->mp, p)))
+    if (line && !(ds->r_txt = mp_estrdup(&ds->mp, line)))
       return 0;
     ds->defread = 1;
     return 1;
   }
 
-  for(p = line; *p; ++p)
-    if (*p == ' ' || *p == '\t' || *p == '#') break;
-  *p = '\0';
   if (*line == '.') { idx = EW; ++line; }
   else if (*line == '*' && line[1] == '.') { idx = EW; line += 2; }
   else idx = EP;
-  if (!dns_ptodn(line, dn, DNS_MAXDN)) {
+  if (!(line = parse_dn(line, dn, &dnlen))) {
     dswarn(lineno, "invalid domain name");
     return 1;
   }
@@ -96,10 +92,10 @@ ds_dnset_parseline(struct dataset *ds, char *line, int lineno) {
     ds->e[idx] = e;
   }
   e += ds->n[idx]++;
-  if (!(e->dn = (const unsigned char*)mp_estrdup(&ds->mp, dn))) return 0;
-  labels = dns_dnlabels(dn);
-  if (ds->maxlab[idx] < labels) ds->maxlab[idx] = labels;
-  if (ds->minlab[idx] > labels) ds->minlab[idx] = labels;
+  if (!(e->dn = (const unsigned char*)mp_ememdup(&ds->mp, dn, dnlen))) return 0;
+  dnlen = dns_dnlabels(dn);
+  if (ds->maxlab[idx] < dnlen) ds->maxlab[idx] = dnlen;
+  if (ds->minlab[idx] > dnlen) ds->minlab[idx] = dnlen;
  
   return 1;
 }

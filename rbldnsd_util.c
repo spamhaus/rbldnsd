@@ -28,18 +28,16 @@ char *parse_uint32(unsigned char *s, u_int32_t *np) {
   return s;
 }
 
-char *parse_dn(char *s, unsigned char **dnp, unsigned *dnlenp, char **bufp) {
+char *parse_dn(char *s, unsigned char *dn, unsigned *dnlenp) {
   char *n = s;
   unsigned l;
   while(*n && *n != ' ' && *n != '\t') ++n;
   if (*n) *n++ = '\0';
   if (!*s) return NULL;
-  if ((l = dns_ptodn(s, *bufp, DNS_MAXDN)) == 0)
+  if ((l = dns_ptodn(s, dn, DNS_MAXDN)) == 0)
     return NULL;
-  dns_dntol(*bufp, *bufp);
+  dns_dntol(dn, dn);
   if (dnlenp) *dnlenp = l;
-  if (dnp) *dnp = *bufp;
-  *bufp += l;
   skipspace(n);
   return n;
 }
@@ -56,7 +54,7 @@ zds_special(struct zonedataset *zds, char *line) {
     struct zonesoa *zsoa = &zds->zds_zsoa;
     unsigned n;
     u_int32_t v;
-    char *bp;
+    unsigned char *bp;
 
     if (zsoa->zsoa_valid)
       return 1; /* ignore if already set */
@@ -64,11 +62,9 @@ zds_special(struct zonedataset *zds, char *line) {
     line += 4;
     skipspace(line);
 
-    bp = zsoa->zsoa_odn + 1;
-    if (!(line = parse_dn(line, NULL, &n, &bp))) return 0;
+    if (!(line = parse_dn(line, zsoa->zsoa_odn + 1, &n))) return 0;
     zsoa->zsoa_odn[0] = n;
-    bp = zsoa->zsoa_pdn + 1;
-    if (!(line = parse_dn(line, NULL, &n, &bp))) return 0;
+    if (!(line = parse_dn(line, zsoa->zsoa_pdn + 1, &n))) return 0;
     zsoa->zsoa_pdn[0] = n;
 
     for(n = 0, bp = zsoa->zsoa_n; n < 5; ++n) {

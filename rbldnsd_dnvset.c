@@ -49,21 +49,20 @@ static void ds_dnvset_free(struct dataset *ds) {
 
 static int
 ds_dnvset_parseline(struct dataset *ds, char *line, int lineno) {
-  char *p;
   ip4addr_t a;
   unsigned char dn[DNS_MAXDN];
   struct entry *e;
-  unsigned idx, labels;
+  unsigned idx, dnlen;
   int not;
 
   if (line[0] == ':') {
-    if (!addrtxt(line, &a, &p)) {
+    if (!addrtxt(line, &a, &line)) {
       dswarn(lineno, "invalid default entry");
       return 1;
     }
     if (a) ds->r_a = a;
-    if (!p) ds->r_txt = NULL;
-    else if (!(ds->r_txt = mp_edstrdup(&ds->mp, p)))
+    if (!line) ds->r_txt = NULL;
+    else if (!(ds->r_txt = mp_edstrdup(&ds->mp, line)))
       return 0;
     return 1;
   }
@@ -75,13 +74,10 @@ ds_dnvset_parseline(struct dataset *ds, char *line, int lineno) {
   }
   else
     not = 0;
-  for(p = line; *p; ++p)
-    if (*p == ' ' || *p == '\t' || *p == '#') break;
-  if (*p) *p++ = '\0';
   if (*line == '.') { idx = EW; ++line; }
   else if (line[0] == '*' && line[1] == '.') { idx = EW; line += 2; }
   else idx = EP;
-  if (!dns_ptodn(line, dn, DNS_MAXDN)) {
+  if (!(line = parse_dn(line, dn, &dnlen))) {
     dswarn(lineno, "invalid domain name");
     return 1;
   }
@@ -89,7 +85,7 @@ ds_dnvset_parseline(struct dataset *ds, char *line, int lineno) {
   if (not)
     a = 0;
   else {
-    if (!addrtxt(p, &a, &p)) {
+    if (!addrtxt(line, &a, &line)) {
       dswarn(lineno, "invalid value");
       return 1;
     }
@@ -107,13 +103,13 @@ ds_dnvset_parseline(struct dataset *ds, char *line, int lineno) {
   e += ds->n[idx]++;
   e->r_a = a;
   if (not) e->r_txt = NULL;
-  else if (!p) e->r_txt = ds->r_txt;
-  else if (!(e->r_txt = mp_edstrdup(&ds->mp, p))) return 0;
-  if (!(e->dn = (const unsigned char*)mp_estrdup(&ds->mp, dn)))
+  else if (!line) e->r_txt = ds->r_txt;
+  else if (!(e->r_txt = mp_edstrdup(&ds->mp, line))) return 0;
+  if (!(e->dn = (const unsigned char*)mp_ememdup(&ds->mp, dn, dnlen)))
     return 0;
-  labels = dns_dnlabels(dn);
-  if (ds->maxlab[idx] < labels) ds->maxlab[idx] = labels;
-  if (ds->minlab[idx] > labels) ds->minlab[idx] = labels;
+  dnlen = dns_dnlabels(dn);
+  if (ds->maxlab[idx] < dnlen) ds->maxlab[idx] = dnlen;
+  if (ds->minlab[idx] > dnlen) ds->minlab[idx] = dnlen;
 
   return 1;
 }

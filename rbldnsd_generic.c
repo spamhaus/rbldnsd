@@ -50,10 +50,9 @@ static void ds_generic_free(struct dataset *ds) {
 static int ds_generic_parseany(struct dataset *ds, char *line) {
   struct entry *e;
   char *t;
-  unsigned short dtyp, dsiz;
+  unsigned dtyp, dsiz;
   char data[DNS_MAXDN*2+10];
   char *dp;
-  unsigned dnlen;
 
   /* allocate new entry */
   e = ds->e;
@@ -66,13 +65,12 @@ static int ds_generic_parseany(struct dataset *ds, char *line) {
   e += ds->n;
 
   /* dn */
-  dp = data;
-  if (!(line = parse_dn(line, NULL, &dnlen, &dp))) return -1;
+  if (!(line = parse_dn(line, data, &dsiz))) return -1;
   if (strcmp(data, "\1@") == 0) {
     data[0] = '\0';
-    dnlen = 1;
+    dsiz = 1;
   }
-  if (!(e->dn = (const unsigned char*)mp_edmemdup(&ds->mp, data, dnlen)))
+  if (!(e->dn = (const unsigned char*)mp_edmemdup(&ds->mp, data, dsiz)))
     return 0;
 
   skipspace(line);
@@ -92,27 +90,27 @@ static int ds_generic_parseany(struct dataset *ds, char *line) {
     dtyp = NSQUERY_A | DNS_T_A;
     if (!ip4addr(line, &a, &line)) return -1;
     a = htonl(a);
-    memcpy(dp, &a, 4);
-    dp += 4;
+    memcpy(data, &a, 4);
+    dsiz = 4;
   }
 
   else if (strcmp(t, "txt") == 0) {
     dtyp = NSQUERY_TXT | DNS_T_TXT;
-    dnlen = strlen(line);
-    if (dnlen >= 2 && line[0] == '"' && line[dnlen-1] == '"')
-      ++line, dnlen -= 2;
-    if (dnlen > 254) dnlen = 254;
-    dp[0] = (char)dnlen;
-    memcpy(dp+1, line, dnlen);
-    dp += dnlen + 1;
+    dsiz = strlen(line);
+    if (dsiz >= 2 && line[0] == '"' && line[dsiz-1] == '"')
+      ++line, dsiz -= 2;
+    if (dsiz > 254) dsiz = 254;
+    data[0] = (char)dsiz;
+    memcpy(data+1, line, dsiz);
+    dsiz += 1;
   }
 
   else if (strcmp(t, "ns") == 0) {
     dtyp = NSQUERY_NS | DNS_T_NS;
-    ++dp;
-    if (!(line = parse_dn(line, NULL, &dnlen, &dp))) return -1;
+    if (!(line = parse_dn(line, data + 1, &dsiz))) return -1;
     if (*line) return -1;
-    data[0] = (unsigned char)dnlen;
+    data[0] = (unsigned char)dsiz;
+    ++dsiz;
   }
 
   else if (strcmp(t, "mx") == 0) {
@@ -120,16 +118,16 @@ static int ds_generic_parseany(struct dataset *ds, char *line) {
     u_int32_t v;
     dtyp = NSQUERY_MX | DNS_T_MX;
     if (!(line = parse_uint32(line, &v))) return -1;
-    prio = htons(v); memcpy(dp, &prio, 2); dp += 3;
-    if (!(line = parse_dn(line, NULL, &dnlen, &dp))) return -1;
+    prio = htons(v); memcpy(data, &prio, 2); dp += 3;
+    if (!(line = parse_dn(line, data + 3, &dsiz))) return -1;
     if (*line) return -1;
-    data[2] = (unsigned char)dnlen;
+    data[2] = (unsigned char)dsiz;
+    dsiz += 3;
   }
 
   else
     return -1;
 
-  dsiz = dp - data;
   if (!(e->data = mp_alloc(&ds->mp, dsiz)))
     return 0;
   e->dtyp = dtyp;
@@ -137,9 +135,9 @@ static int ds_generic_parseany(struct dataset *ds, char *line) {
   memcpy(e->data, data, dsiz);
 
   ++ds->n;
-  dnlen = dns_dnlabels(e->dn);
-  if (ds->minlab > dnlen) ds->minlab = dnlen;
-  if (ds->maxlab < dnlen) ds->maxlab = dnlen;
+  dsiz = dns_dnlabels(e->dn);
+  if (ds->minlab > dsiz) ds->minlab = dsiz;
+  if (ds->maxlab < dsiz) ds->maxlab = dsiz;
 
   return 1;
 }

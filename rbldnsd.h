@@ -56,7 +56,7 @@ struct dnspacket {		/* private structure */
 
 #define skipspace(s) while(*s == ' ' || *s == '\t') ++s
 char *parse_uint32(unsigned char *s, u_int32_t *np);
-char *parse_dn(char *s, unsigned char **dnp, unsigned *dnlenp, char **bufp);
+char *parse_dn(char *s, unsigned char *dn, unsigned *dnlenp);
 
 typedef struct dataset *ds_allocfn_t(void);
 typedef int ds_loadfn_t(struct zonedataset *zds, FILE *f);
