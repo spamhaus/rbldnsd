@@ -334,7 +334,7 @@ int zds_special(struct zonedataset *zds, char *line, int lineno) {
 }
 
 static void freezonedataset(struct zonedataset *zds) {
-  zds->zds_type->dst_resetfn(zds->zds_ds);
+  zds->zds_type->dst_resetfn(zds->zds_ds, 0);
   mp_free(zds->zds_mp);
   zds->zds_zsoa.zsoa_valid = 0;
   memcpy(zds->zds_ttl, defttl, 4);

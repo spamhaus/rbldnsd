@@ -25,10 +25,10 @@ struct dataset {
 
 definedstype(combined, 0, "several datasets/subzones combined");
 
-static void ds_combined_reset(struct dataset *ds) {
+static void ds_combined_reset(struct dataset *ds, int UNUSED unused_freeall) {
   struct zonedataset *zds;
   for(zds = ds->zdslist; zds; zds = zds->zds_next)
-    zds->zds_type->dst_resetfn(zds->zds_ds);
+    zds->zds_type->dst_resetfn(zds->zds_ds, 1);
   memset(ds, 0, sizeof(*ds));
 }
 
@@ -120,7 +120,7 @@ int ds_combined_newset(struct zonedataset *zds, char *line, int lineno) {
 
   ++ds->ndatasets;
   zds->zds_subset = zdssub;
-  dst->dst_resetfn(zdssub->zds_ds);
+  dst->dst_resetfn(zdssub->zds_ds, 0);
   memcpy(zdssub->zds_ttl, zds->zds_ttl, 4);
   memcpy(zdssub->zds_subst, zds->zds_subst, sizeof(zds->zds_subst));
   dst->dst_startfn(zdssub);

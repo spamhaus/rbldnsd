@@ -25,7 +25,7 @@ struct dataset {
 
 definedstype(generic, DSTF_ZERODN, "generic simplified bind-format");
 
-static void ds_generic_reset(struct dataset *ds) {
+static void ds_generic_reset(struct dataset *ds, int UNUSED unused_freeall) {
   if (ds->e) free(ds->e);
   memset(ds, 0, sizeof(*ds));
   ds->minlab = DNS_MAXDN;

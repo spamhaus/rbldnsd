@@ -97,7 +97,7 @@ int parse_a_txt(char *str, const char **rrp, const char def_a[4]);
 typedef void ds_startfn_t(struct zonedataset *zds);
 typedef int ds_linefn_t(struct zonedataset *zds, char *line, int lineno);
 typedef void ds_finishfn_t(struct zonedataset *zds);
-typedef void ds_resetfn_t(struct dataset *ds);
+typedef void ds_resetfn_t(struct dataset *ds, int freeall);
 typedef int
 ds_queryfn_t(const struct zonedataset *zds, const struct dnsqueryinfo *qi,
              struct dnspacket *pkt);

@@ -35,7 +35,7 @@ struct dataset {
 
 definedstype(dnset, 0, "set of (domain name, value) pairs");
 
-static void ds_dnset_reset(struct dataset *ds) {
+static void ds_dnset_reset(struct dataset *ds, int UNUSED unused_freeall) {
   if (ds->e[EP]) free(ds->e[EP]);
   if (ds->e[EW]) free(ds->e[EW]);
   memset(ds, 0, sizeof(*ds));

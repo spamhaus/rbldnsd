@@ -28,7 +28,14 @@ rbldnsd (0.95pre) unstable; urgency=low
 
   * use one memory pool for all nested datasets in combined dataset
 
- -- Michael Tokarev <mjt@corpit.ru>  Tue, 27 May 2003 21:01:37 +0400
+  * add additional argument to ds_resetfn_t - freeall boolean, to
+    free all the memory instead of just zeroing it - needed for
+    combined dataset, but not currently used anyway
+
+  * in ip4set, remember size of previously allocated array to
+    avoid unnecessary realloc()s
+
+ -- Michael Tokarev <mjt@corpit.ru>  Tue, 27 May 2003 21:27:22 +0400
 
 rbldnsd (0.94) unstable; urgency=low
 

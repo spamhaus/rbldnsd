@@ -17,6 +17,7 @@ struct entry {
 struct dataset {
   unsigned n[4];	/* counts */
   unsigned a[4];	/* allocated (only for loading) */
+  unsigned f[4];	/* how much to allocate next time */
   struct entry *e[4];	/* entries */
   const char *def_rr;	/* default A and TXT RRs */
 };
@@ -29,12 +30,15 @@ struct dataset {
 
 definedstype(ip4set, DSTF_IP4REV, "set of (ip4, value) pairs");
 
-static void ds_ip4set_reset(struct dataset *ds) {
-  if (ds->e[E32]) free(ds->e[E32]);
-  if (ds->e[E24]) free(ds->e[E24]);
-  if (ds->e[E16]) free(ds->e[E16]);
-  if (ds->e[E08]) free(ds->e[E08]);
-  memset(ds, 0, sizeof(*ds));
+static void ds_ip4set_reset(struct dataset *ds, int UNUSED unused_freeall) {
+  unsigned r;
+  for (r = 0; r < 4; ++r) {
+    if (!ds->e[r]) continue;
+    free(ds->e[r]);
+    ds->e[r] = NULL;
+    ds->n[r] = ds->a[r] = 0;
+  }
+  ds->def_rr = NULL;
 }
 
 static int
@@ -45,8 +49,10 @@ ds_ip4set_addent(struct dataset *ds, unsigned idx,
   ip4addr_t step = 1 << (idx << 3);
 
   if (ds->n[idx] + count > ds->a[idx]) {
-    do ds->a[idx] = ds->a[idx] ? ds->a[idx] << 1 : 64;
-    while(ds->n[idx] + count > ds->a[idx]);
+    if (!ds->a[idx])
+      ds->a[idx] = ds->f[idx] ? ds->f[idx] : 64;
+    while(ds->n[idx] + count > ds->a[idx])
+      ds->a[idx] <<= 1;
     e = trealloc(struct entry, e, ds->a[idx]);
     if (!e)
       return 0;
@@ -151,7 +157,13 @@ static void ds_ip4set_finish(struct zonedataset *zds) {
   struct dataset *ds = zds->zds_ds;
   unsigned r;
   for(r = 0; r < 4; ++r) {
-    if (!ds->n[r]) continue;
+    if (!ds->n[r]) {
+      ds->f[r] = 0;
+      continue;
+    }
+    ds->f[r] = ds->a[r];
+    while((ds->f[r] >> 1) >= ds->n[r])
+      ds->f[r] >>= 1;
 
 #   define QSORT_TYPE struct entry
 #   define QSORT_BASE ds->e[r]
