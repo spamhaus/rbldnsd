@@ -315,8 +315,8 @@ static int addrr_soa(struct dnspacket *pkt, const struct zone *zone, int auth) {
     addrr_rrstart(c, DNS_T_SOA, auth ? zsoa->zsoa_n + 16 : zsoa->zsoa_ttl);
     rstart = c;
     c += 2;
-    if ((c = add_dn(pkt, c, zsoa->zsoa_odn+1, zsoa->zsoa_odn[0])) &&
-        (c = add_dn(pkt, c, zsoa->zsoa_pdn+1, zsoa->zsoa_pdn[0])) &&
+    if ((c = add_dn(pkt, c, zsoa->zsoa_oldn+1, zsoa->zsoa_oldn[0])) &&
+        (c = add_dn(pkt, c, zsoa->zsoa_pldn+1, zsoa->zsoa_pldn[0])) &&
         fit(pkt, c, 20)) {
       memcpy(c, &zsoa->zsoa_n, 20);
       c += 20;
@@ -333,7 +333,7 @@ static int addrr_soa(struct dnspacket *pkt, const struct zone *zone, int auth) {
 
 static int addrr_ns(struct dnspacket *pkt, const struct zone *zone, int auth) {
   register unsigned char *c = pkt->p_cur;
-  const unsigned char **nsp = zone->z_zns;
+  const unsigned char **nsp = zone->z_zttllns;
   const unsigned char **nse = nsp + zone->z_nns;
   const unsigned char *nsdn;
   if (nsp == nse) return 0;
@@ -360,7 +360,7 @@ static int addrr_ns(struct dnspacket *pkt, const struct zone *zone, int auth) {
      * After all, semantics (from nameserver point of view) does
      * not change.  But please keep this code in sync with zone
      * structure definition in rbldnsd.h */
-    unsigned char **znsp = (unsigned char **)zone->z_zns;
+    unsigned char **znsp = (unsigned char **)zone->z_zttllns;
     nsdn = znsp[0];
     memcpy(znsp, znsp + 1, (zone->z_nns - 1) * sizeof(*znsp));
     znsp[zone->z_nns - 1] = (unsigned char *)nsdn;

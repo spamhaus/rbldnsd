@@ -19,7 +19,9 @@ rbldnsd (0.95pre) unstable; urgency=low
 
   * cleanup of #include's
 
- -- Michael Tokarev <mjt@corpit.ru>  Tue, 27 May 2003 17:23:57 +0400
+  * change names of zsoa, zns to reflect content more accurately
+
+ -- Michael Tokarev <mjt@corpit.ru>  Tue, 27 May 2003 17:31:51 +0400
 
 rbldnsd (0.94) unstable; urgency=low
 

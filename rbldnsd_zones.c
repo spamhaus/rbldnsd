@@ -236,10 +236,10 @@ int zds_special(struct zonedataset *zds, char *line, int lineno) {
 
     if (!(line = parse_ttl_nb(line, zsoa->zsoa_ttl, zds->zds_ttl))) return 0;
 
-    if (!(line = parse_dn(line, zsoa->zsoa_odn + 1, &n))) return 0;
-    zsoa->zsoa_odn[0] = n;
-    if (!(line = parse_dn(line, zsoa->zsoa_pdn + 1, &n))) return 0;
-    zsoa->zsoa_pdn[0] = n;
+    if (!(line = parse_dn(line, zsoa->zsoa_oldn + 1, &n))) return 0;
+    zsoa->zsoa_oldn[0] = n;
+    if (!(line = parse_dn(line, zsoa->zsoa_pldn + 1, &n))) return 0;
+    zsoa->zsoa_pldn[0] = n;
 
     /* serial */
     bp = zsoa->zsoa_n;
@@ -275,10 +275,11 @@ int zds_special(struct zonedataset *zds, char *line, int lineno) {
      dn[4] = (unsigned char)n;
      n += 5;
 
+     /*XXXX unaligned allocation! */
      zns = (struct zonens *)mp_alloc(&zds->zds_mp, sizeof(struct zonens) + n);
      if (!zns) return 0;
-     zns->zns_dn = (unsigned char*)(zns + 1);
-     memcpy(zns->zns_dn, dn, n);
+     zns->zns_ttlldn = (unsigned char*)(zns + 1);
+     memcpy(zns->zns_ttlldn, dn, n);
 
      znsp = &zds->zds_zns;
      while(*znsp) znsp = &(*znsp)->zns_next;
@@ -387,7 +388,7 @@ static int updatezone(struct zone *zone) {
   time_t stamp = 0;
   const struct zonesoa *zsoa = NULL;
   const struct zonens *zns;
-  const unsigned char **nsp = zone->z_zns;
+  const unsigned char **nsp = zone->z_zttllns;
   unsigned n;
   struct zonedatalist *zdl;
 
@@ -404,12 +405,12 @@ static int updatezone(struct zone *zone) {
     for(zns = zds->zds_zns; zns; zns = zns->zns_next) {
       for(n = 0; ; ++n) {
         if (n == zone->z_nns) {
-          if (n < sizeof(zone->z_zns) / sizeof(zone->z_zns[0]))
-            nsp[zone->z_nns++] = zns->zns_dn;
+          if (n < sizeof(zone->z_zttllns) / sizeof(zone->z_zttllns[0]))
+            nsp[zone->z_nns++] = zns->zns_ttlldn;
           break;
         }
-        if (zns->zns_dn[4] == nsp[n][4] &&
-            memcmp(zns->zns_dn + 4, nsp[n] + 4, nsp[n][4]) == 0)
+        if (zns->zns_ttlldn[4] == nsp[n][4] &&
+            memcmp(zns->zns_ttlldn + 4, nsp[n] + 4, nsp[n][4]) == 0)
           break;
       }
     }
@@ -494,15 +495,15 @@ void dumpzone(const struct zone *z, FILE *f) {
   { /* zone header */
     char name[DNS_MAXDOMAIN+1];
     const struct zonesoa *zsoa = &z->z_zsoa;
-    const unsigned char **zns = z->z_zns;
+    const unsigned char **zns = z->z_zttllns;
     unsigned nns = z->z_nns;
     dns_dntop(z->z_dn, name, sizeof(name));
     fprintf(f, "$ORIGIN\t%s.\n", name);
     if (zsoa->zsoa_valid) {
       fprintf(f, "@\t%u\tSOA", unpack32(zsoa->zsoa_ttl));
-      dns_dntop(zsoa->zsoa_odn + 1, name, sizeof(name));
+      dns_dntop(zsoa->zsoa_oldn + 1, name, sizeof(name));
       fprintf(f, "\t%s.", name);
-      dns_dntop(zsoa->zsoa_pdn + 1, name, sizeof(name));
+      dns_dntop(zsoa->zsoa_pldn + 1, name, sizeof(name));
       fprintf(f, "\t%s.", name);
       fprintf(f, "\t(%u %u %u %u %u)\n",
           unpack32(zsoa->zsoa_n+0),

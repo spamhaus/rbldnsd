@@ -161,15 +161,15 @@ extern const struct dataset_type *dataset_types[];
 struct zonesoa { /* zsoa */
   int zsoa_valid;		/* true if valid */
   unsigned char zsoa_ttl[4];		/* TTL value */
-  unsigned char zsoa_odn[DNS_MAXDN+1];	/* SOA origin DN (len first) */
-  unsigned char zsoa_pdn[DNS_MAXDN+1];	/* SOA person DN (len first) */
+  unsigned char zsoa_oldn[DNS_MAXDN+1];	/* SOA origin DN (len first) */
+  unsigned char zsoa_pldn[DNS_MAXDN+1];	/* SOA person DN (len first) */
   unsigned char zsoa_n[20];	/* serial, refresh, retry, expire, minttl */
 };
 
 struct zonens { /* zns */
   struct zonens *zns_next;	/* next pointer in the list */
-  unsigned char *zns_dn;	/* domain name of a nameserver */
-    /* first 4 bytes in zns_ds are TTL value;
+  unsigned char *zns_ttlldn;	/* domain name of a nameserver */
+    /* first 4 bytes in zns_ttllds are TTL value;
      * next is length of DN;
      * rest is DN itself
      */
@@ -214,7 +214,7 @@ struct zone {	/* zone, list of zones */
   struct zonedatalist *z_zdl;		/* list of datas */
   struct zonedatalist **z_zdlp;		/* last zdl in list */
   struct zonesoa z_zsoa;		/* SOA record */
-  const unsigned char *z_zns[20];	/* list of nameservers */
+  const unsigned char *z_zttllns[20];	/* list of nameservers */
     /* keep z_zns definition in sync with rbldnsd_packet.c:addrr_ns() */
   unsigned z_nns;			/* number of nameservers */
   struct zone *z_next;			/* next in list */
