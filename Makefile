@@ -19,6 +19,7 @@ RANLIB = :
 #DEFS = -DNOTIMES
 # If your system lacks <stdint.h> header but uint32_t is in sys/types.h
 #DEFS = -DNOSTDINT_H
+# For FreeBSD 4.4 use DEFS="-DNOMEMINFO -DNOSTDINT_H"
 
 SOCKET_LIBS = `[ -f /usr/lib/libsocket.so ] && echo -lsocket -lnsl || :`
 
