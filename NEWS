@@ -3,6 +3,12 @@ $Id$
 This file describes user-visible changes in rbldnsd.
 Never news are at top.
 
+0.98
+
+ - bugfix: memleak in combined dataset: NS and SOA caches was
+   allocated for subzones of combined dataset (NS/SOA are never
+   used here).
+
 0.97b (6 Aug 2003)
 
  - bugfix: there was an error in per-zone statistics counting code

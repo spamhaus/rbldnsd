@@ -3,9 +3,13 @@ rbldnsd (0.97c) unstable; urgency=low
   * use memmove() instead of memcpy() for overlapping regions,
     even if dstaddr is less than srcaddr (current memcpy() can
     deal with that, but this is out of spec and future versions
-    may do some more optimizations that'll break things)     
+    may do some more optimizations that'll break things)
+  * made init_zone_caches() to work for a list of zones, not just
+    a single zone, and move a call to this routine from newzone()
+    to init().  Fixes a memory leak in combined dataset (caches
+    was allocated but never used/freed).
 
- -- Michael Tokarev <mjt@corpit.ru>  Thu,  7 Aug 2003 20:57:22 +0400
+ -- Michael Tokarev <mjt@corpit.ru>  Thu,  7 Aug 2003 21:01:21 +0400
 
 rbldnsd (0.97b) unstable; urgency=low
 

@@ -84,7 +84,6 @@ struct zone *newzone(struct zone **zonelist,
       zone->z_dnlen = dnlen;
       zone->z_dnlab = dns_dnlabels(dn);
       zone->z_dslp = &zone->z_dsl;
-      init_zone_caches(zone);
       break;
     }
     else if (zone->z_dnlen == dnlen && memcmp(zone->z_dn, dn, dnlen) == 0)

@@ -233,7 +233,7 @@ struct zone {	/* zone, list of zones */
   struct zone *z_next;			/* next in list */
 };
 
-void init_zone_caches(struct zone *zone);
+void init_zones_caches(struct zone *zonelist);
 int update_zone_soa(struct zone *zone, const struct dssoa *dssoa);
 int update_zone_ns(struct zone *zone, const struct dsns **dsnsa, unsigned nns);
 

@@ -382,6 +382,7 @@ static int init(int argc, char **argv, struct zone **zonep) {
 
   for(c = 0; c < argc; ++c)
     *zonep = addzone(*zonep, argv[c]);
+  init_zones_caches(*zonep);
 
 #ifndef NOIPv6
 #define logstarted() \

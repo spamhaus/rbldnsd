@@ -472,11 +472,14 @@ struct zonens {		/* cached NS RRs */
   unsigned char data[CACHEBUF_SIZE];
 };
 
-void init_zone_caches(struct zone *zone) {
-  zone->z_zsoa = tmalloc(struct zonesoa);
-  /* for NS RRs, we allocate MAX_NS caches:
-   * each stores one variant of NS rotation */
-  zone->z_zns = (struct zonens *)emalloc(sizeof(struct zonens) * MAX_NS);
+void init_zones_caches(struct zone *zonelist) {
+  while(zonelist) {
+    zonelist->z_zsoa = tmalloc(struct zonesoa);
+    /* for NS RRs, we allocate MAX_NS caches:
+     * each stores one variant of NS rotation */
+    zonelist->z_zns = (struct zonens *)emalloc(sizeof(struct zonens) * MAX_NS);
+    zonelist = zonelist->z_next;
+  }
 }
 
 /* update SOA RR cache */
