@@ -11,6 +11,7 @@
 #include <netdb.h>
 #include <syslog.h>
 #include "rbldnsd.h"
+#include "rbldnsd_hooks.h"
 
 static int addrr_soa(struct dnspacket *pkt, const struct zone *zone, int auth);
 static int addrr_ns(struct dnspacket *pkt, const struct zone *zone, int auth);
@@ -300,6 +301,13 @@ int replypacket(struct dnspacket *pkt, unsigned qlen, struct zone *zone) {
   if (!zone->z_stamp)	/* do not answer if not loaded */
     refuse(DNS_R_SERVFAIL);
 
+#ifdef do_hook_query_access
+  if ((found = hook_query_access(zone, NULL, &qi))) {
+    if (found < 0) return 0;
+    refuse(DNS_R_REFUSED);
+  }
+#endif
+
   if (qi.qi_dnlab == 0) {	/* query to base zone: SOA and NS */
 
     found = 1;
@@ -329,9 +337,11 @@ int replypacket(struct dnspacket *pkt, unsigned qlen, struct zone *zone) {
     addrr_soa(pkt, zone, 1);	/* add SOA if any to AUTHORITY */
     h[p_f2] = DNS_R_NXDOMAIN;
     do_stats(zone->z_stats.q_nxd += 1);
+#ifdef do_hook_query_result
+    hook_query_result(zone, NULL, &qi, 0);
+#endif
   }
   else {
-    do_stats(zone->z_stats.q_ok += 1);
     if (!h[p_ancnt]) {	/* positive reply, no answers */
       addrr_soa(pkt, zone, 1);	/* add SOA if any to AUTHORITY */
     }
@@ -339,6 +349,10 @@ int replypacket(struct dnspacket *pkt, unsigned qlen, struct zone *zone) {
              (!(qi.qi_tflag & NSQUERY_NS) || qi.qi_dnlab) &&
              !lazy)
       addrr_ns(pkt, zone, 1); /* add nameserver records to positive reply */
+    do_stats(zone->z_stats.q_ok += 1);
+#ifdef do_hook_query_result
+    hook_query_result(zone, NULL, &qi, 1);
+#endif
   }
   do_stats(zone->z_stats.b_out += rlen());
   return rlen();
