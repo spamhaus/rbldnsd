@@ -57,7 +57,7 @@ static int satoi(const char *s) {
   return *s ? -1 : n;
 }
 
-static void usage() {
+static void usage(int exitcode) {
    printf(
 "%s: rbl dns daemon version " VERSION "\n"
 "Usage is: %s [options] zone...\n"
@@ -78,8 +78,8 @@ static void usage() {
 "syntax, repeated names constitute the same zone.\n"
 "Available zone types:\n"
 , progname, progname);
-   printzonetypes(stdout);
-   exit(0);
+  printzonetypes(stdout);
+  exit(exitcode);
 }
 
 static int init(int argc, char **argv, struct zone **zonep) {
@@ -100,7 +100,7 @@ static int init(int argc, char **argv, struct zone **zonep) {
   else
     progname = argv[0];
 
-  if (argc <= 1) usage();
+  if (argc <= 1) usage(1);
 
   while((c = getopt(argc, argv, "u:r:b:w:t:c:p:nel:h")) != EOF)
     switch(c) {
@@ -122,7 +122,7 @@ static int init(int argc, char **argv, struct zone **zonep) {
     case 'n': nodaemon = 1; break;
     case 'e': accept_in_cidr = 1; break;
     case 'l': logfile = optarg; break;
-    case 'h': usage(); break;
+    case 'h': usage(0);
     default: error(0, "type `%.50s -h' for help", progname);
     }
 
