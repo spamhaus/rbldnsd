@@ -4,7 +4,13 @@ rbldnsd (0.94pre) unstable; urgency=low
 
   * data loading warnings goes to stderr instead of stdout
 
- -- Michael Tokarev <mjt@corpit.ru>  Mon, 19 May 2003 03:09:14 +0400
+  * Makefile portability tweaks for Solaris
+
+  * recognize ';' as comment char in addition to '#'; also, officially
+    recognize comments after an entry (IP address or domain name) in
+    ip4set and dnset
+
+ -- Michael Tokarev <mjt@corpit.ru>  Mon, 26 May 2003 17:49:27 +0400
 
 rbldnsd (0.93) unstable; urgency=low
 
