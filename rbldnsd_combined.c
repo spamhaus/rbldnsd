@@ -5,6 +5,7 @@
 
 #include <string.h>
 #include <syslog.h>
+#include <stdlib.h>
 #include "rbldnsd.h"
 
 /* Special "dataset", which does NOT contain any data itself,
@@ -19,17 +20,33 @@
 
 struct dsdata {
   struct dataset *dslist;		/* list of subzone datasets */
+  struct dataset **dslastp;		/* where to connect next dataset */
   unsigned nds;				/* number of datasets in dslist */
+  struct dataset *sdslist;		/* saved datasets list */
   struct zone *zlist;			/* list of subzones */
 };
 
 definedstype(combined, 0, "several datasets/subzones combined");
 
-static void ds_combined_reset(struct dsdata *dsd, int UNUSED unused_freeall) {
-  struct dataset *ds;
-  for(ds = dsd->dslist; ds; ds = ds->ds_next)
+static void ds_combined_reset(struct dsdata *dsd, int freeall) {
+  struct dataset *dslist = dsd->dslist;
+  while(dslist) {
+    struct dataset *ds = dslist;
+    dslist = dslist->ds_next;
+    ds->ds_type->dst_resetfn(ds->ds_dsd, freeall);
+    if (freeall) free(ds);
+  }
+  dslist = dsd->sdslist;
+  while(dslist) {
+    struct dataset *ds = dslist;
+    dslist = dslist->ds_next;
     ds->ds_type->dst_resetfn(ds->ds_dsd, 1);
+    free(ds);
+  }
+  dslist = dsd->dslist;
   memset(dsd, 0, sizeof(*dsd));
+  if (!freeall) dsd->sdslist = dslist;
+  dsd->dslastp = &dsd->dslist;
 }
 
 static int
@@ -68,7 +85,6 @@ int ds_combined_newset(struct dataset *ds, char *line, int lineno) {
   char *p;
   const char *const space = " \t";
   struct dsdata *dsd = ds->ds_dsd;
-  const struct dstype **dstp, *dst;
   struct dataset *dssub;
   struct dslist *dsl;
   struct zone *zone;
@@ -83,25 +99,46 @@ int ds_combined_newset(struct dataset *ds, char *line, int lineno) {
   *p = '\0';
   p = strtok(line, space);	/* dataset type */
   if (!p) return 0;
-  dstp = ds_types;
-  while(*dstp == &dataset_combined_type || strcmp(p, (*dstp)->dst_name))
-    if (!*++dstp) {
-      dslog(LOG_ERR, lineno, "unknown dataset type `%.60s'", p);
-      return -1;
+
+  for(;;) {	/* search appropriate dataset */
+
+    if (!(dssub = dsd->sdslist)) {
+      /* end of the saved list, allocate new dataset */
+      const struct dstype **dstp = ds_types, *dst;
+      dstp = ds_types;
+      while(*dstp == &dataset_combined_type || strcmp(p, (*dstp)->dst_name))
+        if (!*++dstp) {
+          dslog(LOG_ERR, lineno, "unknown dataset type `%.60s'", p);
+          return -1;
+        }
+      dst = *dstp;
+      dssub = (struct dataset *)ezalloc(sizeof(struct dataset) + dst->dst_size);
+      if (!dssub)
+        return -1;
+      dssub->ds_type = dst;
+      dssub->ds_dsd = (struct dsdata *)(dssub + 1);
+      dssub->ds_mp = ds->ds_mp;	/* use parent memory pool */
+      break;
     }
-  dst = *dstp;
 
-  dssub = (struct dataset *)
-     mp_alloc(ds->ds_mp, sizeof(struct dataset) + dst->dst_size, 1);
-  if (!dssub)
-    return -1;
-  memset(dssub, 0, sizeof(struct dataset) + dst->dst_size);
-  dssub->ds_type = dst;
-  dssub->ds_dsd = (struct dsdata *)(dssub + 1);
-  dssub->ds_mp = ds->ds_mp;	/* use parent memory pool */
+    else if (strcmp(dssub->ds_type->dst_name, p) == 0) {
+      /* reuse existing one */
+      dsd->sdslist = dssub->ds_next;
+      break;
+    }
 
-  dssub->ds_next = dsd->dslist;
-  dsd->dslist = dssub;
+    else {
+      /* entry is of different type, free it and try next one */
+      dsd->sdslist = dssub->ds_next;
+      dssub->ds_type->dst_resetfn(dssub->ds_dsd, 1);
+      free(dssub);
+    }
+
+  }
+
+  dssub->ds_next = NULL;
+  *dsd->dslastp = dssub;
+  dsd->dslastp = &dssub->ds_next;
 
   while((p = strtok(NULL, space)) != NULL) {
     if (p[0] == '@' && p[1] == '\0') {
@@ -120,10 +157,10 @@ int ds_combined_newset(struct dataset *ds, char *line, int lineno) {
 
   ++dsd->nds;
   ds->ds_subset = dssub;
-  dst->dst_resetfn(dssub->ds_dsd, 0);
+  dssub->ds_type->dst_resetfn(dssub->ds_dsd, 0);
   memcpy(dssub->ds_ttl, ds->ds_ttl, 4);
   memcpy(dssub->ds_subst, ds->ds_subst, sizeof(ds->ds_subst));
-  dst->dst_startfn(dssub);
+  dssub->ds_type->dst_startfn(dssub);
 
   return 1;
 }
