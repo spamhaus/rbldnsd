@@ -24,11 +24,10 @@
 #include <sys/wait.h>
 #include "rbldnsd.h"
 
-#ifdef NOPOLL
-# ifndef NOSELECT_H
-#  include <sys/select.h>
-# endif
-#else
+#ifndef NOSELECT_H
+# include <sys/select.h>
+#endif
+#ifndef NOPOLL
 # include <sys/poll.h>
 #endif
 #ifndef NOMEMINFO
@@ -98,6 +97,7 @@ int lazy;			/* don't return AUTH section by default */
 static int fork_on_reload;
   /* >0 - perform fork on reloads, <0 - this is a child of reloading parent */
 static pid_t bgq_pid;		/* pid of bg query process */
+static int ipc_fd = -1;		/* pipe FD for IPC */
 
 /* a list of zonetypes. */
 const struct dstype *ds_types[] = {
@@ -501,8 +501,8 @@ break;
       if (read(pfd[0], &c, 1) < 1) exit(1);
       else exit(0);
     }
-    dup2(pfd[1], 500);
-    close(pfd[0]); close(pfd[1]);
+    ipc_fd = pfd[1];
+    close(pfd[0]);
     openlog(progname, LOG_PID|LOG_NDELAY, LOG_DAEMON);
     logto = LOGTO_STDERR|LOGTO_SYSLOG;
     if (!quickstart && !flog) logto |= LOGTO_STDOUT;
@@ -576,9 +576,10 @@ break;
         version, numsock, c);
   initialized = 1;
 
-  if (!nodaemon) {
-    write(500, "", 1);
-    close(500);
+  if (ipc_fd >= 0) {
+    write(ipc_fd, "", 1);
+    close(ipc_fd);
+    ipc_fd = -1;
     close(0); close(2);
     if (!flog) close(1);
     setsid();
@@ -761,17 +762,73 @@ static void reopenlog(void) {
   }
 }
 
+/* two-process reload:
+ * we call reloadzones(), which first check whenever
+ * any files changed, and if yes, it calls start_loading()
+ * (for every dataset with changed files) and performs all
+ * necessary updates.
+ * In first call to start_loading(), we fork the child.
+ * In child, we return (with longjmp) back into do_signalled(),
+ * setjmp() returning !=0, and we just continue servicing requests
+ * at this point with fork_at_reload set to -1 and with all
+ * fancy signals (SIGALRM, SIGUSR?, SIGHUP) ignored.
+ * In parent, real reload continues, do_reload completes,
+ * and we check for bgq_pid: this is our child, we kill it,
+ * and read all the counters from the pipe we opened.
+ * In child (note fork_on_reload is <0), upon receiving SIGTERM,
+ * we write all the stats into pipe and terminate silently.
+ * All signals are still blocked during the whole reload in parent,
+ * we unblock them only after we successefully reaped the child.
+ * The only possible problem is when the parent gets killed (either
+ * SIGKILL or crash) while child is running - in this case child will
+ * stay running forever.  It may be a good idea to setup SIGALRM
+ * handler in child to check for parent periodically...
+ */
+
 static jmp_buf reload_ctx; /* longjmp in start_loading() */
+
+int start_loading() {
+  pid_t cpid;
+  int pfd[2];
+  if (!fork_on_reload || bgq_pid) return 0;
+  if (pipe(pfd) < 0) {
+    bgq_pid = -1;
+    return 0;
+  }
+  cpid = fork();
+  if (cpid < 0) {
+    close(pfd[0]);
+    close(pfd[1]);
+    bgq_pid = -1;
+    return 0;
+  }
+  if (!cpid) { /* child, continue answering queries */
+    fork_on_reload = -1;
+    signal(SIGALRM, SIG_IGN);
+    signal(SIGHUP, SIG_IGN);
+#ifndef NOSTATS
+    signal(SIGUSR1, SIG_IGN);
+    signal(SIGUSR2, SIG_IGN);
+#endif
+    close(pfd[0]);
+    ipc_fd = pfd[1];;
+    longjmp(reload_ctx, 1);
+  }
+  close(pfd[1]);
+  ipc_fd = pfd[0];
+  bgq_pid = cpid;
+  return 0;
+}
 
 static void do_signalled(void) {
   sigset_t ssorig;
   sigprocmask(SIG_BLOCK, &ssblock, &ssorig);
   if (signalled & SIGNALLED_TERM) {
-    if (fork_on_reload < 0) {
+    if (fork_on_reload < 0) { /* this is a temp child; dump stats and exit */
 #ifndef NOSTATS
       struct zone *z;
       for(z = zonelist; z; z = z->z_next)
-        if (write(500, &z->z_stats, sizeof(z->z_stats)) < 0)
+        if (write(ipc_fd, &z->z_stats, sizeof(z->z_stats)) <= 0)
           break;
 #endif
       _exit(0);
@@ -798,113 +855,41 @@ static void do_signalled(void) {
       do_reload();
     else /* else two-process reload */
     if (!setjmp(reload_ctx)) {
-      do_reload();
       if (bgq_pid > 0) {
-        int s;
-        if (kill(bgq_pid, SIGTERM) != 0) { /*XXXXX*/
-          dslog(LOG_ERR, 0, "reap qchild (pid %d): kill: %s",
-                bgq_pid, strerror(errno));
-          sleep(1);
-          if (kill(bgq_pid, SIGTERM) != 0)
-            dslog(LOG_ERR, 0, "reap qchild2 (pid %d): kill: %s",
-                  bgq_pid, strerror(errno));
-        }
+        int s, n;
+        fd_set fds;
+        struct timeval tv;
 #ifndef NOSTATS
-        { struct zone *z;
-          struct pollfd pfd;
-	  int x;
-	  pfd.fd = 500;
-	  pfd.events = POLLIN;
-	  for (x = 5; poll(&pfd, 1, 1000) <= 0; ++x) {
-	    int r = kill(bgq_pid, SIGTERM);
-dslog(LOG_ERR, 0, "reap qchild3#%d (pid %d): timeout, sending signal again: %s",
-		x, bgq_pid, r < 0 ? strerror(errno) : "ok");
-if (!--x) {
-	dslog(LOG_ERR, 0, "unable to reap child (%d): aborting", bgq_pid);
-	exit(1);
-}
-	  }
-          for(z = zonelist; z; z = z->z_next)
-            if (read(500, &z->z_stats, sizeof(z->z_stats)) < 0)
-              break;
-          close(500);
-        }
+        struct zone *z;
 #endif
+
+        for(n = 1; ++n;) {
+          if (kill(bgq_pid, SIGTERM) != 0)
+            dslog(LOG_WARNING, 0, "kill(qchild): %s", strerror(errno));
+          FD_ZERO(&fds);
+          FD_SET(ipc_fd, &fds);
+          tv.tv_sec = 0;
+          tv.tv_usec = 500000;
+          s = select(ipc_fd+1, &fds, NULL, NULL, &tv);
+          if (s > 0) break;
+          dslog(LOG_WARNING, 0, "waiting for qchild process: %s, retrying",
+                s ? strerror(errno) : "timeout");
+        }
+
+#ifndef NOSTATS
+        for(z = zonelist; z; z = z->z_next)
+          if (read(ipc_fd, &z->z_stats, sizeof(z->z_stats)) <= 0)
+            break;
+#endif
+        close(ipc_fd);
+        ipc_fd = -1;
         wait(&s);
-        bgq_pid = 0;
-      }
+      } /* bgq_pid > 0 */
       bgq_pid = 0;
-    }
+    } /* 2process reload, parent */
   }
   signalled = 0;
   sigprocmask(SIG_SETMASK, &ssorig, NULL);
-}
-
-/* two-process reload:
- * we call reloadzones(), which first check whenever
- * any files changed, and if yes, it calls start_loading()
- * (for every dataset with changed files) and performs all
- * necessary updates.
- * In first call to start_loading(), we fork the child.
- * In child, we return (with longjmp) back into do_signalled(),
- * setjmp() returning !=0, and we just continue servicing requests
- * at this point with fork_at_reload set to -1 and with all
- * fancy signals (SIGALRM, SIGUSR?, SIGHUP) ignored.
- * In parent, real reload continues, do_reload completes,
- * and we check for bgq_pid: this is our child, we kill it,
- * and read all the counters from the pipe we opened.
- * In child (note fork_on_reload is <0), upon receiving SIGTERM,
- * we write all the stats into pipe and terminate silently.
- * All signals are still blocked during the whole reload in parent,
- * we unblock them only after we successefully reaped the child.
- * The only possible problem is when the parent gets killed (either
- * SIGKILL or crash) while child is running - in this case child will
- * stay running forever.  It may be a good idea to setup SIGALRM
- * handler in child to check for parent periodically...
- */
-
-int start_loading() {
-  pid_t cpid;
-#ifndef NOSTATS
-  int pfd[2];
-#endif
-  if (!fork_on_reload || bgq_pid) return 0;
-#ifndef NOSTATS
-  if (pipe(pfd) < 0) {
-    bgq_pid = -1;
-    return 0;
-  }
-#endif
-  cpid = fork();
-  if (cpid < 0) {
-#ifndef NOSTATS
-    close(pfd[0]);
-    close(pfd[1]);
-#endif
-    bgq_pid = -1;
-    return 0;
-  }
-  if (!cpid) { /* child, continue answering queries */
-    fork_on_reload = -1;
-    alarm(0);
-    signal(SIGALRM, SIG_IGN);
-    signal(SIGHUP, SIG_IGN);
-#ifndef NOSTATS
-    signal(SIGUSR1, SIG_IGN);
-    signal(SIGUSR2, SIG_IGN);
-    close(pfd[0]);
-    dup2(pfd[1], 500);
-    close(pfd[1]);
-#endif
-    longjmp(reload_ctx, 1);
-  }
-#ifndef NOSTATS
-  close(pfd[1]);
-  dup2(pfd[0], 500);
-  close(pfd[0]);
-#endif
-  bgq_pid = cpid;
-  return 0;
 }
 
 static void request(int fd) {
