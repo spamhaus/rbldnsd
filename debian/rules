@@ -30,7 +30,7 @@ debian/build-stamp: config.h
 clean:
 	dh_testdir
 	rm -f debian/build-stamp
-	-$(MAKE) distclean
+	-if [ -f Makefile ] ; then -$(MAKE) distclean; fi
 	dh_clean
 
 install: debian/build-stamp

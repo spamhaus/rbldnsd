@@ -9,8 +9,10 @@ rbldnsd (0.98a.pre) unstable; urgency=low
   * fix utimes printing (time rbldnsd spent when loading zones)
   * move VERSION[_DATE] extraction from Makefile to configure,
     made Makefile depend on debian/changelog.
+  * debian/rules: do not attempt to make distclean if there's no
+    Makefile
 
- -- Michael Tokarev <mjt@corpit.ru>  Fri, 22 Aug 2003 13:53:26 +0400
+ -- Michael Tokarev <mjt@corpit.ru>  Fri, 22 Aug 2003 13:55:58 +0400
 
 rbldnsd (0.98) unstable; urgency=low
 
