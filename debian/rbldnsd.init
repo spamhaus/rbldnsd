@@ -27,7 +27,7 @@ fi
 
 test -n "$RBLDNSD" || exit 0
 
-function forall() {
+forall() {
   echo "$RBLDNSD" |
     while read name args; do
       case "$name" in
@@ -49,15 +49,15 @@ function forall() {
     done
 }
 
-function report() {
+report() {
   echo "$1 $DESC: $name"
 }
 
-function runit() {
+runit() {
   $DAEMON -p $pidfile $args
 }
 
-function start() {
+start() {
   if [ ! "$pid" ]; then
     report Starting
     runit
@@ -72,7 +72,7 @@ stop() {
   fi
 }
 
-function restart() {
+restart() {
   if [ "$pid" ]; then
     report Restarting 
     kill $pid
@@ -83,7 +83,7 @@ function restart() {
   fi
 }
 
-function reload() {
+reload() {
   if [ "$pid" ]; then
     report Reloading
     kill -HUP $pid
