@@ -13,6 +13,10 @@ rbldnsd (0.95pre) unstable; urgency=low
 
   * Implemented `combined' dataset, with many changes all other the places
 
+  * Notes, TODO items updated
+
+  * Fixed problem with DN compression introduced in recent changes.
+
  -- Michael Tokarev <mjt@corpit.ru>  Tue, 27 May 2003 03:46:50 +0400
 
 rbldnsd (0.94) unstable; urgency=low

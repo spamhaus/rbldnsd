@@ -204,12 +204,11 @@ int replypacket(struct dnspacket *pkt, unsigned qlen, const struct zone *zone) {
     return refuse(DNS_R_SERVFAIL);
 
   { /* initialize DN compression */
-    /* start at zone DN, not at query DN, as qDN may contain
-     * unnecessary long DN.  Zone DN should fit in dncompr array */
     struct dnsdnptr *ptr = pkt->p_dncompr.ptr;
-    const unsigned char *dn = zone->z_dn;
-    unsigned qpos = (pkt->p_sans - h) - 4 - qlen;
+    const unsigned char *dn = qry.q_dn;
+    unsigned qpos = p_hdrsize;
     unsigned llen;
+    qlen = qry.q_dnlen;
     while((llen = *dn)) {
       ptr->dnp = dn; dn += ++llen;
       ptr->dnlen = qlen; qlen -= llen;
