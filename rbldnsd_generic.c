@@ -52,11 +52,11 @@ static int ds_generic_parseany(struct zonedataset *zds, char *s) {
   e += ds->n;
 
   /* dn */
-  if (s[0] == '@' && (s[1] == ' ' || s[1] == '\t')) {
+  if (s[0] == '@' && ISSPACE(s[1])) {
     data[1] = '\0';
     dsiz = 1;
     s += 2;
-    skipspace(s);
+    SKIPSPACE(s);
   }
   else if (!(s = parse_dn(s, data + 1, &dsiz)) || dsiz == 1)
     return -1;
@@ -64,11 +64,11 @@ static int ds_generic_parseany(struct zonedataset *zds, char *s) {
   if (!(e->ldn = mp_dmemdup(&zds->zds_mp, data, dsiz + 1)))
     return 0;
 
-  skipspace(s);
+  SKIPSPACE(s);
 
   if (*s >= '0' && *s <= '9') { /* ttl */
     if (!(s = parse_ttl(s, data, zds->zds_ttl))) return 0;
-    skipspace(s);
+    SKIPSPACE(s);
   }
   else
     memcpy(data, zds->zds_ttl, 4);
@@ -76,11 +76,11 @@ static int ds_generic_parseany(struct zonedataset *zds, char *s) {
 
   /* type */
   t = s;
-  while(*s != ' ' && *s != '\t')
+  while(!ISSPACE(*s))
     if (!*s) return -1;
     else { *s = dns_dnlc(*s); ++s; }
   *s++ = '\0';
-  skipspace(s);
+  SKIPSPACE(s);
 
   if (strcmp(t, "a") == 0) {
     ip4addr_t a;

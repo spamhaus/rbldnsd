@@ -8,8 +8,6 @@
 #include <stdarg.h>
 #include "rbldnsd.h"
 
-#define skipspace(s) while(*s == ' ' || *s == '\t') ++s
-
 #define digit(c) ((c) >= '0' && (c) <= '9')
 #define d2n(c) ((c) - '0') 
 
@@ -31,8 +29,8 @@ char *parse_uint32(char *s, unsigned char nb[4]) {
   unsigned n;
   if (!(s = parse_uint32_s(s, &n))) return NULL;
   if (*s) {
-    if (*s != ' ' && *s != '\t') return NULL;
-    do ++s; while(*s == ' ' || *s == '\t');
+    if (!ISSPACE(*s)) return NULL;
+    ++s; SKIPSPACE(*s);
   }
   nb[0] = n>>24; nb[1] = n>>16; nb[2] = n>>8; nb[3] = n;
   return s;
@@ -54,8 +52,8 @@ char *parse_time(char *s, unsigned char nb[4]) {
       break;
   }
   if (*s) {
-    if (*s && *s != ' ' && *s != '\t') return NULL;
-    do ++s; while(*s == ' ' || *s == '\t');
+    if (*s && !ISSPACE(*s)) return NULL;
+    ++s; SKIPSPACE(s);
   }
   nb[0] = n>>24; nb[1] = n>>16; nb[2] = n>>8; nb[3] = n;
   return s;
@@ -71,14 +69,14 @@ char *parse_ttl(char *s, unsigned char ttl[4], const unsigned char defttl[4]) {
 char *parse_dn(char *s, unsigned char *dn, unsigned *dnlenp) {
   char *n = s;
   unsigned l;
-  while(*n && *n != ' ' && *n != '\t') ++n;
+  while(*n && !ISSPACE(*n)) ++n;
   if (*n) *n++ = '\0';
   if (!*s) return NULL;
   if ((l = dns_ptodn(s, dn, DNS_MAXDN)) == 0)
     return NULL;
   dns_dntol(dn, dn);
   if (dnlenp) *dnlenp = l;
-  skipspace(n);
+  SKIPSPACE(n);
   return n;
 }
 
@@ -108,9 +106,8 @@ readdslines(FILE *f, struct zonedataset *zds,
     }
     /* skip whitespace */
     line = buf;
-    while(*line == ' ' || *line == '\t')
-      ++line;
-    while(eol >= line && (*eol == ' ' || *eol == '\t'))
+    SKIPSPACE(line);
+    while(eol >= line && ISSPACE(*eol))
       --eol;
     eol[1] = '\0';
     if (line[0] == '$' ||
@@ -160,19 +157,20 @@ int dntoip4addr(const unsigned char *q, ip4addr_t *ap) {
 
 int parse_a_txt(char *str, const char **rrp, const char def_a[4]) {
   char *rr;
-  while(*str == ' ' || *str == '\t') ++str;
+  SKIPSPACE(str);
   if (*str == ':') {
     ip4addr_t a;
     unsigned bits = ip4addr(str + 1, &a, &str);
     if (!a || !bits) return 0;
     if (bits == 8)
       a |= IP4A_LOOPBACK; /* only last digit in 127.0.0.x */
-    skipspace(str);
-    if (*str == ':')
+    SKIPSPACE(str);
+    if (*str == ':') {
       ++str;
-    else if (*str != '\0' && *str != '#' && *str != '\0')
+      SKIPSPACE(str);
+    }
+    else if (*str)
       return 0;
-    skipspace(str);
     rr = (unsigned char*)str - 4;
     rr[0] = a >> 24; rr[1] = a >> 16; rr[2] = a >> 8; rr[3] = a;
   }

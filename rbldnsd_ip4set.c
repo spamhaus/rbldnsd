@@ -84,20 +84,19 @@ ds_ip4set_parseline(struct zonedataset *zds, char *s, int lineno) {
 
   if (*s == '!') {
     not = 1;
-    do ++s;
-    while(*s == ' ' || *s == '\t');
+    ++s; SKIPSPACE(s);
   }
   else
     not = 0;
   if (!ip4parse_range(s, &a, &b, &s) ||
-      (*s && *s != ' ' && *s != '\t' && *s != '#' && *s != ':')) {
+      (*s && !ISSPACE(*s) && *s != '#' && *s != ':')) {
     dswarn(lineno, "invalid address");
     return 1;
   }
   if (not)
     rr = NULL;
   else {
-    skipspace(s);
+    SKIPSPACE(s);
     if (!*s)
       rr = ds->def_rr;
     else if (!(rrl = parse_a_txt(s, &rr, ds->def_rr))) {

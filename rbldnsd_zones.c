@@ -185,7 +185,7 @@ int zds_special(struct zonedataset *zds, char *line) {
   if ((line[0] == 's' || line[0] == 'S') &&
       (line[1] == 'o' || line[1] == 'O') &&
       (line[2] == 'a' || line[2] == 'A') &&
-      (line[3] == ' ' || line[3] == '\t')) {
+      ISSPACE(line[3])) {
 
     /* SOA record */
     struct zonesoa *zsoa = &zds->zds_zsoa;
@@ -196,7 +196,7 @@ int zds_special(struct zonedataset *zds, char *line) {
       return 1; /* ignore if already set */
 
     line += 4;
-    skipspace(line);
+    SKIPSPACE(line);
 
     if (!(line = parse_ttl(line, zsoa->zsoa_ttl, zds->zds_ttl))) return 0;
 
@@ -224,14 +224,14 @@ int zds_special(struct zonedataset *zds, char *line) {
 
   if ((line[0] == 'n' || line[0] == 'N') &&
       (line[1] == 's' || line[1] == 'S') &&
-      (line[2] == ' ' || line[2] == '\t')) {
+      ISSPACE(line[2])) {
 
      struct zonens *zns, **znsp;
      unsigned char dn[DNS_MAXDN+1+1];
      unsigned n;
 
      line += 3;
-     skipspace(line);
+     SKIPSPACE(line);
 
      if (!(line = parse_ttl(line, dn, zds->zds_ttl))) return 0;
 
@@ -255,10 +255,10 @@ int zds_special(struct zonedataset *zds, char *line) {
   if ((line[0] == 't' || line[0] == 'T') &&
       (line[1] == 't' || line[1] == 'T') &&
       (line[2] == 'l' || line[2] == 'L') &&
-      (line[3] == ' ' || line[3] == '\t')) {
+      ISSPACE(line[3])) {
     unsigned char ttl[4];
     line += 4;
-    skipspace(line);
+    SKIPSPACE(line);
     if (!(line = parse_ttl(line, ttl, defttl))) return 0;
     if (*line) return 0;
     memcpy(zds->zds_ttl, ttl, 4);
@@ -266,12 +266,12 @@ int zds_special(struct zonedataset *zds, char *line) {
   }
 
   if (line[0] >= '0' && line[0] <= '9' &&
-      (line[1] == ' ' || line[1] == '\t')) {
+      ISSPACE(line[1])) {
     /* substitution vars */
     unsigned n = line[0] - '0';
     if (zds->zds_subst[n]) return 1; /* ignore second assignment */
     line += 2;
-    skipspace(line);
+    SKIPSPACE(line);
     if (!*line) return 0;
     if (!(zds->zds_subst[n] = estrdup(line))) return 0;
     return 1;

@@ -63,7 +63,9 @@ struct dnsquery {	/* q */
   int q_ip4valid;			/* true if q_ip4 is valid */
 };
 
-#define skipspace(s) while(*s == ' ' || *s == '\t') ++s
+#define ISSPACE(s) ((s) == ' ' || (s) == '\t')
+#define SKIPSPACE(s) while(ISSPACE(*s)) ++s
+
 char *parse_uint32(char *s, unsigned char nb[4]);
 char *parse_time(char *s, unsigned char nb[4]);
 char *parse_ttl(char *s, unsigned char ttl[4], const unsigned char defttl[4]);
