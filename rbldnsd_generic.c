@@ -205,18 +205,20 @@ ds_generic_query(const struct dataset *ds,
                  struct dnspacket *packet) {
   const unsigned char *rdn = query->q_rdn;
   const struct entry *e = ds->e, *t;
+  unsigned qlen = query->q_dnlen;
   int a = 0, b = ds->n - 1, m, r;
   if (query->q_dnlab > ds->maxlab || b < 0) return 0;
 
   for(;;) {
     if (a > b) {
       /* we should not return NXDOMAIN if a subdomain of a query exists */
-      if ((unsigned)a < ds->n && query->q_dnlen < e[a].lrdn[0] &&
-          memcmp(rdn, e[a].lrdn + 1, query->q_dnlen - 1) == 0)
+      if ((unsigned)a < ds->n && qlen < e[a].lrdn[0] &&
+          memcmp(rdn, e[a].lrdn + 1, qlen - 1) == 0)
        return 1;
       return 0;
     }
-    if (!(r = strcmp(e[(m = (a + b) >> 1)].lrdn + 1, rdn))) break;
+    t = e + (m = (a + b) >> 1);
+    if (!(r = memcmp(t->lrdn + 1, rdn, max(qlen, t->lrdn[0])))) break;
     else if (r < 0) a = m + 1;
     else b = m - 1;
   }
