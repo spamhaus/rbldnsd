@@ -82,6 +82,7 @@ static int accept_in_cidr;	/* accept 127.0.0.1/8-style CIDRs */
 static int initialized;		/* 1 when initialized */
 static char *logfile;		/* log file name */
 static char *statsfile;		/* statistics file */
+static int stats_relative;	/* dump relative, not absolute, stats */
 unsigned def_ttl = 35*60;	/* default record TTL 35m */
 unsigned min_ttl, max_ttl;	/* TTL constraints */
 const char def_rr[5] = "\177\0\0\2\0";		/* default A RR */
@@ -191,9 +192,10 @@ static void NORETURN usage(int exitcode) {
 " -f - fork a child process while reloading zones, to process requests\n"
 "  during reload (may double memory requiriments)\n"
 " -q - quickstart, load zones after backgrounding\n"
-" -l logfile - log queries and answers to this file\n"
-" -s statsfile - write a line with short statistics summary into this\n"
+" -l [+]logfile - log queries and answers to this file (+ for unbuffered)\n"
+" -s [+]statsfile - write a line with short statistics summary into this\n"
 "  file every `check' (-c) secounds, for rrdtool-like applications\n"
+"  (+ to log relative, not absolute, statistics counters)\n"
 " -a (experimental) - _omit_ AUTH section when constructing reply,\n"
 "  do not return list of auth nameservers in default replies, only\n"
 "  return NS info when explicitly asked\n"
@@ -426,7 +428,15 @@ static void init(int argc, char **argv) {
       break;
     case 'n': nodaemon = 1; break;
     case 'e': accept_in_cidr = 1; break;
-    case 'l': logfile = optarg; break;
+    case 'l':
+      logfile = optarg;
+      if (*logfile != '+') flushlog = 0;
+      else ++logfile, flushlog = 1;
+      if (!*logfile) logfile = NULL, flushlog = 0;
+      else if (logfile[0] == '-' && logfile[1] == '\0')
+        logfile = NULL, flog = stdout;
+      break;
+break;
     case 's':
 #ifdef NOSTATS
       fprintf(stderr,
@@ -434,6 +444,9 @@ static void init(int argc, char **argv) {
         progname);
 #else
       statsfile = optarg;
+      if (*statsfile != '+') stats_relative = 0;
+      else ++statsfile, stats_relative = 1;
+      if (!*statsfile) statsfile = NULL;
 #endif
       break;
     case 'q': quickstart = 1; break;
@@ -473,21 +486,6 @@ static void init(int argc, char **argv) {
 
   if (!nba)
     error(0, "no address to listen on (-b option) specified");
-
-  if (logfile) {
-    if (*logfile == '+') {
-      ++logfile;
-      flushlog = 1;
-    }
-    if (!*logfile) {
-      logfile = NULL;
-      flushlog = 0;
-    }
-    else if (logfile[0] == '-' && logfile[1] == '\0') {
-      logfile = NULL;
-      flog = stdout;
-    }
-  }
 
   tzset();
   if (nodaemon)
@@ -666,28 +664,28 @@ static void dumpstats(void) {
 #undef add
     if (f) {
       dns_dntop(z->z_dn, name, sizeof(name));
+#define delta(x) z->z_stats.x - z->z_pstats.x
       fprintf(f, " %s" C C C C C,
         name,
-        z->z_stats.q_ok + z->z_stats.q_nxd + z->z_stats.q_err
-         - (z->z_pstats.q_ok + z->z_pstats.q_nxd + z->z_pstats.q_err),
-        z->z_stats.q_ok - z->z_pstats.q_ok,
-	z->z_stats.q_nxd - z->z_pstats.q_nxd,
-        z->z_stats.b_in - z->z_pstats.b_in,
-	z->z_stats.b_out - z->z_pstats.b_out);
+        delta(q_ok) + delta(q_nxd) + delta(q_err),
+        delta(q_ok), delta(q_nxd),
+        delta(b_in), delta(b_out));
+#undef delta
     }
-    z->z_pstats = z->z_stats;
+    if (stats_relative)
+      z->z_pstats = z->z_stats;
   }
   if (f) {
+#define delta(x) tot.x - gptot.x
     fprintf(f, " *" C C C C C "\n",
-      tot.q_ok + tot.q_nxd + tot.q_err
-       - (gptot.q_ok + gptot.q_nxd + gptot.q_err),
-      tot.q_ok - gptot.q_ok,
-      tot.q_nxd - gptot.q_nxd,
-      tot.b_in - gptot.b_in,
-      tot.b_out - gptot.b_out);
+      delta(q_ok) + delta(q_nxd) + delta(q_err),
+      delta(q_ok), delta(q_nxd),
+      delta(b_in), delta(b_out));
+#undef delta
     fclose(f);
   }
-  gptot = tot;
+  if (stats_relative)
+    gptot = tot;
 #undef C
 }
 
@@ -810,14 +808,27 @@ static void do_signalled(void) {
           if (kill(bgq_pid, SIGTERM) != 0)
             dslog(LOG_ERR, 0, "reap qchild2 (pid %d): kill: %s",
                   bgq_pid, strerror(errno));
-	}
+        }
 #ifndef NOSTATS
         { struct zone *z;
+          struct pollfd pfd;
+	  int x;
+	  pfd.fd = 500;
+	  pfd.events = POLLIN;
+	  for (x = 5; poll(&pfd, 1, 1000) <= 0; ++x) {
+	    int r = kill(bgq_pid, SIGTERM);
+dslog(LOG_ERR, 0, "reap qchild3#%d (pid %d): timeout, sending signal again: %s",
+		x, bgq_pid, r < 0 ? strerror(errno) : "ok");
+if (!--x) {
+	dslog(LOG_ERR, 0, "unable to reap child (%d): aborting", bgq_pid);
+	exit(1);
+}
+	  }
           for(z = zonelist; z; z = z->z_next)
             if (read(500, &z->z_stats, sizeof(z->z_stats)) < 0)
               break;
           close(500);
-	}
+        }
 #endif
         wait(&s);
         bgq_pid = 0;
