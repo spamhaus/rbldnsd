@@ -12,7 +12,14 @@ rbldnsd (0.990pre0) unstable; urgency=low
 
   * removed all references to osirusoft.com
 
- -- Michael Tokarev <mjt@corpit.ru>  Wed, 19 Nov 2003 21:41:10 +0300
+  * switch to integer TTL everywhere
+
+  * PACK32S() and PACK16S() aka stpcpy() (incrementing destination)
+
+  * $NS records change: accept all NS in single line or in multiple
+    lines
+
+ -- Michael Tokarev <mjt@corpit.ru>  Sun, 30 Nov 2003 13:13:08 +0300
 
 rbldnsd (0.99) unstable; urgency=medium
 

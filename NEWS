@@ -5,6 +5,17 @@ Never news are at top.
 
 0.990
 
+ - in order to be able to overrite both SOA and NS records
+   in data downloaded from 3rd party blocklist to use in
+   local environment, $NS record handling changed.  From
+   now on, rbldnsd expects all nameservers to be specified
+   on one single $NS line.  Compatibility with previous
+   releases preserved for now, but will be removed in the
+   future: if several domain names are specified in $NS
+   line, all other $NS lines are ignored; but when only one
+   nameserver is specified, rbldnsd still collects all such
+   single-ns lines as in previous releases.
+
  - when the query matches several RRs with different TTLs
    (e.g. from different datasets), rbldnsd now sets smallest
    TTL in ALL RRs of this type.
