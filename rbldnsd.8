@@ -226,6 +226,13 @@ is starting up, shutting down or when statistic counters are being
 reset after receiving SIGUSR2 signal (see below), to indicate the
 points where the counters are starting back from zero.
 
+By default, \fBrbldnsd\fR writes absolute counter values into
+\fIstatsfile\fR (number of packets (bytes) since startup or
+last reset).  \fIstatsfile\fR may be prefixed with plus sign (+),
+in which case \fBrbldnsd\fR will write delta values, that is,
+number of packets or bytes since last write, or number of
+packets (bytes) per unit of time.
+
 .IP \fB\-n\fR
 Do not become a daemon.  Normally, \fBrbldnsd\fR will fork and go to the
 background after successful initialization.  This option disables this
