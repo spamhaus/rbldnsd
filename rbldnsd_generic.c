@@ -210,7 +210,7 @@ ds_generic_query(const struct dataset *ds, const struct dnsquery *query,
 
   t = ds->e + ds->n;
   do {
-    if (!(query->q_type & e->dtyp))
+    if (!(query->q_tflag & e->dtyp))
       continue;
     switch(e->dtyp & 0xff) {
     case DNS_T_NS:

@@ -229,11 +229,11 @@ ds_ip4vset_query(const struct dataset *ds, const struct dnsquery *query,
 
   if (!e->r_a) return 0;
 
-  ipsubst = (query->q_type & NSQUERY_TXT) ? ip4atos(q) : NULL;
+  ipsubst = (query->q_tflag & NSQUERY_TXT) ? ip4atos(q) : NULL;
   do {
-    if (query->q_type & NSQUERY_A)
+    if (query->q_tflag & NSQUERY_A)
       addrec_a(packet, e->r_a);
-    if (e->r_txt && (query->q_type & NSQUERY_TXT))
+    if (e->r_txt && (query->q_tflag & NSQUERY_TXT))
       addrec_txt(packet, e->r_txt, ipsubst);
   } while(++e < t && e->addr == f);
 

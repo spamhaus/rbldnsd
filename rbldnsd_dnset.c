@@ -247,8 +247,8 @@ ds_dnset_query(const struct dataset *ds, const struct dnsquery *query,
       --qlab;
     }
   }
-  if (query->q_type & NSQUERY_A) addrec_a(packet, ds->r_a);
-  if (ds->r_txt && (query->q_type & NSQUERY_TXT)) {
+  if (query->q_tflag & NSQUERY_A) addrec_a(packet, ds->r_a);
+  if (ds->r_txt && (query->q_tflag & NSQUERY_TXT)) {
     unsigned char dn[DNS_MAXDN];
     char name[DNS_MAXDOMAIN+1];
     dns_dnreverse(e->lrdn + 1, dn, e->lrdn[0] + 1);

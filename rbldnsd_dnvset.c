@@ -233,15 +233,15 @@ ds_dnvset_query(const struct dataset *ds, const struct dnsquery *query,
   if (!e->r_a) return 0;
 
   rdn = e->lrdn;
-  if (query->q_type & NSQUERY_TXT) {
+  if (query->q_tflag & NSQUERY_TXT) {
     char dn[DNS_MAXDN];
     dns_dnreverse(e->lrdn + 1, dn, e->lrdn[0] + 1);
     dns_dntop(query->q_dn, name, sizeof(name));
   }
   do {
-    if (query->q_type & NSQUERY_A)
+    if (query->q_tflag & NSQUERY_A)
       addrec_a(packet, e->r_a);
-    if (ds->r_txt && (query->q_type & NSQUERY_TXT))
+    if (ds->r_txt && (query->q_tflag & NSQUERY_TXT))
       addrec_txt(packet, e->r_txt, name);
   } while(++e < t && e->lrdn == rdn);
 

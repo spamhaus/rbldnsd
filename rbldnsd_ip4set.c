@@ -187,9 +187,9 @@ ds_ip4set_query(const struct dataset *ds, const struct dnsquery *query,
   if (!try(E32, 0xffffffff) && !try(E24, 0xffffff00) &&
       !try(E16, 0xffff0000) && !try(E08, 0xff000000))
     return 0;
-  if (query->q_type & NSQUERY_A)
+  if (query->q_tflag & NSQUERY_A)
     addrec_a(packet, ds->r_a);
-  if (ds->r_txt && (query->q_type & NSQUERY_TXT))
+  if (ds->r_txt && (query->q_tflag & NSQUERY_TXT))
     addrec_txt(packet, ds->r_txt, ip4atos(q));
   return 1;
 }
