@@ -42,7 +42,7 @@ install: debian/build-stamp
 	cp rbldnsd debian/rbldnsd/usr/sbin
 	dh_installman rbldnsd.8
 	dh_installinit
-	dh_installdocs NEWS TODO CHANGES-0.81
+	dh_installdocs README.user NEWS TODO CHANGES-0.81
 	dh_installchangelogs
 	dh_strip
 	dh_compress

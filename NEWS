@@ -3,6 +3,11 @@ $Id$
 This file describes user-visible changes in rbldnsd.
 Never news are at top.
 
+0.993.1 (29 Jul 2004)
+
+ - only minor, mostly (Debian) package-specific, stuff
+   (see debian/changes for details)
+
 0.993 (01 Jul 2004)
 
  - bugfix: fix 0.0.0.0 A value being used instead
