@@ -1,8 +1,10 @@
 rbldnsd (0.97pre) unstable; urgency=low
 
   * even better mempool align arith
+  * remove some dnlen usage (only tiny slowdown of zone reloads)
+  * use switch(firstchar) in ds_special()
 
- -- Michael Tokarev <mjt@corpit.ru>  Thu, 29 May 2003 14:45:53 +0400
+ -- Michael Tokarev <mjt@corpit.ru>  Thu, 29 May 2003 14:55:54 +0400
 
 rbldnsd (0.96) unstable; urgency=high
 
