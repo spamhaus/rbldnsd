@@ -5,6 +5,10 @@ Never news are at top.
 
 0.994 (?? ??? ????)
 
+ - bugfix: fix a memory leak when $n-style substitutions
+   are being used: each $n definition resulted in a leak
+   of the substitution text on every reload (used estrdup()
+   but should be using mp_strdup())
  - feature, sort of: allow to omit support for -d option,
    thus eliminating some bloat: DEFS = -DNO_MASTER_DUMP
  - bugfix: fixed master-format dump (-d) for ip4trie - some
