@@ -15,8 +15,8 @@ RANLIB = :
 #DEFS = -DNOSTATS
 # Disable memory info logging (mallinfo)
 #DEFS = -DNOMEMINFO
-# Print zone load time using utimes()
-#DEFS = -DPRINT_TIMES
+# Disable printing zone (re)load time using utimes()
+#DEFS = -DNOTIMES
 
 SOCKET_LIBS = `[ -f /usr/lib/libsocket.so ] && echo -lsocket -lnsl || :`
 

@@ -1,11 +1,11 @@
 rbldnsd (0.83p1) unstable; urgency=low
 
-  * use included version of qsort (as a macro) in order to be able to
-    use inline comparision routine.  Speed up loading significantly.
+  * use inline version of qsort in order to be able to use inline
+    comparision routine.  Speed up loading significantly.
 
   * allow to run as non-root; little cleanups
 
-  * removed -DNOREMOVEDUPS, -DNOIP4RANGES
+  * removed -DNOREMOVEDUPS, -DNOIP4RANGES, -DPRINT_TIMES => -DNOTIMES
 
   * added statistic counters (SIGUSR1/USR2/exit) - disable with -DNOSTATS
 

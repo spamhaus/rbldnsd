@@ -20,6 +20,9 @@
 #ifndef NOMEMINFO
 # include <malloc.h>
 #endif
+#ifndef NOTIMES
+# include <sys/times.h>
+#endif
 
 #include "rbldnsd.h"
 #include "dns.h"
@@ -51,9 +54,7 @@ static int recheck = 60;	/* interval between checks for reload */
 static int accept_in_cidr;	/* accept 127.0.0.1/8-style CIDRs */
 static int initialized;		/* 1 when initialized */
 static char *logfile;		/* log file name */
-#ifndef NOMEMINFO
-static int domeminfo;		/* print memory usage info */
-#endif
+static int logmemtms;		/* print memory usage and (re)load time info */
 
 static int satoi(const char *s) {
   int n = 0;
@@ -61,6 +62,50 @@ static int satoi(const char *s) {
   do n = n * 10 + (*s++ - '0');
   while (*s >= '0' && *s <= '9');
   return *s ? -1 : n;
+}
+
+#ifndef NOMEMINFO
+static void logmemusage() {
+  if (logmemtms) {
+    struct mallinfo mi = mallinfo();
+    zlog(LOG_INFO, 0,
+       "memory usage: "
+       "arena=%d/%d ord=%d free=%d keepcost=%d mmaps=%d/%d",
+       mi.arena, mi.ordblks, mi.uordblks, mi.fordblks, mi.keepcost,
+       mi.hblkhd, mi.hblks);
+  }
+}
+#else
+# define logmemusage()
+#endif
+
+static int do_reload(struct zone *zonelist) {
+  int r;
+#ifndef NOTIMES
+  struct tms tms;
+  clock_t utm, etm;
+#ifndef HZ
+  static clock_t HZ;
+  if (!HZ)
+    HZ = sysconf(_SC_CLK_TCK);
+#endif
+  etm = times(&tms);
+  utm = tms.tms_utime;
+#endif
+
+  r = reloadzones(zonelist);
+  if (!r)
+    return 1;
+
+#ifndef NOTIMES
+  etm = times(&tms) - etm;
+  utm = tms.tms_utime - utm;
+#define sec(tm) tm/HZ, (etm*100/HZ)%100
+  zlog(LOG_INFO, 0, "zones (re)loaded (%lu.%lu/%lu.%lu sec)",
+       sec(etm), sec(utm));
+#endif
+  logmemusage();
+  return r < 0 ? 0 : 1;
 }
 
 static void NORETURN usage(int exitcode) {
@@ -80,9 +125,7 @@ static void NORETURN usage(int exitcode) {
 " -n - do not become a daemon\n"
 " -l logfile - log queries and answers to this file\n"
 "  (relative to chroot directory)\n"
-#ifndef NOMEMINFO
-" -m - print memory usage info on zone reloads\n"
-#endif
+" -s - print memory usage and (re)load time info on zone reloads\n"
 "each zone specified using `name:type:file,file...'\n"
 "syntax, repeated names constitute the same zone.\n"
 "Available zone types:\n"
@@ -90,21 +133,6 @@ static void NORETURN usage(int exitcode) {
   printzonetypes(stdout);
   exit(exitcode);
 }
-
-#ifndef NOMEMINFO
-static void logmemusage() {
-  if (domeminfo) {
-    struct mallinfo mi = mallinfo();
-    zlog(LOG_INFO, 0,
-       "memory usage: "
-       "arena=%d/%d ord=%d free=%d keepcost=%d mmaps=%d/%d",
-       mi.arena, mi.ordblks, mi.uordblks, mi.fordblks, mi.keepcost,
-       mi.hblkhd, mi.hblks);
-  }
-}
-#else
-# define logmemusage()
-#endif
 
 static int init(int argc, char **argv, struct zone **zonep) {
   int c;
@@ -126,7 +154,7 @@ static int init(int argc, char **argv, struct zone **zonep) {
 
   if (argc <= 1) usage(1);
 
-  while((c = getopt(argc, argv, "u:r:b:w:t:c:p:nel:mh")) != EOF)
+  while((c = getopt(argc, argv, "u:r:b:w:t:c:p:nel:sh")) != EOF)
     switch(c) {
     case 'u': user = optarg; break;
     case 'r': rootdir = optarg; break;
@@ -146,11 +174,7 @@ static int init(int argc, char **argv, struct zone **zonep) {
     case 'n': nodaemon = 1; break;
     case 'e': accept_in_cidr = 1; break;
     case 'l': logfile = optarg; break;
-#ifndef NOMEMINFO
-    case 'm': domeminfo = 1; break;
-#else
-    case 'm': error(0, "memory info is not compiled in");
-#endif
+    case 's': logmemtms = 1; break;
     case 'h': usage(0);
     default: error(0, "type `%.50s -h' for help", progname);
     }
@@ -264,9 +288,8 @@ static int init(int argc, char **argv, struct zone **zonep) {
   for(c = 0; c < argc; ++c)
     *zonep = addzone(*zonep, argv[c]);
 
-  if (!reloadzones(*zonep))
+  if (!do_reload(*zonep))
     error(0, "zone loading errors, aborting");
-  logmemusage();
   initialized = 1;
   zlog(LOG_INFO, 0, "started");
 
@@ -381,12 +404,12 @@ int main(int argc, char **argv) {
         logstats(&stats, signalled & SIGNALLED_USR2);
         logmemusage();
       }
-      if (signalled & (SIGNALLED_HUP|SIGNALLED_ALRM))
-        reloadzones(zonelist);
       if ((signalled & SIGNALLED_HUP) && logfile) {
         if (flog) fclose(flog);
         flog = fopen(logfile, "a");
       }
+      if (signalled & (SIGNALLED_HUP|SIGNALLED_ALRM))
+        do_reload(zonelist);
       signalled = 0;
       sigprocmask(SIG_SETMASK, &ssorig, NULL);
     }

@@ -135,8 +135,9 @@ Do not become a daemon.  Normally, \fBrbldnsd\fR will fork and go to the
 background after successeful initialization.  This option disables this
 behaviour.
 
-.IP \fB\-m\fR
-Log memory usage info (obtained via mallinfo(3) routine) on zone (re)loads.
+.IP \fB\-s\fR
+Log memory usage info (obtained via mallinfo(3) routine) and (re)load
+times (obtined via utimes(2) routine) on zone (re)loads.
 
 .SH "ZONE FILE TYPES"
 

@@ -5,9 +5,6 @@
 #include <stdio.h>
 #include <sys/types.h>
 #include <sys/stat.h>
-#ifdef PRINT_TIMES
-#include <sys/times.h>
-#endif
 #include <time.h>
 #include <stdarg.h>
 #include <stdlib.h>
@@ -247,13 +244,6 @@ int reloadzones(struct zone *zl) {
   struct zonedatalist *zdl;
   int reloaded = 0;
   int errors = 0;
-#ifdef PRINT_TIMES
-  struct tms tms;
-  clock_t utm, etm;
-
-  etm = times(&tms);
-  utm = tms.tms_utime;
-#endif
 
   for(zd = zonedatasets; zd; zd = zd->next) {
     int load = 0;
@@ -312,22 +302,7 @@ int reloadzones(struct zone *zl) {
       zl = zl->next;
     }
 
-#ifdef PRINT_TIMES
-    if (!errors) {
-#ifndef HZ
-      static clock_t HZ;
-      if (!HZ)
-        HZ = sysconf(_SC_CLK_TCK);
-#endif
-      etm = times(&tms) - etm;
-      utm = tms.tms_utime - utm;
-#define sec(tm) tm/HZ, (etm*100/HZ)%100
-      zlog(LOG_INFO, 0, "zones (re)loaded (%lu.%lu/%lu.%lu sec)",
-           sec(etm),sec(utm));
-    }
-#endif
-
   }
 
-  return errors ? 0 : 1;
+  return errors ? -1 : reloaded ? 1 : 0;
 }
