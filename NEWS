@@ -3,6 +3,12 @@ $Id$
 This file describes user-visible changes in rbldnsd.
 Never news are at top.
 
+0.83
+
+ - inlined qsort routine, speed up loading significantly.
+
+ - removed some cruft from the code
+
 0.82 (released 2003-04-05)
 
  - recognize another variation of IP address range, for easy use:
