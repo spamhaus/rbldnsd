@@ -287,6 +287,8 @@ int ds_combined_newset(struct dataset *ds, char *line, int lineno);
 
 extern const char def_rr[5];
 
+extern const char *show_version; /* version.bind CH TXT */
+
 /* the same as in ip4addr, but with error/policy checking */
 unsigned ip4parse_cidr(const char *s, ip4addr_t *ap, char **np);
 int ip4parse_range(const char *s, ip4addr_t *a1p, ip4addr_t *a2p, char **np);

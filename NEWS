@@ -9,6 +9,12 @@ Never news are at top.
    allocated for subzones of combined dataset (NS/SOA are never
    used here).
 
+ - feature: respond to version.bind CH IN requests (and version.rbldnsd).
+   Use -v to hide version info from reply, or two -v's to disable this
+   feature completely.
+
+ - reply with REFUSED instead of FORMERR for unknown query class
+
 0.97b (6 Aug 2003)
 
  - bugfix: there was an error in per-zone statistics counting code

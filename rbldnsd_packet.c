@@ -17,6 +17,7 @@
 
 static int addrr_soa(struct dnspacket *pkt, const struct zone *zone, int auth);
 static int addrr_ns(struct dnspacket *pkt, const struct zone *zone, int auth);
+static int version_req(struct dnspacket *pkt, const struct dnsquery *qry);
 
 /* DNS packet:
  * bytes comment */
@@ -251,8 +252,12 @@ int replypacket(struct dnspacket *pkt, unsigned qlen, const struct zone *zone,
   h[p_f1] |= pf1_qr;
   if (qry.q_class == DNS_C_IN)
     h[p_f1] |= pf1_aa;
-  else if (qry.q_class != DNS_C_ANY)
-    return refuse(DNS_R_FORMERR);
+  else if (qry.q_class != DNS_C_ANY) {
+    if (version_req(pkt, &qry))
+      return pkt->p_cur - h;
+    else
+      return refuse(DNS_R_REFUSED);
+  }
   switch(qry.q_type) {
   case DNS_T_ANY: qi.qi_tflag = NSQUERY_ANY; break;
   case DNS_T_A:   qi.qi_tflag = NSQUERY_A;   break;
@@ -693,6 +698,33 @@ addrr_a_txt(struct dnspacket *pkt, unsigned qtflag,
     addrr_any(pkt, DNS_T_TXT, sb, sl + 1, ds->ds_ttl);
   }
 }
+
+static int version_req(struct dnspacket *pkt, const struct dnsquery *qry) {
+  register unsigned char *c;
+  unsigned dsz;
+
+  if (!show_version)
+    return 0;
+  if (qry->q_class != DNS_C_CH || qry->q_type != DNS_T_TXT)
+    return 0;
+  if (!(qry->q_dnlen == 14 && memcmp(qry->q_dn, "\7version\4bind", 14) == 0) &&
+      !(qry->q_dnlen == 17 && memcmp(qry->q_dn, "\7version\7rbldnsd", 17) == 0))
+    return 0;
+
+  c = pkt->p_cur;
+  *c++ = 192; *c++ = p_hdrsize; /* jump after header: query DN */
+  *c++ = DNS_T_TXT>>8; *c++ = DNS_T_TXT;
+  *c++ = DNS_C_CH>>8; *c++ = DNS_C_CH;
+  memcpy(c, defttl, 4); c += 4;
+  dsz = strlen(show_version) + 1;
+  PACK16(c, dsz); c += 2;       /* dsize */
+  *c++ = --dsz;
+  memcpy(c, show_version, dsz);
+  pkt->p_cur = c + dsz;
+  pkt->p_buf[p_ancnt] += 1; /* increment numanswers */
+  return 1;		
+}
+
 
 void
 dump_a_txt(const char *name, const unsigned char *rr,

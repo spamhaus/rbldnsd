@@ -12,8 +12,11 @@ rbldnsd (0.97c) unstable; urgency=low
   * some "ugliness": use more const's and explicitly declare routines
     wich does not accept any arguments as such to be foo(void)
     (Marco D'Itri @both.it)
+  * handle version.bind CH TXT (and version.rbldns for that matter)
+  * return REFUSED instead of FORMERR in case unrecognized query
+    class (IN,ANY,etc) requested
 
- -- Michael Tokarev <mjt@corpit.ru>  Thu,  7 Aug 2003 21:14:38 +0400
+ -- Michael Tokarev <mjt@corpit.ru>  Thu,  7 Aug 2003 21:38:16 +0400
 
 rbldnsd (0.97b) unstable; urgency=low
 

@@ -38,6 +38,8 @@
 #endif
 
 const char *version = VERSION;
+const char *show_version = "rbldnsd " VERSION;
+/* version to show in version.bind CH TXT reply */
 char *progname; /* limited to 32 chars */
 int logto;
 
@@ -151,6 +153,8 @@ static void NORETURN usage(int exitcode) {
 " -6 - use IPv6 socket type\n"
 #endif
 " -t ttl - TTL value set in answers (35m)\n"
+" -v - hide version information in replies to version.bind CH TXT\n"
+"  (second -v makes rbldnsd to refuse such requests completely)\n"
 " -e - enable CIDR ranges where prefix is not on the range boundary\n"
 "  (by default ranges such 127.0.0.1/8 will be rejected)\n"
 " -c check - time interval to check for file updates (1m)\n"
@@ -186,7 +190,7 @@ static int init(int argc, char **argv, struct zone **zonep) {
   uid_t uid = 0;
   gid_t gid = 0;
   int fd;
-  int nodaemon = 0, quickstart = 0, dump = 0;
+  int nodaemon = 0, quickstart = 0, dump = 0, nover = 0;
 #ifndef NOIPv6
   struct addrinfo hints, *aires, *ai;
   char host[NI_MAXHOST], serv[NI_MAXSERV];
@@ -209,7 +213,7 @@ static int init(int argc, char **argv, struct zone **zonep) {
   hints.ai_flags = AI_PASSIVE;
 #endif
 
-  while((c = getopt(argc, argv, "u:r:b:P:w:t:c:p:nel:qsh46d")) != EOF)
+  while((c = getopt(argc, argv, "u:r:b:P:w:t:c:p:nel:qsh46dv")) != EOF)
     switch(c) {
     case 'u': user = optarg; break;
     case 'r': rootdir = optarg; break;
@@ -238,6 +242,7 @@ static int init(int argc, char **argv, struct zone **zonep) {
     case 's': logmemtms = 1; break;
     case 'q': quickstart = 1; break;
     case 'd': dump = 1; break;
+    case 'v': show_version = nover++ ? NULL : "rbldnsd"; break;
     case 'h': usage(0);
     default: error(0, "type `%.50s -h' for help", progname);
     }
