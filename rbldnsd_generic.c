@@ -210,7 +210,6 @@ ds_generic_query(const struct dataset *ds,
   }
 
   /* find first entry with the DN in question */
-  t = e + m;
   rdn = (t--)->lrdn;
   while(t >= e && t->lrdn == rdn)
     --t;
