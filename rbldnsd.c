@@ -559,6 +559,7 @@ static void init(int argc, char **argv) {
   if (quickstart)
     do_reload();
 
+  /* only set "main" fork_on_reload after first reload */
   fork_on_reload = forkon;
 }
 
@@ -731,7 +732,7 @@ static void reopenlog(void) {
   }
 }
 
-static jmp_buf reload_ctx; /* longjmp in start_reload() */
+static jmp_buf reload_ctx; /* longjmp in start_loading() */
 
 static void do_signalled(void) {
   sigset_t ssorig;
@@ -790,18 +791,18 @@ static void do_signalled(void) {
  * any files changed, and if yes, it calls start_loading()
  * (for every dataset with changed files) and performs all
  * necessary updates.
- * In first call to start_reload(), we fork the child.
+ * In first call to start_loading(), we fork the child.
  * In child, we return (with longjmp) back into do_signalled(),
  * setjmp() returning !=0, and we just continue servicing requests
- * at this poing with fork_at_reload set to -1.
+ * at this point with fork_at_reload set to -1 and with all
+ * fancy signals (SIGALRM, SIGUSR?, SIGHUP) ignored.
  * In parent, real reload continues, do_reload completes,
  * and we check for bgq_pid: this is our child, we kill it,
  * and read all the counters from the pipe we opened.
  * In child (note fork_on_reload is <0), upon receiving SIGTERM,
  * we write all the stats into pipe and terminate silently.
  * All signals are still blocked during the whole reload in parent,
- * we unblock signals only after we successefully reaped the child.
- * In child, we ignore all the signals as well (may use the same ssblock).
+ * we unblock them only after we successefully reaped the child.
  * The only possible problem is when the parent gets killed (either
  * SIGKILL or crash) while child is running - in this case child will
  * stay running forever.  It may be a good idea to setup SIGALRM

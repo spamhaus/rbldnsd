@@ -222,6 +222,13 @@ Do not become a daemon.  Normally, \fBrbldnsd\fR will fork and go to the
 background after successful initialization.  This option disables this
 behaviour.
 
+.IP \fB\-f\fR
+Request \fBrbldnsd\fR to continue processing requests during data reloads.
+\fBRbldnsd\fR forks a child process to handle requests while parent
+reloads the data.  This ensures smooth operations, but requires
+more memory, since two copies of data is keept in memory during
+reload process.
+
 .IP \fB\-d\fR
 Dump all zones to stdout in BIND format and exit.  This may be suitable
 to convert easily editable rbldnsd-style data into BIND zone.  \fBrbldnsd\fR

@@ -29,6 +29,17 @@ Never news are at top.
  - format of statistic logging changed slightly, it is
    a bit less verbose now too (and less confusing)
 
+ - feature: continue processing queries during reloads.
+   For this, rbldnds forks off the child process that
+   process queries while parent performs the reload.
+   Requires 2x more memory (changed datasets will be
+   doubled during reloads).  -f option (not enabled
+   by default).
+
+ - feature: new dataset, ip4tset, very simplified ip4set.
+   Only accepts bare IP addresses, no netranges, no
+   exceptions, but requires 2x less memory and is faster.
+
 0.991 (30 Nov 2003)
 
  - in order to be able to overrite both SOA and NS records

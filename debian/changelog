@@ -3,7 +3,9 @@ rbldnsd (0.992pre3) unstable; urgency=low
   * added ip4tset ("trivial" set of IPv4 addresses) -
     faster and smaller but limited version of ip4set
 
- -- Michael Tokarev <mjt@corpit.ru>  Mon,  1 Mar 2004 13:11:58 +0300
+  * continue processing queries during reloads (-f option)
+
+ -- Michael Tokarev <mjt@corpit.ru>  Mon,  1 Mar 2004 19:36:15 +0300
 
 rbldnsd (0.992pre2) unstable; urgency=low
 
