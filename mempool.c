@@ -69,7 +69,7 @@ char *mp_alloc(struct mempool *mp, unsigned size, int align) {
     
     if (best != NULL) { /* found a free chunk */
       char *b;
-      if (align && (best->size & alignmask))
+      if (align)
         best->size &= ~alignmask;
       b = best->buf + MEMPOOL_CHUNKSIZE - best->size;
       best->size -= size;
