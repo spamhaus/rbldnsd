@@ -16,8 +16,9 @@ rbldnsd (0.994pre) unstable; urgency=low
   * rewrite ds_ip4set_dump(), to handle that problrmatic case
     with entries 127/8 and 127.0.0.2: should also emit
     *.0.127 and *.0.0.127
+  * recognize NO_MASTER_DUMP #define (disable -d option)
 
- -- Michael Tokarev <mjt@corpit.ru>  Mon, 13 Dec 2004 03:50:29 +0300
+ -- Michael Tokarev <mjt@corpit.ru>  Mon, 13 Dec 2004 04:21:48 +0300
 
 rbldnsd (0.993.1) unstable; urgency=low
 

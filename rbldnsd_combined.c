@@ -194,6 +194,8 @@ ds_combined_query(const struct dataset *ds, const struct dnsqinfo *qi,
   return found;
 }
 
+#ifndef NO_MASTER_DUMP
+
 static void
 ds_combined_dump(const struct dataset *ds, const unsigned char *odn, FILE *f) {
   char bname[DNS_MAXDOMAIN+1], sname[DNS_MAXDOMAIN+1];
@@ -211,3 +213,5 @@ ds_combined_dump(const struct dataset *ds, const unsigned char *odn, FILE *f) {
       dsl->dsl_ds->ds_type->dst_dumpfn(dsl->dsl_ds, NULL/*XXX*/, f);
   }
 }
+
+#endif

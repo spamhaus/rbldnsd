@@ -498,6 +498,7 @@ int reloadzones(struct zone *zonelist) {
   return errors ? -1 : reloaded ? 1 : 0;
 }
 
+#ifndef NO_MASTER_DUMP
 void dumpzone(const struct zone *z, FILE *f) {
   const struct dslist *dsl;
   { /* zone header */
@@ -531,3 +532,4 @@ void dumpzone(const struct zone *z, FILE *f) {
     dsl->dsl_ds->ds_type->dst_dumpfn(dsl->dsl_ds, z->z_dn, f);
   }
 }
+#endif

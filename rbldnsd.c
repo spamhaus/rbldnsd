@@ -472,7 +472,12 @@ break;
 #endif
       break;
     case 'q': quickstart = 1; break;
-    case 'd': dump = 1; break;
+    case 'd':
+#ifdef NO_MASTER_DUMP
+      error(0, "master-format dump option (-d) isn't compiled in");
+#endif
+      dump = 1;
+      break;
     case 'v': show_version = nover++ ? NULL : "rbldnsd"; break;
     case 'a': lazy = 1; break;
     case 'f': forkon = 1; break;
@@ -492,6 +497,7 @@ break;
     error(0, "no zone(s) to service specified (-h for help)");
   argv += optind;
 
+#ifndef NO_MASTER_DUMP
   if (dump) {
     struct zone *z;
     time_t now;
@@ -513,6 +519,7 @@ break;
     fflush(stdout);
     exit(ferror(stdout) ? 1 : 0);
   }
+#endif
 
   if (!nba)
     error(0, "no address to listen on (-b option) specified");

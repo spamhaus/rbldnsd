@@ -25,6 +25,8 @@ AWK = @AWK@
 #DEFS = -DRECOGNIZE_IP4IN6
 # To use select() instead of poll()
 #DEFS = -DNOPOLL
+# To disable master-format (named) dump (-d option)
+#DEFS = -DNO_MASTER_DUMP
 #
 
 DEFS = @DEFS@

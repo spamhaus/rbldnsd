@@ -91,8 +91,14 @@ typedef void ds_resetfn_t(struct dsdata *dsd, int freeall);
 typedef int
 ds_queryfn_t(const struct dataset *ds, const struct dnsqinfo *qi,
              struct dnspacket *pkt);
+#ifdef NO_MASTER_DUMP
+typedef void ds_dumpfn_t(void);
+#define _master_dump_body(n) static void n(void) {}
+#else
 typedef void
 ds_dumpfn_t(const struct dataset *ds, const unsigned char *odn, FILE *f);
+#define _master_dump_body(n)
+#endif
 
 #define NSQUERY_OTHER	0
 #define NSQUERY_SOA	(1u<<0)
@@ -127,6 +133,7 @@ struct dstype {	/* dst */
  static ds_finishfn_t ds_##t##_finish; \
  static ds_queryfn_t ds_##t##_query; \
  static ds_dumpfn_t ds_##t##_dump; \
+ _master_dump_body(ds_##t##_dump) \
  const struct dstype dataset_##t##_type = { \
    #t /* name */, flags, sizeof(struct dsdata), \
    ds_##t##_reset, ds_##t##_start, ds_##t##_line, ds_##t##_finish, \
@@ -267,11 +274,14 @@ void addrr_a_txt(struct dnspacket *pkt, unsigned qtflag,
                  const struct dataset *ds);
 void addrr_any(struct dnspacket *pkt, unsigned dtp,
                const void *data, unsigned dsz, unsigned ttl);
+#ifndef NO_MASTER_DUMP
 void dump_a_txt(const char *name, const unsigned char *rr,
                 const char *subst, const struct dataset *ds, FILE *f);
 void dump_ip4range(ip4addr_t a, ip4addr_t b, const char *rr,
 		   const struct dataset *ds, FILE *f);
 void dump_ip4(ip4addr_t a, const char *rr, const struct dataset *ds, FILE *f);
+void dumpzone(const struct zone *z, FILE *f);
+#endif
 #define TXTBUFSIZ 260
 int txtsubst(char txtbuf[TXTBUFSIZ], const char *template,
 	     const char *sub0, const struct dataset *ds);
@@ -284,7 +294,6 @@ struct zone *newzone(struct zone **zonelist,
                      unsigned char *dn, unsigned dnlen,
                      struct mempool *mp);
 int reloadzones(struct zone *zonelist);
-void dumpzone(const struct zone *z, FILE *f);
 
 struct dsctx {
   struct dataset *dsc_ds;	/* currently loading dataset */

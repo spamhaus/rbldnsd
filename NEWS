@@ -5,6 +5,8 @@ Never news are at top.
 
 0.994 (?? ??? ????)
 
+ - feature, sort of: allow to omit support for -d option,
+   thus eliminating some bloat: DEFS = -DNO_MASTER_DUMP
  - bugfix: fixed master-format dump (-d) for ip4trie - some
    ranges weren't expanding properly, resulting in missing entries
  - bugfix: fixed master-format dump (-d) for ip4set: when

@@ -126,6 +126,8 @@ ds_ip4tset_query(const struct dataset *ds, const struct dnsqinfo *qi,
   return 1;
 }
 
+#ifndef NO_MASTER_DUMP
+
 static void
 ds_ip4tset_dump(const struct dataset *ds,
                const unsigned char UNUSED *unused_odn,
@@ -135,3 +137,5 @@ ds_ip4tset_dump(const struct dataset *ds,
   while(e < t)
     dump_ip4(*e++, dsd->def_rr, ds, f);
 }
+
+#endif

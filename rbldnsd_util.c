@@ -208,6 +208,8 @@ unsigned unpack32(const unsigned char p[4]) {
   return n;
 }
 
+#ifndef NO_MASTER_DUMP
+
 void dump_ip4(ip4addr_t a, const char *rr, const struct dataset *ds, FILE *f) {
   char name[sizeof("255.255.254.255")];
   sprintf(name, "%u.%u.%u.%u", a&255, (a>>8)&255, (a>>16)&255, (a>>24));
@@ -266,6 +268,8 @@ void dump_ip4range(ip4addr_t a, ip4addr_t b, const char *rr,
 #undef ip4range_expand_octet
 
 }
+
+#endif
 
 /* implement TXT substitutions.
  * `sb' is a buffer where the result will be stored -

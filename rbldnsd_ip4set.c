@@ -246,6 +246,8 @@ ds_ip4set_query(const struct dataset *ds, const struct dnsqinfo *qi,
   return 1;
 }
 
+#ifndef NO_MASTER_DUMP
+
 /* dump the data as master-format file.
  * Having two entries:
  *    127.0.0.0/8  "A"
@@ -440,3 +442,4 @@ ds_ip4set_dump(const struct dataset *ds,
   dd.f = f;
   ds_ip4set_dump08(&dd);
 }
+#endif /* NO_MASTER_DUMP */

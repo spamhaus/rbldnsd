@@ -265,6 +265,8 @@ ds_dnset_query(const struct dataset *ds, const struct dnsqinfo *qi,
   return 1;
 }
 
+#ifndef NO_MASTER_DUMP
+
 static void
 ds_dnset_dump(const struct dataset *ds,
               const unsigned char UNUSED *unused_odn,
@@ -282,3 +284,5 @@ ds_dnset_dump(const struct dataset *ds,
     dump_a_txt(name, e->rr, name + 2, ds, f);
   }
 }
+
+#endif

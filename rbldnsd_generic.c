@@ -305,6 +305,8 @@ ds_generic_query(const struct dataset *ds, const struct dnsqinfo *qi,
   return 1;
 }
 
+#ifndef NO_MASTER_DUMP
+
 static void
 ds_generic_dump(const struct dataset *ds,
                 const unsigned char UNUSED *unused_odn,
@@ -348,3 +350,5 @@ ds_generic_dump(const struct dataset *ds,
     }
   }
 }
+
+#endif

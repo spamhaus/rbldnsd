@@ -271,6 +271,8 @@ ds_ip4trie_query(const struct dataset *ds, const struct dnsqinfo *qi,
   return 1;
 }
 
+#ifndef NO_MASTER_DUMP
+
 static ip4addr_t
 ds_ip4trie_dump_node(const struct node *n,
                      const struct node *super, ip4addr_t a,
@@ -304,3 +306,5 @@ ds_ip4trie_dump(const struct dataset *ds,
   if (ds->ds_dsd->tree)
     ds_ip4trie_dump_node(ds->ds_dsd->tree, NULL, 0, ds, f);
 }
+
+#endif
