@@ -6,6 +6,9 @@ rbldnsd (0.98a.pre) unstable; urgency=low
    - STATS_LL => uint64_t/long long/long, PRI_DNSCNT: PRIu64/llu/lu
   * change ip4addr parsing routines to return -1 in case of error,
     instead of 0, and treat 0 to be valid return value too (0/0)
+  * fix utimes printing (time rbldnsd spent when loading zones)
+  * move VERSION[_DATE] extraction from Makefile to configure,
+    made Makefile depend on debian/changelog.
 
  -- Michael Tokarev <mjt@corpit.ru>  Fri, 22 Aug 2003 01:46:59 +0400
 

@@ -19,6 +19,12 @@ EOF
   *) echo "configure: unknown option \`$1'" >&2; exit 1 ;;
 esac
 
+if [ -f rbldnsd.h -a -f rbldnsd_util.c -a -f debian/changelog ] ; then :
+else
+  echo "configure: error: sources not found at `pwd`" >&2
+  exit 1
+fi
+
 set -e
 rm -f conftest* confdef* config.log
 exec 5>config.log
@@ -51,6 +57,13 @@ case `echo "a\c"` in
 esac
 
 subst=
+
+VERSION=`sed -e 's/^[^(]*(\([^)]*\)).*/\1/' -e 1q debian/changelog`
+VERSION_DATE=`sed -n '/^ --/ { s/.*  ...,  \{0,1\}\([0-9]\{1,2\} ... [0-9]\{4\}\) .*/\1/p; q; }' debian/changelog`
+
+echo "configure: $name $VERSION ($VERSION_DATE)"
+
+subst="$subst VERSION VERSION_DATE"
 
 ### check for C compiler.  Set $CC
 ###
