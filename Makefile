@@ -55,8 +55,8 @@ SRCS = $(LIB_SRCS) $(RBLDNSD_SRCS) ip4rangetest.c
 GSRC = $(LIB_GSRC)
 HDRS = $(LIB_HDRS) $(RBLDNSD_HDRS)
 
-VERSION = `sed -e 's/^[^(]\+(\([^)]\+\)).*/\1/' -e 1q debian/changelog`
-VERSION_DATE = `sed -n '/^ --/ { s/.*  ...,  \?\([0-9]\{1,2\} ... [0-9]\{4\}\) .*/\1/p; q; }' debian/changelog`
+VERSION = `sed -e 's/^[^(]*(\([^)]*\)).*/\1/' -e 1q debian/changelog`
+VERSION_DATE = `sed -n '/^ --/ { s/.*  ...,  \{0,1\}\([0-9]\{1,2\} ... [0-9]\{4\}\) .*/\1/p; q; }' debian/changelog`
 
 all: rbldnsd
 
