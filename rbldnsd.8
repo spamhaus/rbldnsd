@@ -200,17 +200,18 @@ in a data set).  In this mode, \fBrbldnsd\fR ignores \fB\-r\fR
 .PP
 Dataset files are text files which are interpreted depending on
 type specified in command line.  Empty lines and lines starting
-with hash character (#) are ignored, except of a special case
-outlined below.  A (comma\-separated) list of files is interpreted
-as if all files where logically combined into one single file.
+with hash character (#) or semicolon (;) are ignored, except of
+a special case outlined below.  A (comma\-separated) list of files
+is interpreted as if all files where logically combined into one
+single file.
 
 .PP
 If a line starts with a dollar sign ($), hash character and a dollar
-sign (#$), or colon and a dollar sign (:$), it is interpreted in a
-special way, regardless of dataset type (this is one exception where
-a line starting with hash character is not ignored \- to be able to
-reuse zone files of DJB's rbldns).  After dollar sign, keyword is
-expected, to mean one of the following:
+sign (#$), semicolon and dollar sign (;#) or colon and a dollar sign (:$),
+it is interpreted in a special way, regardless of dataset type (this
+is one exception where a line starting with hash character is not
+ignored \- to be able to reuse zone files of DJB's rbldns).  After
+dollar sign, keyword is expected, to mean one of the following:
 
 .IP "\fB$SOA\fR \fIttl origindn persondn serial refresh retry expire minttl"
 Specifies SOA (Start Of Authority) record for all zones using this
@@ -287,6 +288,14 @@ starts with a colon, it is interpreted as a pair of A record and TXT template,
 delimited by colon (:127.0.0.2:This entry is listed).  If value does not start
 with colon, it is interpreted as TXT template only, with A record defaults to
 default A value in current scope.
+.IP
+IP address range may be followed by a comment char (either hash character (#)
+or semicolon (;)), e.g.:
+.nf
+  127/8 ; loopback network
+.fi
+In this case all characters up to the end of line are ignored, and default A
+and TXT values will be used for this IP range.
 .IP
 Every IP address that fits within any of specified ranges is "listed", and
 .B rbldnsd
