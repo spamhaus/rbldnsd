@@ -39,9 +39,9 @@ forall() {
       if [ -f $pidfile ]; then
         if read p < $pidfile; then
           if [ -d /proc/$p ]; then
-            if [ "`readlink /proc/$p/exe`" = $DAEMON ]; then
-              pid=$p
-            fi
+            case "`ls -l /proc/$p/exe 2>/dev/null`" in
+              *$NAME*) pid=$p;;
+	    esac
           fi
         fi
       fi

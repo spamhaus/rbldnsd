@@ -10,6 +10,8 @@ rbldnsd (0.992pre4) unstable; urgency=low
 
   * remove some more mess from memstats logging
 
+  * changed rbldnsd.init to not rely on readlink and be less strict
+
  -- Michael Tokarev <mjt@corpit.ru>  Mon,  1 Mar 2004 23:23:44 +0300
 
 rbldnsd (0.992pre3) unstable; urgency=low
