@@ -8,9 +8,9 @@
 #define d2n(c) ((c) - '0')
 
 #define cret(v, np, s) ((np) ? *(np) = (char*)(s), (v) : *(s) ? 0 : (v))
-#define eret(np, s) ((np) ? *(np) = (char*)(s), 0 : 0)
+#define eret(np, s) ((np) ? *(np) = (char*)(s), -1 : -1)
 
-static unsigned ip4mbits(const char *s, char **np) {
+static int ip4mbits(const char *s, char **np) {
   /* helper routine for ip4cidr() and ip4range() */
   unsigned bits;
   if (!digit(*s))
@@ -19,11 +19,13 @@ static unsigned ip4mbits(const char *s, char **np) {
   while(digit(*s))
     if ((bits = bits * 10 + d2n(*s++)) > 32)
       return eret(np, s - 1);
-  if (!bits) return eret(np, s - 1);
+  /*if (!bits) return eret(np, s - 1); allow /0 mask too */
   return cret(bits, np, s);
 }
 
-unsigned ip4prefix(const char *s, ip4addr_t *ap, char **np) {
+/* parse a prefix, return # of bits (8,16,24 or 32)
+ * or <0 on error.  Can't return 0. */
+int ip4prefix(const char *s, ip4addr_t *ap, char **np) {
   ip4addr_t o;
   *ap = 0;
 
@@ -52,11 +54,11 @@ unsigned ip4prefix(const char *s, ip4addr_t *ap, char **np) {
 }
 
 /* parse ip4 CIDR range in `s', store base in *ap and
- * return number of bits */
+ * return number of bits or <0 on error */
 
-unsigned ip4cidr(const char *s, ip4addr_t *ap, char **np) {
-  unsigned bits = ip4prefix(s, ap, (char**)&s);
-  if (bits && *s == '/') return ip4mbits(s + 1, np);
+int ip4cidr(const char *s, ip4addr_t *ap, char **np) {
+  int bits = ip4prefix(s, ap, (char**)&s);
+  if (bits > 0 && *s == '/') return ip4mbits(s + 1, np);
   return cret(bits, np, s);
 }
 
@@ -65,16 +67,16 @@ unsigned ip4cidr(const char *s, ip4addr_t *ap, char **np) {
  * return
  *   bits if that was CIDR or prefix,
  *   32 if plain range,
- *   0 on error.
+ *   <0 on error.
  */
 
-unsigned ip4range(const char *s, ip4addr_t *ap, ip4addr_t *bp, char **np) {
-  unsigned bits = ip4prefix(s, ap, (char**)&s);
+int ip4range(const char *s, ip4addr_t *ap, ip4addr_t *bp, char **np) {
+  int bits = ip4prefix(s, ap, (char**)&s);
 
-  if (!bits) return eret(np, s);
+  if (bits <= 0) return eret(np, s);
   else if (*s == '-') {
-    unsigned bbits = ip4prefix(s + 1, bp, (char**)&s);
-    if (!bbits) return eret(np, s);
+    int bbits = ip4prefix(s + 1, bp, (char**)&s);
+    if (bbits < 0) return eret(np, s);
     if (bbits == 8) { /* treat 127.0.0.1-2 as 127.0.0.1-127.0.0.2 */
       *bp = (*bp >> (bits - 8)) | (*ap & ip4mask(bits - 8));
       bbits = bits;
@@ -97,10 +99,10 @@ unsigned ip4range(const char *s, ip4addr_t *ap, ip4addr_t *bp, char **np) {
 /* traditional inet_aton/inet_addr.  Werid:
  *   127.1 = 127.0.0.1
  *   1 = 0.0.0.1!!! - but here we go...
- * return #bits in _prefix_ (8,16,24 or 32), or 0 on error.
+ * return #bits in _prefix_ (8,16,24 or 32), or <0 on error.
  */
-unsigned ip4addr(const char *s, ip4addr_t *ap, char **np) {
-  unsigned bits = ip4prefix(s, ap, np);
+int ip4addr(const char *s, ip4addr_t *ap, char **np) {
+  int bits = ip4prefix(s, ap, np);
   switch(bits) {
     case 8: /* what a werid case! */
       *ap >>= 24;
@@ -121,7 +123,7 @@ unsigned ip4addr(const char *s, ip4addr_t *ap, char **np) {
 int main(int argc, char **argv) {
   int i;
   ip4addr_t a, b;
-  unsigned bits;
+  int bits;
   char *np;
 
 #define octets(x) (x)>>24,((x)>>16)&255,((x)>>8)&255,(x)&255
@@ -132,28 +134,28 @@ int main(int argc, char **argv) {
     printf("%s:\n", s);
 
     bits = ip4prefix(s, &a, NULL);
-    if (!bits) printf(" pfx: err\n");
+    if (bits < 0) printf(" pfx: err\n");
     else
       printf(" pfx: " IPFMT " bits=%u\n", octets(a), bits);
     bits = ip4prefix(s, &a, &np);
-    if (!bits) printf(" pfx: err tail=`%s'\n", np);
+    if (bits < 0) printf(" pfx: err tail=`%s'\n", np);
     else
       printf(" pfx: " IPFMT " bits=%u tail=`%s'\n", octets(a), bits, np);
 
     bits = ip4addr(s, &a, NULL);
-    if (!bits) printf(" addr: err\n");
+    if (bits < 0) printf(" addr: err\n");
     else printf(" addr: " IPFMT "\n", octets(a));
     bits = ip4addr(s, &a, &np);
-    if (!bits) printf(" addr: err tail=`%s'\n", np);
+    if (bits < 0) printf(" addr: err tail=`%s'\n", np);
     else printf(" addr: " IPFMT " tail=`%s'\n", octets(a), np);
 
     bits = ip4cidr(s, &a, NULL);
-    if (!bits)
+    if (bits < 0)
       printf(" cidr: err\n");
     else
       printf(" cidr: bits=%u ip=" IPFMT "\n", bits, octets(a));
     bits = ip4cidr(argv[i], &a, &np);
-    if (!bits)
+    if (bits < 0)
       printf(" cidr: err tail=`%s'\n", np);
     else {
       printf(" cidr: bits=%u ip=" IPFMT " tail=`%s'\n",
@@ -163,13 +165,13 @@ int main(int argc, char **argv) {
     }
 
     bits = ip4range(s, &a, &b, NULL);
-    if (!bits) printf(" range: err\n");
+    if (bits < 0) printf(" range: err\n");
     else {
       a &= ip4mask(bits);
       printf(" range: " IPFMT "-" IPFMT "\n", octets(a), octets(b));
     }
     bits = ip4range(s, &a, &b, &np);
-    if (!bits) printf(" range: err tail=`%s'\n", np);
+    if (bits < 0) printf(" range: err tail=`%s'\n", np);
     else {
       a &= ip4mask(bits);
       printf(" range: " IPFMT "-" IPFMT " tail=`%s'\n",

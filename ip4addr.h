@@ -19,18 +19,21 @@ typedef uint32_t ip4addr_t; /* host byte order */
  * pointer to the next characted in it)...: */
 
 /*  ..single address, like inet_aton/inet_addr,
- *    return #bits in _prefix_ (32,24,16 or 8) or 0 on error */
-unsigned ip4addr(const char *s, ip4addr_t *ap, char **np);
+ *    return #bits in _prefix_ (32,24,16 or 8) or <0 on error */
+int ip4addr(const char *s, ip4addr_t *ap, char **np);
 
-/*  ..prefix, 1.2.3.4 or 1.2.3 or 1.2, return number of bits or 0 */
-unsigned ip4prefix(const char *s, ip4addr_t *ap, char **np);
+/*  ..prefix, 1.2.3.4 or 1.2.3 or 1.2, return number of bits or <0 */
+int ip4prefix(const char *s, ip4addr_t *ap, char **np);
 
-/*  ..CIDR range, return number of bits or 0 if error */
-unsigned ip4cidr(const char *s, ip4addr_t *ap, char **np);
+/*  ..CIDR range, return number of bits or <0 if error.
+ *    does NOT zerofill hostpart of *ap - &= ip4mask(bits) for this */
+int ip4cidr(const char *s, ip4addr_t *ap, char **np);
 
 /*  ..range of addresses (inclusive) or CIDR, return #bits if
- *    that was CIDR or prefix or 32 if plain range, 0 on error */
-unsigned ip4range(const char *s, ip4addr_t *ap, ip4addr_t *bp, char **np);
+ *    that was CIDR or prefix or 32 if plain range, <0 on error.
+ *    does NOT zerofill hostpart of *ap - &= ip4mask(bits) for this.
+ *    *bp will be real end of range regardless of netmask */
+int ip4range(const char *s, ip4addr_t *ap, ip4addr_t *bp, char **np);
 
 
 /* inet_ntoa() */
