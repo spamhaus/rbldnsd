@@ -1,4 +1,4 @@
-rbldnsd (0.99.00pre1) unstable; urgency=low
+rbldnsd (0.99.01) unstable; urgency=low
 
   * implemented master format dump for ip4trie dataset
 
@@ -24,7 +24,7 @@ rbldnsd (0.99.00pre1) unstable; urgency=low
   * reworked duplicate RR detection and choosing of minTTL.
     Fix TTL even when we have exactly the same RR in packet already.
 
- -- Michael Tokarev <mjt@corpit.ru>  Sun, 30 Nov 2003 14:41:25 +0300
+ -- Michael Tokarev <mjt@corpit.ru>  Sun, 30 Nov 2003 18:34:04 +0300
 
 rbldnsd (0.990pre0) unstable; urgency=low
 
