@@ -116,7 +116,10 @@ unsigned dns_dntol(const unsigned char *srcdn, unsigned char *dstdn);
 #define dns_dnlc(c) ((c) >= 'A' && (c) <= 'Z' ? (c) - 'A' + 'a' : (c))
 unsigned dns_dnlen(const unsigned char *dn);
 unsigned dns_dnlabels(const unsigned char *dn);
-unsigned dns_dnreverse(const unsigned char *dn, unsigned char *rdn);
-
+/* return number of labels in a dn */
+unsigned dns_dnreverse(const unsigned char *dn, unsigned char *rdn,
+                       unsigned len);
+/* reverse order of labels in a dn; len, if non-zero, should be length
+ * of dn (to save some CPU cycles) */
 
 #endif

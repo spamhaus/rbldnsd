@@ -141,23 +141,13 @@ int replypacket(struct dnspacket *p, unsigned qlen, const struct zone *zone) {
 
   *x = '\0';	/* terminate dn to end at zone base dn */
   qlab -= zone->z_dnlab;
-  qlen -= zone->z_dnlen;
   found = qlab == 0;	/* no NXDOMAIN if it's a query for the zone base DN */
 
   /* initialize various query variations */
   if (zone->z_dstflags & DSTF_IP4REV) /* ip4 address */
     p->qip4octets = qlab && qlab <= 4 ? dntoip4addr(p->qdn, &p->qip4) : 0;
-  if (zone->z_dstflags & DSTF_DNREV) { /* reverse qdn */
-    unsigned char *d = p->qdnr + qlen;
-    d[1] = '\0';
-    x = p->qdn;
-    while((qlen = *x) != 0) {
-      ++qlen;
-      d -= qlen;
-      memcpy(d, x, qlen);
-      x += qlen;
-    }
-  }
+  if (zone->z_dstflags & DSTF_DNREV) /* reverse qdn */
+    dns_dnreverse(p->qdn, p->qdnr, qlen - zone->z_dnlen + 1);
 
   { /* initialize DN compression */
     struct dnsdnptr *ptr = p->compr.ptr;

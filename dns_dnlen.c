@@ -5,8 +5,8 @@
 
 #include "dns.h"
 
-unsigned dns_dnlen(const unsigned char *dn) {
-  unsigned c;
+unsigned dns_dnlen(register const unsigned char *dn) {
+  register unsigned c;
   const unsigned char *d = dn;
   while((c = *d++) != 0)
     d += c;
