@@ -89,6 +89,7 @@ int ds_combined_newset(struct dataset *ds, char *line, struct dsctx *dsc) {
   struct zone *zone;
   unsigned char dn[DNS_MAXDN];
   unsigned dnlen;
+  char *name;
 
   ds_combined_finishlast(dsc);
 
@@ -98,6 +99,13 @@ int ds_combined_newset(struct dataset *ds, char *line, struct dsctx *dsc) {
   *p = '\0';
   p = strtok(line, space);	/* dataset type */
   if (!p) return 0;
+  if ((name = strchr(p, ':')) != NULL) {
+     *name++ = '\0';
+    if (!*name)
+      name = NULL;
+    else
+      if (strlen(name) > 20) name[20] = '\0';
+  }
 
   for(;;) {	/* search appropriate dataset */
 
@@ -138,6 +146,9 @@ int ds_combined_newset(struct dataset *ds, char *line, struct dsctx *dsc) {
   dssub->ds_next = NULL;
   *dsd->dslastp = dssub;
   dsd->dslastp = &dssub->ds_next;
+  if (name &&
+      !(dssub->ds_spec = mp_strdup(ds->ds_mp, name)))
+    return -1;
 
   while((p = strtok(NULL, space)) != NULL) {
     if (p[0] == '@' && p[1] == '\0') {

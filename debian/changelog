@@ -1,3 +1,13 @@
+rbldnsd (0.993p2) unstable; urgency=low
+
+  * allow names for subdatasets in combined dataset,
+    for better logging.  Specify :name after type
+    in $DATASET line, like
+      $DATASET ip4set:http proxies @
+      $DATASET ip4set:relays relays @
+
+ -- Michael Tokarev <mjt@corpit.ru>  Thu, 10 Jun 2004 04:03:19 +0400
+
 rbldnsd (0.993p1) unstable; urgency=low
 
   * implement and enforce $MAXRANGE4 special

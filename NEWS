@@ -5,6 +5,12 @@ Never news are at top.
 
 0.993 (?? ??? ????)
 
+ - feature: allow (optional) names for subdatasets
+   in combined dataset, for better logging.  Specify
+   :name after dataset type in $DATASET line, like
+     $DATASET ip4set:http proxies @
+     $DATASET ip4set:relays relays @
+
  - feature, safety: implement and enforce $MAXRANGE4
    special like this:
      $MAXRANGE /24

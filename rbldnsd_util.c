@@ -284,11 +284,14 @@ vdslog(int level, struct dsctx *dsc, const char *fmt, va_list ap) {
     else {
       l += ssprintf(buf + l, sizeof(buf) - l, "%s:%.60s:",
                     dsc->dsc_ds->ds_type->dst_name, dsc->dsc_ds->ds_spec);
-      if (dsc->dsc_subset)
-        l += ssprintf(buf + l, sizeof(buf) - l, "%s: ",
+      if (dsc->dsc_subset) {
+        l += ssprintf(buf + l, sizeof(buf) - l, "%s:",
                       dsc->dsc_subset->ds_type->dst_name);
-      else
-        l += ssprintf(buf + l, sizeof(buf) - l, " ");
+	if (dsc->dsc_subset->ds_spec)
+          l += ssprintf(buf + l, sizeof(buf) - l, "%s:",
+                        dsc->dsc_subset->ds_spec);
+      }
+      l += ssprintf(buf + l, sizeof(buf) - l, " ");
     }
   }
   l += vssprintf(buf + l, sizeof(buf) - l, fmt, ap);
