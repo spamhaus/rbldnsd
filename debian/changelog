@@ -28,7 +28,7 @@ rbldnsd (0.96pre) unstable; urgency=low
   * restore MX functionality that was broken for quite some time.
     Note that currently, MX records aren't compressed
 
- -- Michael Tokarev <mjt@corpit.ru>  Tue, 27 May 2003 22:18:20 +0400
+ -- Michael Tokarev <mjt@corpit.ru>  Thu, 29 May 2003 04:57:21 +0400
 
 rbldnsd (0.95) unstable; urgency=low
 
