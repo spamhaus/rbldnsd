@@ -192,14 +192,35 @@ either buffered by default, or line-buffered if specified as `+\-'
 (standard output will not be "reopened" upon receiving SIGHUP signal,
 but will be flushed in case logging is buffered).
 
+.IP "\fB\-s\fR \fIstatsfile\fR"
+Specifies a file where \fBrbldnsd\fR will write a line with short statistic
+summary of queries made per zone, every check (\fB\-c\fR) interval.
+Format of each line is:
+.nf
+  \fItimestamp\fR \fIzone\fR:\fIq\fR:\fIin\fR:\fIout\fR \fIzone\fR:...
+.fi
+where \fItimestamp\fR is unix time (secounds since epoch),
+\fIzone\fR is the name of the base zone, \fIq\fR is the total number
+of queries made, \fIin\fR is the total number of bytes read
+from network (excluding IP/UDP overhead and dropped packets),
+\fIout\fR is the total number of bytes written to network.
+Ther are as many such tuples as there are zones, and one extra, total
+typle at the end, with \fIzone\fR being "*", like:
+.nf
+  1234 bl1.ex:10:311:432 bl2.ex:24:248:375 *:98:820:987
+.fi
+Note the total values may be larger than the sum of per-zone values,
+due to queries made against unlisted zones, or bad/broken packets.
+
+\fBRbldnsd\fR will write bare timestamp to \fIstatsfile\fR when it
+is starting up, shutting down or when statistic counters are being
+reset after receiving SIGUSR2 signal (see below), to indicate the
+points where the counters are starting back from zero.
+
 .IP \fB\-n\fR
 Do not become a daemon.  Normally, \fBrbldnsd\fR will fork and go to the
 background after successful initialization.  This option disables this
 behaviour.
-
-.IP \fB\-s\fR
-Log memory usage info (obtained via mallinfo(3) routine) and (re)load
-times (obtined via utimes(2) routine) on zone (re)loads.
 
 .IP \fB\-d\fR
 Dump all zones to stdout in BIND format and exit.  This may be suitable

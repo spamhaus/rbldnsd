@@ -623,7 +623,7 @@ static void dumpstats(void) {
       z->z_stats.irep + z->z_stats.inxd + z->z_stats.ierr,
       z->z_stats.orep + z->z_stats.onxd + z->z_stats.oerr);
   }
-  fprintf(f, " tot" C C C "\n",
+  fprintf(f, " *" C C C "\n",
     tot.nrep + tot.nnxd + tot.nerr,
     tot.irep + tot.inxd + tot.ierr,
     tot.orep + tot.onxd + tot.oerr);
