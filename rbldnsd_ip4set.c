@@ -27,7 +27,7 @@ struct dsdata {
 #define E16 2
 #define E08 3
 
-definedstype(ip4set, DSTF_IP4REV, "set of (ip4, value) pairs");
+definedstype(ip4set, DSTF_IP4REV, "set of (ip4 range, value) pairs");
 
 static void ds_ip4set_reset(struct dsdata *dsd, int UNUSED unused_freeall) {
   unsigned r;
