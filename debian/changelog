@@ -1,4 +1,4 @@
-rbldnsd (0.96pre) unstable; urgency=low
+rbldnsd (0.96) unstable; urgency=high
 
   * renamed almost all structures and variables, to be more accurate:
      struct dataset => struct dsdata  (dsd)
@@ -52,7 +52,7 @@ rbldnsd (0.96pre) unstable; urgency=low
 
   * simplify dssoa allocation
 
- -- Michael Tokarev <mjt@corpit.ru>  Thu, 29 May 2003 12:09:24 +0400
+ -- Michael Tokarev <mjt@corpit.ru>  Thu, 29 May 2003 12:46:37 +0400
 
 rbldnsd (0.95) unstable; urgency=low
 
