@@ -11,9 +11,9 @@
 export DH_COMPAT=3
 
 DEFS =
-CFLAGS = -O2 -pipe -Wall -W
-ifneq (,$(findstring debug,$(DEB_BUILD_OPTIONS)))
-	CFLAGS += -g
+CFLAGS = -pipe -Wall -W -g
+ifneq (,$(findstring noopt,$(DEB_BUILD_OPTIONS)))
+	CFLAGS += -O2
 endif
 
 config: config.h Makefile
@@ -30,7 +30,7 @@ debian/build-stamp: config.h
 clean:
 	dh_testdir
 	rm -f debian/build-stamp
-	-if [ -f Makefile ] ; then -$(MAKE) distclean; fi
+	[ ! -f Makefile ] || $(MAKE) distclean
 	dh_clean
 
 install: debian/build-stamp

@@ -1,3 +1,11 @@
+rbldnsd (0.993) unstable; urgency=low
+
+  * 0.993 release, finally
+
+  * cleaned up debian/rules a bit per recommendations from Sanvila
+
+ -- Michael Tokarev <mjt@corpit.ru>  Thu,  1 Jul 2004 15:53:21 +0400
+
 rbldnsd (0.993p2) unstable; urgency=low
 
   * warn when $DATASET specifies no subzones
