@@ -23,7 +23,8 @@ It may handle IP-based and name-based blocklists.
 %setup -q -n %name-%version
 
 %build
-make CFLAGS="$RPM_OPT_FLAGS" CC="${CC:-%__cc}"
+CFLAGS="$RPM_OPT_FLAGS" CC="${CC:-%__cc}" ./configure
+make
 
 %install
 rm -rf $RPM_BUILD_ROOT

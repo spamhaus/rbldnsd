@@ -16,16 +16,21 @@ ifneq (,$(findstring debug,$(DEB_BUILD_OPTIONS)))
 	CFLAGS += -g
 endif
 
-build: debian/build-stamp
-debian/build-stamp:
+config: config.h Makefile
+config.h Makefile: configure Makefile.in
 	dh_testdir
-	$(MAKE) CFLAGS="$(CFLAGS)" DEFS="$(DEFS)"
+	CFLAGS="$(CFLAGS)" DEFS="$(DEFS)" ./configure
+
+build: debian/build-stamp
+debian/build-stamp: config.h
+	dh_testdir
+	$(MAKE)
 	touch $@
 
 clean:
 	dh_testdir
 	rm -f debian/build-stamp
-	-$(MAKE) clean
+	-$(MAKE) distclean
 	dh_clean
 
 install: debian/build-stamp
