@@ -1,3 +1,10 @@
+rbldnsd (0.98pre) unstable; urgency=low
+
+  * recognize and ignore "in" in `generic' dataset, as in:
+     example.com 1D IN A 127.0.0.1
+
+ -- Michael Tokarev <mjt@corpit.ru>  Sun, 13 Jul 2003 03:19:56 +0400
+
 rbldnsd (0.97) unstable; urgency=low
 
   * even better mempool align arith

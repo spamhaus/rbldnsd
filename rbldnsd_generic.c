@@ -86,6 +86,15 @@ static int ds_generic_parseany(struct dataset *ds, char *s) {
   *s++ = '\0';
   SKIPSPACE(s);
 
+  if (strcmp(t, "in") == 0) {
+    t = s;
+    while(!ISSPACE(*s))
+      if (!*s) return -1;
+      else { *s = dns_dnlc(*s); ++s; }
+    *s++ = '\0';
+    SKIPSPACE(s);
+  }
+
   if (strcmp(t, "a") == 0) {
     ip4addr_t a;
     dtyp = NSQUERY_A | DNS_T_A;
