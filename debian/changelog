@@ -2,7 +2,9 @@ rbldnsd (0.992) unstable; urgency=low
 
   * fix ds_generic_dump() that was broken for quite some time
 
- -- Michael Tokarev <mjt@corpit.ru>  Mon,  1 Dec 2003 11:09:38 +0300
+  * fix example dataset in manpage (missing preference for MX)
+
+ -- Michael Tokarev <mjt@corpit.ru>  Mon,  1 Dec 2003 11:10:22 +0300
 
 rbldnsd (0.991) unstable; urgency=low
 
