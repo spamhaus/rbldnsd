@@ -3,7 +3,7 @@ $Id$
 This file describes user-visible changes in rbldnsd.
 Never news are at top.
 
-0.99.01 (30 Nov 2003)
+0.991 (30 Nov 2003)
 
  - in order to be able to overrite both SOA and NS records
    in data downloaded from 3rd party blocklist to use in

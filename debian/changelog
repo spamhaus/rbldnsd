@@ -1,4 +1,4 @@
-rbldnsd (0.99.01) unstable; urgency=low
+rbldnsd (0.991) unstable; urgency=low
 
   * implemented master format dump for ip4trie dataset
 
