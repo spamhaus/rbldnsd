@@ -8,7 +8,7 @@ Never news are at top.
  - reverse change made in 0.91: SOA TTL, when SOA is in AUTHORITY
    section, should be from SOA's MINTTL (negative cache TTL).
 
-0.92 (15 May 2003)
+0.92 (17 May 2003)
 
  - bugfix: fixed SOA screwup introduced in 0.91
 
