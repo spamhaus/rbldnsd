@@ -7,10 +7,9 @@
 #include <string.h>
 
 const struct dns_nameval *
-dns_findname(const struct dns_codetab codes, const char *name) {
+dns_findname(const struct dns_nameval *nv, const char *name) {
   char nm[60]; /* all names are less than 60 chars anyway */
   char *p = nm;
-  const struct dns_nameval *nv, *e;
   while(*name) {
     if (*name >= 'a' && *name <= 'z')
       *p++ = *name++ - 'a' + 'A';
@@ -20,9 +19,10 @@ dns_findname(const struct dns_codetab codes, const char *name) {
       return NULL;
   }
   *p = '\0';
-  for(nv = codes.namevals, e = codes.namevals + codes.count;
-      nv < e; ++nv)
+  while(nv->name)
     if (strcmp(nv->name, nm) == 0)
       return nv;
+    else
+      ++nv;
   return NULL;
 }

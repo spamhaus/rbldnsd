@@ -221,29 +221,29 @@ addrec_txt(struct dnspacket *p, const char *txt, const char *subst) {
 }
 
 static const char *
-codename(const struct dns_codetab tab, unsigned c, const char *name, char *buf)
+codename(unsigned c, const char *name, const char *base, char *buf)
 {
-  const struct dns_nameval *nv = dns_findcode(tab, c);
-  if (nv)
-    return nv->name;
-  sprintf(buf, "%s%d", name, c);
+  if (name) return name;
+  sprintf(buf, "%s%d", base, c);
   return buf;
 }
 
 void logreply(const struct dnspacket *pkt, const char *ip, FILE *flog) {
   char cbuf[DNS_MAXDOMAIN+1];
   const unsigned char *p;
+  unsigned c;
 
   p = pkt->p + 12;
   dns_dntop(p, cbuf, sizeof(cbuf));
   p += dns_dnlen(p);
   fprintf(flog, "%lu %s %s ", (unsigned long)time(NULL), ip, cbuf);
-  fprintf(flog, "%s ",
-          codename(dns_types, ((unsigned)p[0]<<8)|p[1], "type", cbuf));
-  fprintf(flog, "%s: ",
-          codename(dns_classes, ((unsigned)p[2]<<8)|p[3], "class", cbuf));
+  c = ((unsigned)p[0]<<8)|p[1];
+  fprintf(flog, "%s ", codename(c, dns_typename(c), "type", cbuf));
+  c = ((unsigned)p[2]<<8)|p[3];
+  fprintf(flog, "%s: ", codename(c, dns_classname(c), "class", cbuf));
+  c = pkt->p[3];
   fprintf(flog, "%s/%u/%d\n",
-          codename(dns_rcodes, pkt->p[3], "rcode", cbuf),
+          codename(c, dns_rcodename(c), "rcode", cbuf),
           pkt->nans, pkt->c - pkt->p);
 
 }

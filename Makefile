@@ -11,6 +11,7 @@ AR = ar
 ARFLAGS = rv
 RANLIB = :
 SHELL = /bin/sh -e
+AWK = awk
 
 # Disable statistic counters
 #DEFS = -DNOSTATS
@@ -25,18 +26,20 @@ SHELL = /bin/sh -e
 SOCKET_LIBS = `[ -f /usr/lib/libsocket.so ] && echo -lsocket -lnsl || :`
 
 LIBDNS_SRCS = dns_ptodn.c dns_dntop.c dns_dntol.c dns_dnlen.c dns_dnlabels.c \
- dns_dnreverse.c dns_findcode.c dns_findname.c
-LIBDNS_GSRC = dns_rcodes.c dns_types.c dns_classes.c
+ dns_dnreverse.c dns_findname.c
+LIBDNS_GSRC = dns_nametab.c
 LIBDNS_HDRS = dns.h
+LIBDNS_OBJS = $(LIBDNS_SRCS:.c=.o) $(LIBDNS_GSRC:.c=.o)
 
 LIBIP4_SRCS = ip4parse.c ip4atos.c ip4mask.c
 LIBIP4_GSRC =
 LIBIP4_HDRS = ip4addr.h
+LIBIP4_OBJS = $(LIBIP4_SRCS:.c=.o)
 
 LIB_SRCS = $(LIBDNS_SRCS) $(LIBIP4_SRCS) mempool.c
-LIB_GSRC = $(LIBDNS_GSRC) $(LIBIP4_GSRC)
 LIB_HDRS = $(LIBDNS_HDRS) $(LIBIP4_HDRS) mempool.h
-LIB_OBJS = $(LIB_SRCS:.c=.o) $(LIB_GSRC:.c=.o)
+LIB_OBJS = $(LIBDNS_OBJS) $(LIBIP4_OBJS) mempool.o
+LIB_GSRC = $(LIBDNS_GSRC) $(LIBIP4_GSRC)
 
 RBLDNSD_SRCS = rbldnsd.c rbldnsd_zones.c rbldnsd_packet.c \
   rbldnsd_generic.c \
@@ -68,22 +71,16 @@ librbldnsd.a: $(LIB_OBJS)
 ip4rangetest: ip4rangetest.o ip4parse.o
 	$(LD) $(LDFLAGS) -o $@ ip4rangetest.o ip4parse.o
 
-dns_classes.c: dns.h dns_maketab.sh
-	$(SHELL) dns_maketab.sh dns.h DNS_C_ dns_classes >$@.tmp
-	mv -f $@.tmp $@
-dns_rcodes.c: dns.h dns_maketab.sh
-	$(SHELL) dns_maketab.sh dns.h DNS_R_ dns_rcodes >$@.tmp
-	mv -f $@.tmp $@
-dns_types.c: dns.h dns_maketab.sh
-	$(SHELL) dns_maketab.sh dns.h DNS_T_ dns_types >$@.tmp
-	mv -f $@.tmp $@
-
 .SUFFIXES: .c .o
 
 COMPILE = $(CC) $(CFLAGS) $(DEFS) -c $<
 
 .c.o:
 	$(COMPILE)
+
+dns_nametab.c: dns.h dns_maketab.awk
+	$(AWK) -f dns_maketab.awk dns.h > $@.tmp
+	mv -f $@.tmp $@
 
 rbldnsd.o: rbldnsd.c
 	$(COMPILE) -DVERSION='"$(VERSION) $(VERSION_DATE)"'

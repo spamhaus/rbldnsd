@@ -95,24 +95,19 @@ struct dns_nameval {
   int val;
   const char *name;
 };
-struct dns_codetab {
-  const struct dns_nameval *namevals;
-  unsigned count;
-};
 
-extern const struct dns_codetab dns_classes;
-extern const struct dns_codetab dns_types;
-extern const struct dns_codetab dns_rcodes;
+extern const struct dns_nameval dns_classtab[];
+extern const struct dns_nameval dns_typetab[];
+extern const struct dns_nameval dns_rcodetab[];
 const struct dns_nameval *
-dns_findname(const struct dns_codetab codes, const char *name);
-const struct dns_nameval *
-dns_findcode(const struct dns_codetab codes, int val);
-#define dns_findclassname(class) dns_findname(dns_classes, (class))
-#define dns_findclasscode(class) dns_findcode(dns_classes, (class))
-#define dns_findtypename(type) dns_findname(dns_types, (type))
-#define dns_findtypecode(type) dns_findcode(dns_types, (type))
-#define dns_findrcodename(rcode) dns_findname(dns_rcodes, (rcode))
-#define dns_findrcodecode(rcode) dns_findcode(dns_rcodes, (rcode))
+dns_findname(const struct dns_nameval *nv, const char *name);
+#define dns_findclassname(class) dns_findname(dns_classtab, (class))
+#define dns_findtypename(type) dns_findname(dns_typetab, (type))
+#define dns_findrcodename(rcode) dns_findname(dns_rcodetab, (rcode))
+
+const char *dns_classname(enum dns_class class);
+const char *dns_typename(enum dns_type type);
+const char *dns_rcodename(enum dns_rcode rcode);
 
 unsigned dns_ptodn(const char *name, unsigned char *dn, unsigned dnsiz);
 /* convert asciiz string `name' to the DN format, return length or 0 */
