@@ -360,8 +360,6 @@ static int updatezone(struct zone *zone) {
   time_t stamp = 0;
   const struct dssoa *dssoa = NULL;
   const struct dsns *dsns = NULL;
-  const struct dsns *dsnsa[MAX_NS];
-  unsigned nns = 0;
   unsigned nsttl = 0;
   struct dslist *dsl;
 
@@ -377,24 +375,9 @@ static int updatezone(struct zone *zone) {
       dsns = ds->ds_dsns, nsttl = ds->ds_nsttl;
   }
 
-  if (dsns) {
-    unsigned n;
-    do {
-      for(n = 0; ; ++n) {
-        if (n == nns) {
-          if (n < MAX_NS)
-            dsnsa[nns++] = dsns;
-          break;
-        }
-        if (dns_dnequ(dsnsa[n]->dsns_dn, dsns->dsns_dn))
-          break;
-      }
-      dsns = dsns->dsns_next;
-    } while(dsns);
-  }
   zone->z_stamp = stamp;
   if (!update_zone_soa(zone, dssoa) ||
-      !update_zone_ns(zone, dsnsa, nns, nsttl)) {
+      !update_zone_ns(zone, dsns, nsttl)) {
     char name[DNS_MAXDOMAIN+1];
     dns_dntop(zone->z_dn, name, sizeof(name));
     dslog(LOG_WARNING, 0,
@@ -466,7 +449,7 @@ void dumpzone(const struct zone *z, FILE *f) {
   const struct dslist *dsl;
   { /* zone header */
     char name[DNS_MAXDOMAIN+1];
-    const struct dsns **dsnsa = z->z_dsnsa;
+    const unsigned char **nsdna = z->z_nsdna;
     const struct dssoa *dssoa = z->z_dssoa;
     unsigned nns = z->z_nns;
     unsigned n;
@@ -486,7 +469,7 @@ void dumpzone(const struct zone *z, FILE *f) {
           unpack32(dssoa->dssoa_n+12));
     }
     for(n = 0; n < nns; ++n) {
-      dns_dntop(dsnsa[n]->dsns_dn, name, sizeof(name));
+      dns_dntop(nsdna[n], name, sizeof(name));
       fprintf(f, "\t%u\tNS\t%s.\n", z->z_nsttl, name);
     }
   }

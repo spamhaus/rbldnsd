@@ -24,6 +24,8 @@ rbldnsd (0.99.01) unstable; urgency=low
   * reworked duplicate RR detection and choosing of minTTL.
     Fix TTL even when we have exactly the same RR in packet already.
 
+  * simplified zone NS records handling
+
  -- Michael Tokarev <mjt@corpit.ru>  Sun, 30 Nov 2003 18:34:04 +0300
 
 rbldnsd (0.990pre0) unstable; urgency=low

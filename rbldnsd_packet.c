@@ -9,6 +9,7 @@
 #include <unistd.h>
 #include <netinet/in.h>
 #include <netdb.h>
+#include <syslog.h>
 #include "rbldnsd.h"
 
 #ifndef NI_WITHSCOPEID
@@ -546,24 +547,44 @@ static int addrr_soa(struct dnspacket *pkt, const struct zone *zone, int auth) {
   return 1;
 }
 
-int update_zone_ns(struct zone *zone, const struct dsns **dsnsa, unsigned nns,
-                   unsigned ttl) {
+int update_zone_ns(struct zone *zone, const struct dsns *dsns, unsigned ttl) {
   struct zonens *zns;
   unsigned char *cpos, *sizep;
   struct dncompr compr;
-  unsigned size, i, ns;
-  const struct dsns *dsns;
+  unsigned size, i, ns, nns;
+  const unsigned char *nsdna[MAX_NS];
+  const unsigned char *dn;
 
-  zone->z_nns = 0;
-  zns = zone->z_zns;
-  if (!nns)
-    return 1;
-  memcpy(zone->z_dsnsa, dsnsa, sizeof(zone->z_dsnsa));
+  nns = 0;
+  while(dsns) {
+    i = 0;
+    while(i < nns && !dns_dnequ(nsdna[i], dsns->dsns_dn))
+      ++i;
+    if (i >= nns) {
+      if (nns < MAX_NS)
+        nsdna[nns++] = dsns->dsns_dn;
+      else {
+        char name[DNS_MAXDOMAIN+1];
+        dns_dntop(zone->z_dn, name, sizeof(name));
+        dslog(LOG_WARNING, 0,
+              "zone %.70s: too many NS records specified, "
+              "only first %d will be used",
+              name, MAX_NS);
+        break;
+      }
+    }
+    dsns = dsns->dsns_next;
+  }
+
+  memcpy(zone->z_nsdna, nsdna, nns * sizeof(nsdna[0]));
+  memset(nsdna + nns, 0, (MAX_NS - nns) * sizeof(nsdna[0]));
+  zone->z_nns = 0;	/* for now, in case of error return */
   zone->z_nsttl = ttl;
 
   /* fill up nns variants of NS RRs ordering:
    * zns is actually an array, not single structure */
   ns = 0;
+  zns = zone->z_zns;
   for(;;) {
     cpos = dnc_init(&compr, zns->data, sizeof(zns->data),
                     zns->jump, zone->z_dn);
@@ -575,7 +596,7 @@ int update_zone_ns(struct zone *zone, const struct dsns **dsnsa, unsigned nns,
       PACK16S(cpos, DNS_C_IN);
       PACK32S(cpos, ttl);
       sizep = cpos; cpos += 2;
-      cpos = dnc_add(&compr, cpos, dsnsa[i]->dsns_dn);
+      cpos = dnc_add(&compr, cpos, nsdna[i]);
       if (!cpos) return 0;
       size = cpos - sizep - 2;
       PACK16(sizep, size);
@@ -585,9 +606,9 @@ int update_zone_ns(struct zone *zone, const struct dsns **dsnsa, unsigned nns,
 
     if (++ns >= nns) break;
 
-    dsns = dsnsa[0];
-    memmove(dsnsa, dsnsa + 1, (nns - 1) * sizeof(*dsnsa));
-    dsnsa[nns - 1] = dsns;
+    dn = nsdna[0];
+    memmove(nsdna, nsdna + 1, (nns - 1) * sizeof(nsdna[0]));
+    nsdna[nns - 1] = dn;
     ++zns;
 
   }

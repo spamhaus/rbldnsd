@@ -232,7 +232,7 @@ struct zone {	/* zone, list of zones */
   /* SOA record */
   const struct dssoa *z_dssoa;		/* original SOA from a dataset */
   struct zonesoa *z_zsoa;		/* pre-packed SOA record */
-  const struct dsns *z_dsnsa[MAX_NS];	/* array of nameservers */
+  const unsigned char *z_nsdna[MAX_NS];	/* array of nameserver DNs */
   unsigned z_nns;			/* number of NSes in z_dsnsa[] */
   unsigned z_nsttl;			/* ttl for NS records */
   unsigned z_cns;			/* current NS in rotation */
@@ -245,8 +245,7 @@ struct zone {	/* zone, list of zones */
 
 void init_zones_caches(struct zone *zonelist);
 int update_zone_soa(struct zone *zone, const struct dssoa *dssoa);
-int update_zone_ns(struct zone *zone, const struct dsns **dsnsa, unsigned nns,
-                   unsigned ttl);
+int update_zone_ns(struct zone *zone, const struct dsns *dsns, unsigned ttl);
 
 /* parse query and construct a reply to it, return len of answer or 0 */
 int replypacket(struct dnspacket *p, unsigned qlen, const struct zone *zone,
