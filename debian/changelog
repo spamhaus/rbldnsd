@@ -1,3 +1,12 @@
+rbldnsd (0.97c) unstable; urgency=low
+
+  * use memmove() instead of memcpy() for overlapping regions,
+    even if dstaddr is less than srcaddr (current memcpy() can
+    deal with that, but this is out of spec and future versions
+    may do some more optimizations that'll break things)     
+
+ -- Michael Tokarev <mjt@corpit.ru>  Thu,  7 Aug 2003 20:57:22 +0400
+
 rbldnsd (0.97b) unstable; urgency=low
 
   * fixed security bug in per-zone statistic counting

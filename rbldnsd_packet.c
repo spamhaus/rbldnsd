@@ -577,7 +577,7 @@ int update_zone_ns(struct zone *zone, const struct dsns **dsnsa, unsigned nns) {
     if (++ns >= nns) break;
 
     dsns = dsnsa[0];
-    memcpy(dsnsa, dsnsa + 1, (nns - 1) * sizeof(*dsnsa));
+    memmove(dsnsa, dsnsa + 1, (nns - 1) * sizeof(*dsnsa));
     dsnsa[nns - 1] = dsns;
     ++zns;
 
