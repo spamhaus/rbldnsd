@@ -5,6 +5,8 @@ Never news are at top.
 
 0.97
 
+ - feature: added per-basezone statistic counters
+
  - bugfix: in some rare cases, dnset missed one RR for a
    DN with multiple RRs.  Spotted by Matthew Sullivan, SORBS.net
 

@@ -14,6 +14,7 @@ rbldnsd (0.97pre) unstable; urgency=low
     plain IPv4 qieries
   * Wirehub Dynablock => Easynet Dynablock
   * -DSTATS_LL to use long longs for statistic counters
+  * per-basezone statistic counters
 
  -- Michael Tokarev <mjt@corpit.ru>  Sun, 29 Jun 2003 19:43:01 +0400
 

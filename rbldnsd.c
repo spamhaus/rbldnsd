@@ -72,6 +72,7 @@ struct dataset *ds_loading;
 const struct dstype *ds_types[] = {
   &dataset_ip4set_type,
   &dataset_dnset_type,
+  &dataset_dnhash_type,
   &dataset_generic_type,
   &dataset_combined_type,
   NULL
@@ -460,8 +461,25 @@ static void setup_signals() {
 }
 
 #ifndef NOSTATS
-static void logstats(struct dnsstats *s, int reset) {
+struct sdnsstats {
+  time_t stime;		/* start time */
+  dnscnt_t nbad, ibad;	/* unrecognized, short etc requests */
+};
+
+static void logstats(struct sdnsstats *s, struct zone *zone, int reset) {
   time_t t = time(NULL);
+  time_t d = t - s->stime;
+  struct dnsstats tot;
+  char name[DNS_MAXDOMAIN+1];
+  struct zone *z;
+  memset(&tot, 0, sizeof(tot));
+  for (z = zone; z; z = z->z_next) {
+#define add(x) tot.x += z->z_stats.x
+    add(nnxd); add(inxd); add(onxd);
+    add(nrep); add(irep); add(orep); add(arep);
+    add(nerr); add(ierr); add(oerr);
+#undef add
+  }
 #ifdef STATS_LL
 # define C "llu"
 #else
@@ -474,23 +492,42 @@ static void logstats(struct dnsstats *s, int reset) {
     "nxd=%" C "/%" C "/%" C " "
     "err=%" C "/%" C "/%" C " "
     "bad=%" C "/%" C "",
-    t - s->stime,
-    s->nrep+s->nnxd+s->nerr+s->nbad,
-    s->irep+s->inxd+s->ierr,
-    s->orep+s->onxd+s->oerr,
-    s->arep,
-    s->nrep, s->irep, s->orep, s->arep,
-    s->nnxd, s->inxd, s->onxd,
-    s->nerr, s->ierr, s->oerr,
+    (long)d,
+    tot.nrep + tot.nnxd + tot.nerr + s->nbad,
+    tot.irep + tot.inxd + tot.ierr,
+    tot.orep + tot.onxd + tot.oerr,
+    tot.arep,
+    tot.nrep, tot.irep, tot.orep, tot.arep,
+    tot.nnxd, tot.inxd, tot.onxd,
+    tot.nerr, tot.ierr, tot.oerr,
     s->nbad, s->ibad);
+  for(z = zone; z; z = z->z_next) {
+    dns_dntop(z->z_dn, name, sizeof(name));
+    dslog(LOG_INFO, 0,
+      "stats for %ldsecs zone %.60s (num/in/out/ans): "
+      "tot=%" C "/%" C "/%" C "/%" C " "
+      "ok=%" C "/%" C "/%" C "/%" C " "
+      "nxd=%" C "/%" C "/%" C " "
+      "err=%" C "/%" C "/%" C "",
+      (long)d, name,
+      z->z_stats.nrep + z->z_stats.nnxd + z->z_stats.nerr,
+      z->z_stats.irep + z->z_stats.inxd + z->z_stats.ierr,
+      z->z_stats.orep + z->z_stats.onxd + z->z_stats.oerr,
+      z->z_stats.arep,
+      z->z_stats.nrep, z->z_stats.irep, z->z_stats.orep, z->z_stats.arep,
+      z->z_stats.nnxd, z->z_stats.inxd, z->z_stats.onxd,
+      z->z_stats.nerr, z->z_stats.ierr, z->z_stats.oerr);
+  }
 #undef C
   if (reset) {
+    for(z = zone; z; z = z->z_next)
+      memset(&z->z_stats, 0, sizeof(z->z_stats));
     memset(s, 0, sizeof(*s));
     s->stime = t;
   }
 }
 #else
-# define logstats(s,r)
+# define logstats(s,z,r)
 #endif
 
 static FILE *reopenlog(FILE *flog, const char *logfile) {
@@ -508,7 +545,7 @@ static FILE *reopenlog(FILE *flog, const char *logfile) {
 int main(int argc, char **argv) {
   int fd;
   struct zone *zonelist = NULL;
-  struct dnsstats stats;
+  struct sdnsstats stats;
   FILE *flog;
   int q, r;
 #ifndef NOIPv6
@@ -519,6 +556,7 @@ int main(int argc, char **argv) {
   socklen_t salen;
   struct dnspacket pkt;
   int flushlog = 0;
+  struct zone *zone;
 
   fd = init(argc, argv, &zonelist);
   setup_signals();
@@ -541,12 +579,12 @@ int main(int argc, char **argv) {
       sigprocmask(SIG_BLOCK, &ssblock, &ssorig);
       if (signalled & SIGNALLED_TERM) {
         dslog(LOG_INFO, 0, "terminating");
-        logstats(&stats, 0);
+        logstats(&stats, zonelist, 0);
         logmemusage();
         return 0;
       }
       if (signalled & SIGNALLED_STATS) {
-        logstats(&stats, signalled & SIGNALLED_ZEROSTATS);
+        logstats(&stats, zonelist, signalled & SIGNALLED_ZEROSTATS);
         logmemusage();
       }
       if ((signalled & SIGNALLED_RELOG) && logfile)
@@ -563,7 +601,7 @@ int main(int argc, char **argv) {
     if (q <= 0)			/* interrupted? */
       continue;
 
-    r = replypacket(&pkt, q, zonelist);
+    r = replypacket(&pkt, q, zonelist, &zone);
     if (!r) {
 #ifndef NOSTATS
       stats.nbad += 1;
@@ -576,14 +614,14 @@ int main(int argc, char **argv) {
 #ifndef NOSTATS
     switch(pkt.p_buf[3]) {
     case DNS_R_NOERROR:
-      stats.nrep += 1; stats.irep += q; stats.orep += r;
-      stats.arep += pkt.p_buf[7]; /* arcount */
+      zone->z_stats.nrep += 1; zone->z_stats.irep += q; zone->z_stats.orep += r;
+      zone->z_stats.arep += pkt.p_buf[7]; /* arcount */
       break;
     case DNS_R_NXDOMAIN:
-      stats.nnxd += 1; stats.inxd += q; stats.onxd += r;
+      zone->z_stats.nnxd += 1; zone->z_stats.inxd += q; zone->z_stats.onxd += r;
       break;
     default:
-      stats.nerr += 1; stats.ierr += q; stats.oerr += r;
+      zone->z_stats.nerr += 1; zone->z_stats.ierr += q; zone->z_stats.oerr += r;
       break;
     }
 #endif
