@@ -90,6 +90,7 @@ static int numsock;		/* number of active sockets in sock[] */
 static FILE *flog;		/* log file */
 static int flushlog;		/* flush log after each line */
 static struct zone *zonelist;	/* list of zones we're authoritative for */
+int lazy;			/* don't return AUTH section by default */
 
 /* a list of zonetypes. */
 const struct dstype *ds_types[] = {
@@ -173,18 +174,21 @@ static void NORETURN usage(int exitcode) {
 " -4 - use IPv4 socket type\n"
 " -6 - use IPv6 socket type\n"
 #endif
-" -t ttl - TTL value set in answers (35m)\n"
+" -t ttl - default TTL value to set in answers (35m)\n"
 " -v - hide version information in replies to version.bind CH TXT\n"
 "  (second -v makes rbldnsd to refuse such requests completely)\n"
 " -e - enable CIDR ranges where prefix is not on the range boundary\n"
 "  (by default ranges such 127.0.0.1/8 will be rejected)\n"
-" -c check - time interval to check for file updates (1m)\n"
-" -p pidfile - write backgrounded pid to specified file\n"
+" -c check - time interval to check for data file updates (1m)\n"
+" -p pidfile - write pid to specified file\n"
 " -n - do not become a daemon\n"
 " -q - quickstart, load zones after backgrounding\n"
 " -l logfile - log queries and answers to this file\n"
 "  (relative to chroot directory)\n"
 " -s - print memory usage and (re)load time info on zone reloads\n"
+" -a (experimental) - _omit_ AUTH section when constructing reply,\n"
+"  do not return list of auth nameservers in default replies, only\n"
+"  return NS info when explicitly asked\n"
 " -d - dump all zones in BIND format to standard output and exit\n"
 "each zone specified using `name:type:file,file...'\n"
 "syntax, repeated names constitute the same zone.\n"
@@ -363,7 +367,7 @@ static void init(int argc, char **argv) {
 
   if (argc <= 1) usage(1);
 
-  while((c = getopt(argc, argv, "u:r:b:w:t:c:p:nel:qsh46dv")) != EOF)
+  while((c = getopt(argc, argv, "u:r:b:w:t:c:p:nel:qsh46dva")) != EOF)
     switch(c) {
     case 'u': user = optarg; break;
     case 'r': rootdir = optarg; break;
@@ -396,6 +400,7 @@ static void init(int argc, char **argv) {
     case 'q': quickstart = 1; break;
     case 'd': dump = 1; break;
     case 'v': show_version = nover++ ? NULL : "rbldnsd"; break;
+    case 'a': lazy = 1; break;
     case 'h': usage(0);
     default: error(0, "type `%.50s -h' for help", progname);
     }

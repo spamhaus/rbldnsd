@@ -227,6 +227,7 @@ int replypacket(struct dnspacket *pkt, unsigned qlen, const struct zone *zone,
   unsigned char *const h = pkt->p_buf;	/* packet's header */
   const struct dslist *dsl;
   int found;
+  extern int lazy; /*XXX hack*/
 
   if (!(pkt->p_cur = pkt->p_sans = parsequery(h, qlen, &qry)))
     return 0;
@@ -314,7 +315,7 @@ int replypacket(struct dnspacket *pkt, unsigned qlen, const struct zone *zone,
   else if (!h[p_ancnt]) {	/* positive reply, no answers */
     addrr_soa(pkt, zone, 1);	/* add SOA if any to AUTHORITY */
   }
-  else if (zone->z_nns && (!(qi.qi_tflag & NSQUERY_NS) || qi.qi_dnlab))
+  else if (zone->z_nns && (!(qi.qi_tflag & NSQUERY_NS) || qi.qi_dnlab) && !lazy)
     addrr_ns(pkt, zone, 1); /* add nameserver records to positive reply */
 
   return pkt->p_cur - h;

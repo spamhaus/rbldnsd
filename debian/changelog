@@ -1,4 +1,8 @@
-rbldnsd (0.992) unstable; urgency=low
+rbldnsd (0.992pre1) unstable; urgency=low
+
+  * add `lazy' mode (-a, experimental) to stop returing
+    AUTH section by default, return it only when asked
+    explicitly
 
   * recognize `-' as single-NS-comment char in $NS line
 
