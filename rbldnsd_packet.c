@@ -415,6 +415,9 @@ void addrr_any(struct dnspacket *pkt, unsigned dtp,
   pkt->p_buf[p_ancnt] += 1; /* increment numanswers */
 }
 
+/* implement substitutions.
+ * `sb' is a buffer where the result will be stored -
+ * at least 255 + 3 characters long */
 static int
 txtsubst(char *sb, const char *txt, const char *s0, char *const sn[10]) {
   unsigned sl;
@@ -458,7 +461,7 @@ addrr_a_txt(struct dnspacket *pkt, unsigned qtflag,
   if (qtflag & NSQUERY_A)
     addrr_any(pkt, DNS_T_A, rr, 4, zds->zds_ttl);
   if (rr[4] && (qtflag & NSQUERY_TXT)) {
-    char sb[258];
+    char sb[260];
     unsigned sl = txtsubst(sb + 1, rr + 4, subst, zds->zds_subst);
     sb[0] = sl;
     addrr_any(pkt, DNS_T_TXT, sb, sl + 1, zds->zds_ttl);
@@ -474,7 +477,7 @@ dump_a_txt(const char *name, const unsigned char *rr,
     fprintf(f, "%s\tA\t%u.%u.%u.%u\n",
             name, rr[0], rr[1], rr[2], rr[3]);
     if (rr[4]) {
-      char txt[256];
+      char txt[260];
       char *p, *n;
       txt[txtsubst(txt, rr + 4, subst, zds->zds_subst)] = '\0';
       fprintf(f, "\tTXT\t\"");
