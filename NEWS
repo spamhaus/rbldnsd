@@ -3,7 +3,7 @@ $Id$
 This file describes user-visible changes in rbldnsd.
 Never news are at top.
 
-0.994 (?? ??? ????)
+0.994 (13 Dec 2004)
 
  - bugfix: fix a memory leak when $n-style substitutions
    are being used: each $n definition resulted in a leak
