@@ -3,6 +3,14 @@ $Id$
 This file describes user-visible changes in rbldnsd.
 Never news are at top.
 
+0.995 (?? ??? ????)
+
+ - bugfix: for queries for base subzone in combined dataset,
+   rbldnsd improperly returned NXDOMAIN instead of NODATA -- eg
+   a query for sub.bl.example.com where sub is a subzone of
+   a combined dataset "rooted" at bl.example.com resulted in
+   NXDOMAIN while the name obviously does exists.  Fixed (one-liner).
+
 0.994 (18 Dec 2004)
 
  - bugfix: fix a memory leak when $n-style substitutions
