@@ -3,6 +3,14 @@ $Id$
 This file describes user-visible changes in rbldnsd.
 Never news are at top.
 
+?.?? (???)
+
+ - autoconf-style configuration.  Run ./configure before make.
+   -DSTATS_LL gone; NOSTDINT_H, NOIPv6, NOMEMINFO, NOPOLL are
+   set automatically (hopefully).  I dont use GNU autoconf just
+   because it is too huge, but my own "mini-autoconf" may be not
+   as portable/tested, obviously.
+
 0.98 (17 Aug 2003)
 
  - incompatible change: bind address (-b option) is now mandatory.

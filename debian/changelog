@@ -1,3 +1,12 @@
+rbldnsd (0.98a-pre) unstable; urgency=low
+
+  * autoconf-style configuration.  Run ./configure before make.
+   - #include "config.h"
+   - uint32_t
+   - STATS_LL => uint64_t/long long/long, PRI_DNSCNT: PRIu64/llu/lu
+
+ -- Michael Tokarev <mjt@corpit.ru>  Sun, 17 Aug 2003 21:48:54 +0400
+
 rbldnsd (0.98) unstable; urgency=low
 
   * use memmove() instead of memcpy() for overlapping regions,

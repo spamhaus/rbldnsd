@@ -29,6 +29,9 @@
 #ifndef NOTIMES
 # include <sys/times.h>
 #endif
+#ifndef NOSTDINT_H
+# include <inttypes.h>
+#endif
 
 #include "rbldnsd.h"
 
@@ -578,11 +581,7 @@ static void logstats(struct zone *zonelist, int reset) {
     add(nerr); add(ierr); add(oerr);
 #undef add
   }
-#ifdef STATS_LL
-# define C "llu"
-#else
-# define C "lu"
-#endif
+#define C PRI_DNSCNT
   dslog(LOG_INFO, 0,
     "stats for %ldsec (num/in/out/ans): "
     "tot=%" C "/%" C "/%" C "/%" C " "

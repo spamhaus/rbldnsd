@@ -6,14 +6,16 @@
 #ifndef _IP4ADDR_H_INCLUDED
 #define _IP4ADDR_H_INCLUDED
 
-#ifndef NOSTDINT_H /* some BSDs have no C98 stdint.h header */
+#include "config.h"
+
+#if !defined(NOSTDINT_H)
 # include <stdint.h>
-#else
-# include <sys/types.h>
-#endif
-
 typedef uint32_t ip4addr_t; /* host byte order */
-
+#elif SIZEOF_SHORT == 4
+typedef unsigned short ip4addr_t;
+#else
+typedef unsigned ip4addr_t;
+#endif
 
 /* parse string to ip4addr_t (if np specified, return
  * pointer to the next characted in it)...: */

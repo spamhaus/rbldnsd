@@ -5,6 +5,7 @@
 #include <stdarg.h>
 #include <sys/types.h>
 #include <stdio.h>
+#include "config.h"
 #include "ip4addr.h"
 #include "dns.h"
 #include "mempool.h"
@@ -194,10 +195,15 @@ struct dslist {	/* dsl */
 struct zonesoa;
 struct zonens;
 
-#ifdef STATS_LL
+#if !defined(NOSTDINT_H)
+typedef uint64_t dnscnt_t;
+#define PRI_DNSCNT PRIu64
+#elif SIZEOF_LONG < 8 && defined(SIZEOF_LONG_LONG)
 typedef unsigned long long dnscnt_t;
+#define PRI_DNSCNT "llu"
 #else
 typedef unsigned long dnscnt_t;
+#define PRI_DNSCNT "lu"
 #endif
 struct dnsstats {
   /* n - number of requests;

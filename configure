@@ -1,0 +1,281 @@
+#! /bin/sh
+# $Id$
+# autoconf-style configuration script
+#
+
+name=rbldnsd
+
+case "$1" in
+  --help | --hel | --he | --h | -help | -hel | -he | -h )
+    cat <<EOF
+configure: configure $name package.
+Usage: ./configure [options]
+where options are:
+ --help - print this help and exit
+EOF
+    exit 0
+    ;;
+  "") ;;
+  *) echo "configure: unknown option \`$1'" >&2; exit 1 ;;
+esac
+
+set -e
+rm -f conftest* confdef* config.log
+exec 5>config.log
+cat <<EOF >&5
+This file contains any messages produced by compilers while
+running configure, to aid debugging if configure makes a mistake.
+
+EOF
+cat >confdef.h <<EOF
+/* $name autoconfiguration header file.
+ * Generated automatically by configure. */
+
+/* defines:
+ NOSTDINT_H - system lacks <stdint.h> include file.  In this case, define:
+   SIZEOF_SHORT
+   SIZEOF_INT
+   SIZEOF_LONG
+   SIZEOF_LONG_LONG (if supported)
+ NOIPv6 - system lacks IPv6 support
+ NOMEMINFO - system lacks mallinfo()
+ NOPOLL - system lacks poll()
+*/
+
+EOF
+touch confdef.sed
+
+case `echo "a\c"` in
+  *c*) en=-n ec= ;;
+  *)   en= ec='\c' ;;
+esac
+
+subst=
+
+### check for C compiler.  Set $CC
+###
+echo $en "checking for C compiler... $ec"
+rm -f conftest*; cat >conftest.c <<EOF
+int main(int argc, char **argv) { return 0; }
+EOF
+if [ -n "$CC" ]; then
+  if $CC -o conftest conftest.c 2>&5 && ./conftest 2>&5 ; then
+    echo "\$CC ($CC)"
+  else
+    echo no
+    echo "configure: \$CC ($CC) is not a working compiler" >&2
+    exit 1
+  fi
+else
+  for cc in gcc cc ; do
+    if $cc -o conftest conftest.c 2>&5 && ./conftest 2>&5 ; then
+      echo $cc
+      CC=$cc
+      break
+    fi
+  done
+  if [ -z "$CC" ]; then
+    echo no
+    echo "configure: no working C compiler found in \$PATH" >&2
+    echo "configure: please set \$CC to a working C compiler" >&2
+    exit 1
+  fi
+fi
+subst="$subst CC"
+
+if [ -z "$CFLAGS" ]; then
+  echo $en "checking whenever C compiler ($CC) is GNU CC... $ec"
+  rm -f conftest*; cat >conftest.c <<EOF
+#ifdef __GNUC__
+  yes;
+#endif
+EOF
+  if $CC -E conftest.c 2>&5 | grep yes >/dev/null ; then
+    echo yes
+    CFLAGS="-Wall -W -O2"
+  else
+    echo no
+    CFLAGS=-O
+  fi
+fi
+subst="$subst CFLAGS"
+
+[ -n "$LD" ] || LD='$(CC)'
+[ -n "$LDFLAGS" ] || LDFLAGS='$(CFLAGS)'
+[ -n "$AR" ] || AR=ar
+[ -n "$ARFLAGS" ] || ARFLAGS=rv
+[ -n "$AWK" ] || AWK=awk
+subst="$subst LD LDFLAGS AR ARFLAGS AWK"
+
+echo $en "checking for ranlib... $ec"
+if [ -n "$RANLIB" ]; then
+  echo "\$RANLIB ($RANLIB)"
+else
+  ifs="$IFS"
+  IFS=:
+  for dir in $PATH; do
+    [ -n "$dir" ] || dir=.
+    if [ -f $dir/ranlib ]; then
+      RANLIB=ranlib
+      break
+    fi
+  done
+  IFS="$ifs"
+  if [ -z "$RANLIB" ]; then echo no; RANLIB=:
+  else echo "$RANLIB"
+  fi
+fi
+subst="$subst RANLIB"
+
+echo $en "checking for stdint.h... $ec"
+rm -f conftest*; cat >conftest.c <<EOF
+#include <stdint.h>
+EOF
+if $CC -E conftest.c >conftest.out 2>&5; then
+  echo yes
+else
+  echo no
+  echo "#define NOSTDINT_H 1" >>confdef.h
+  echo $en "checking sizes of standard integer types... $ec"
+  rm -f conftest*; cat >conftest.c <<EOF
+#include <stdio.h>
+int main() {
+  printf("#define SIZEOF_SHORT %d\n", sizeof(short));
+  printf("#define SIZEOF_INT %d\n", sizeof(int));
+  printf("#define SIZEOF_LONG %d\n", sizeof(long));
+  return 0;
+}
+EOF
+  if $CC -o conftest conftest.c 2>&5 && ./conftest >>confdef.h ; then
+    echo ok
+  else
+    echo no
+    echo "configure: cannot determine sizes of standard types" >&2
+    exit 1
+  fi
+  echo $en "checking for long long... $ec"
+  rm -f conftest*; cat >conftest.c <<EOF
+#include <stdio.h>
+int main() {
+  long long x;
+  printf("%d\n", sizeof(long long));
+  return 0;
+}
+EOF
+  if $CC -o conftest conftest.c 2>&5 && ./conftest 2>&5 >conftest.out; then
+    read val <conftest.out
+    echo "yes, $val bytes"
+    echo "#define SIZEOF_LONG_LONG $val" >>confdef.h
+  else
+    echo no
+  fi
+fi
+
+echo $en "checking for socklen_t... $ec"
+rm -f conftest*; cat >conftest.c <<EOF
+#include <sys/types.h>
+#include <sys/socket.h>
+int foo() { socklen_t len; len = 0; return len; }
+EOF
+if $CC -c conftest.c 2>&5; then
+  echo yes
+else
+  echo no
+  echo "#define socklen_t int" >>confdef.h
+fi
+
+echo $en "checking for libraries needed for connect()... $ec"
+rm -f conftest*; cat >conftest.c <<EOF
+int main() { gethostbyname(); connect(); return 0; }
+EOF
+found=
+for libs in "" "-lsocket -lnsl"; do
+  if $CC -o conftest conftest.c $LIBS $libs 2>&5 ; then
+    found=y
+    break;
+  fi
+done
+if [ "$found" ]; then
+  if [ -n "$libs" ]; then
+    echo "$libs"
+  else
+    echo "none needed"
+  fi
+  LIBS="$LIBS $libs"
+else
+  echo no
+  echo "configure: cannot find libraries needed for sockets" 2>&1
+  exit 1
+fi
+
+echo $en "checking for IPv6... $ec"
+rm -f conftest*; cat >conftest.c <<EOF
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <netdb.h>
+int main() {
+  char h[200];
+  char s[200];
+  struct sockaddr_in6 sa;
+  sa.sin6_family = AF_INET6;
+  getnameinfo((struct sockaddr*)&sa, sizeof(sa), h, sizeof(h), s, sizeof(s), 0);
+  return 0;
+}
+EOF
+if $CC -o conftest conftest.c $LIBS 2>&5 ; then
+  echo yes
+else
+  echo no
+  echo "#define NOIPv6 1" >>confdef.h
+fi
+
+echo $en "checking for mallinfo()... $ec"
+rm -f conftest*; cat >conftest.c <<EOF
+#include <sys/types.h>
+#include <stdlib.h>
+#include <malloc.h>
+int main() {
+  struct mallinfo mi = mallinfo();
+  return 0;
+}
+EOF
+if $CC -o conftest conftest.c $LIBS 2>&5 ; then
+  echo yes
+else
+  echo no
+  echo "#define NOMEMINFO 1" >>confdef.h
+fi
+
+echo $en "checking for poll()... $ec"
+rm -f conftest*; cat >conftest.c <<EOF
+#include <sys/types.h>
+#include <sys/poll.h>
+int main() {
+  struct pollfd pfd[2];
+  return poll(pfd, 2, 10);
+}
+EOF
+if $CC -o conftest conftest.c 2>&5; then
+  echo yes
+else
+  echo "no, using select()"
+  echo "#define NOPOLL 1" >>confdef.h
+fi
+
+echo $en "creating Makefile... $ec"
+for var in $subst LIBS DEFS ; do
+  eval echo "\"s|@$var@|\$$var|\""
+done >>confdef.sed
+rm -f Makefile.tmp
+sed -f confdef.sed Makefile.in >Makefile.tmp
+mv -f Makefile.tmp Makefile
+echo ok
+
+echo $en "creating config.h... $ec"
+mv -f confdef.h config.h
+echo ok
+
+echo "all done."
+rm -f conftest* confdef*
+exit 0
