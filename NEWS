@@ -3,6 +3,26 @@ $Id$
 This file describes user-visible changes in rbldnsd.
 Never news are at top.
 
+0.81 (released 2003-04-03)
+
+ - rbldnsd now recognizes IP address ranges in additional to
+   IP prefixes and CIDR ranges, e.g. 127.0.0.2-127.0.1.5 now
+   works with ip4[v]set zonetypes (range is inclusive).  May
+   be disabled at compile time by adding -DNOIP4RANGES to
+   $(DEFS).
+ 
+ - new option, -e, to enable usage of "non-conforming" CIDR
+   ranges, where prefix does not fit within given netmask.
+
+ - -v option is gone, new option -l to specify a logfile
+   (it was a bad idea to log every request via syslog).
+
+ - implemented removal of duplicate entries on zone data
+   reloads.  May be disabled at compile time by adding
+   -DNOREMOVEDUPS to $(DEFS).
+
+ - various code cleanups
+
 0.80 (released 2003-04-02)
 
  Incompatible changes:
