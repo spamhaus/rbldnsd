@@ -36,6 +36,7 @@ struct zone {
   int loaded;			/* true if loaded ok */
   unsigned char *dn;		/* domain name */
   unsigned dnlen;		/* length of dn */
+  unsigned dnlab;		/* number of dn labels */
   struct zonedatalist *dlist;	/* list of datas */
   struct zone *next;		/* next in list */
 };

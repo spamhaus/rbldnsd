@@ -28,97 +28,124 @@
  * 6:7   ancount (numanswers)
  * 8:9   nscount (numauthority)
  * 10:11 arcount (numadditional)
+ * next is a DN name, a series of labels with first byte is label's length,
+ *  terminated by zero-length label (i.e. at least one zero byte is here)
+ * next two bytes are query type (A, SOA etc)
+ * next two bytes are query class (IN, HESIOD etc)
  */
 
-int replypacket(struct dnspacket *p, int len, const struct zone *zone) {
-  unsigned char *q, *x;
-  unsigned qlen, qcls, qtyp;
-  unsigned char query[DNS_MAXDN+1];
-  int nm, nf;
+int replypacket(struct dnspacket *p, unsigned qlen, const struct zone *zone) {
 
-  q = p->p + 12;
-  x = p->p + len;
-  if (q >= x) return 0; /* short packet */
-  if (p->p[2] & 0x80) return 0; /* response?! */
-  if (p->p[4] || p->p[5] != 1) return 0; /* qdcount != 1 */
-  /* check query's DN */
-  x -= 4;
-  if (q + DNS_MAXDN < x) x = q + DNS_MAXDN; /* constrain query to MAXDN */
-  while(*q)
-    if (*q > DNS_MAXLABEL || q + *q >= x) return 0;
-    else q += *q + 1;
-  qlen = ++q - (p->p + 12);
-  dns_dntol(p->p + 12, query);
-  qtyp = ((unsigned)(q[0]) << 8) | q[1];
-  qcls = ((unsigned)(q[2]) << 8) | q[3];
-  q += 4;
+  /* parsing incoming query.  Untrusted data read directly from the network.
+   * p->p is a buffer - data that was read (DNS_MAXPACKET max).
+   * len is number of bytes actually read (query length)
+   * first 12 bytes is header, next is query DN,
+   * next are QTYPE and QCLASS (2x2 bytes).
+   * rest of data if any is ignored.
+   */
+
+  unsigned qcls, qtyp;			/* query qclass and qtype */
+  unsigned qlab;			/* number of labels in qDN */
+  unsigned char qdn[DNS_MAXDN];		/* lowercased version of qDN */
+
+#define DNS_MAXLAB (DNS_MAXDN/2)	/* maximum number of labels in a DN */
+  unsigned char *qlp[DNS_MAXLAB];	/* labels: pointers to qdn[] */
+  int nmatch, nfound;
+
+  register unsigned char *const q = p->p;	/* start of query */
+  unsigned char *x;
+
+  x = q + qlen - 5;	/* last possible qDN zero terminator position */
+  /* qlen isn't needed anymore, it'll be used as length of qDN below */
+
+  if (q + 12 > x)
+    return 0; /* short packet (header isn't here) */
+  else if (q + 12 + DNS_MAXDN <= x)
+    x = q + 12 + DNS_MAXDN - 1; /* constrain query DN to DNS_MAXDN */
+
+  if (q[2] & 0x80) return 0; /* response?! */
+  if (q[4] || q[5] != 1) return 0; /* qdcount != 1 */
+
+  {	/* parse and lowercase query DN, count labels */
+    register unsigned char *s = q + 12;	/* orig src DN in question (<= x) */
+    register unsigned char *d = qdn;	/* dest lowercased ptr */
+    register unsigned char *e;		/* end of current label */
+    qlab = DNS_MAXLAB;
+    while((qlen = (*d++ = *s++)) != 0) { /* loop by DN lables */
+      if (qlen > DNS_MAXLABEL || (e = s + qlen) > x) return 0;
+      qlp[--qlab] = d - 1;
+      do *d++ = dns_dnlc(*s);	/* lowercase current label */
+      while (++s < e);		/* ..until it's end */
+    }
+    qlen = d - qdn;
+    qtyp = ((unsigned)(s[0]) << 8) | s[1];
+    qcls = ((unsigned)(s[2]) << 8) | s[3];
+    p->c = p->sans = s + 4; /* answers will start here */
+    qlab = DNS_MAXLAB - qlab;
+  }
 
   /* from now on, we see (almost?) valid dns query, should reply */
-  p->c = p->sans = q;
   p->nans = 0;
 
-#define refuse(p,code) (p->p[2] = 0x84, p->p[3] = (code), (p->sans - p->p))
-#define nxdomain(p) \
-	(p->p[2] = 0x84, p->p[3] = DNS_C_NXDOMAIN, (p->sans - p->p))
+#define refuse(code) (q[2] = 0x84, q[3] = (code), (p->sans - q))
 
   /* construct reply packet */
   /* identifier already in place */
   /* flags will be set up later */
-  /* p[4:5] (qdcount) already set up in query */
-  p->p[6] = p->p[7] = 0; /* ancount */
-  p->p[8] = p->p[9] = 0; /* nscount */
-  p->p[10] = p->p[11] = 0; /* arcount */
+  /* q[4:5] (qdcount) already set up in query */
+  q[6] = q[7] = 0; /* ancount */
+  q[8] = q[9] = 0; /* nscount */
+  q[10] = q[11] = 0; /* arcount */
 
   if (qcls != DNS_C_IN && qcls != DNS_C_ANY)
-    return refuse(p,DNS_C_FORMERR);
-  if (p->p[2] & 126)
-    return refuse(p,DNS_C_NOTIMPL);
+    return refuse(DNS_C_FORMERR);
+  if (q[2] & 126)
+    return refuse(DNS_C_NOTIMPL);
   switch(qtyp) {
   case DNS_T_ANY: qtyp = NSQUERY_ANY; break;
   case DNS_T_A:   qtyp = NSQUERY_A; break;
   case DNS_T_TXT: qtyp = NSQUERY_TXT; break;
   case DNS_T_NS:  qtyp = NSQUERY_NS; break;
   case DNS_T_SOA: qtyp = NSQUERY_SOA; break;
-  default: return refuse(p,DNS_C_REFUSED);
+  default: return refuse(DNS_C_REFUSED);
   }
 
-  p->p[2] = 0x80; /* 0x81?! */
-  if (qcls == DNS_C_IN) p->p[2] |= 0x04; /* AA */
-  p->p[3] = DNS_C_NOERROR;
+  q[2] = 0x80; /* 0x81?! */
+  if (qcls == DNS_C_IN) q[2] |= 0x04; /* AA */
+  q[3] = DNS_C_NOERROR;
 
-  nm = nf = 0;
+  nmatch = nfound = 0;
 
   for(; zone; zone = zone->next) {
-    const struct zonedatalist *zdl;
+    register const struct zonedatalist *zdl;
 
     if (!zone->loaded) continue;
-    if (zone->dnlen > qlen) continue;
-    x = query + qlen - zone->dnlen;
-    if (memcmp(zone->dn, x, zone->dnlen)) continue;
-    q = query;
-    while(q < x) q += *q + 1;
-    if (q != x) continue;
-    *q = 0;
+    if (zone->dnlab > qlab) continue;
+    x = qlp[DNS_MAXLAB - 1 - qlab + zone->dnlab];
+    if (zone->dnlen != qlen - (x - qdn)) continue;
+    if (memcmp(zone->dn, x, zone->dnlen) != 0) continue;
 
+    *x = 0;	/* terminate dn to end at zone base dn */
     for(zdl = zone->dlist; zdl; zdl = zdl->next)
       if (zdl->set->qfilter & qtyp) {
-        nm = 1;
-        if (zdl->set->queryfn(zdl->set->data, p, query, qtyp))
-          nf = 1;
+        nmatch = 1;	/* at least one zone with this data types */
+        if (zdl->set->queryfn(zdl->set->data, p, qdn, qtyp))
+          nfound = 1;	/* positive answer */
       }
-
-    *q = zone->dn[0];
+    *x = zone->dn[0];	/* restore qdn */
 
   }
 
-  if (nf) {
-    p->p[6] = p->nans >> 8; p->p[7] = p->nans;
-    return p->c - p->p;
+  if (nfound) {
+    q[6] = p->nans >> 8; q[7] = p->nans;
+    return p->c - q;
   }
-  else if (nm)
-    return nxdomain(p);
+  else if (nmatch) {
+    q[2] = 0x84; q[3] = DNS_C_NXDOMAIN;
+    return p->sans - q;
+  }
   else
-    return refuse(p, DNS_C_REFUSED); /* refused */
+    return refuse(DNS_C_REFUSED);
 }
 
 static int aexists(const struct dnspacket *p, unsigned typ,

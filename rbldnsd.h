@@ -41,7 +41,7 @@ struct dnspacket {		/* private structure */
 };
 
 /* parse query and construct a reply to it, return len of answer or 0 */
-int replypacket(struct dnspacket *p, int len, const struct zone *zone);
+int replypacket(struct dnspacket *p, unsigned qlen, const struct zone *zone);
 /* log a reply */
 void logreply(const struct dnspacket *pkt, const char *ip, FILE *flog);
 

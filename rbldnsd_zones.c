@@ -174,6 +174,7 @@ struct zone *addzone(struct zone *zlist, const char *spec) {
       z->dn = (unsigned char *)emalloc(dnlen);
       memcpy(z->dn, dn, dnlen);
       z->dnlen = dnlen;
+      z->dnlab = dns_dnlabels(dn);
       dns_dntop(dn, name, sizeof(name));
       z->name = estrdup(name);
       strcpy(z->name, name);
