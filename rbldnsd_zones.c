@@ -316,7 +316,7 @@ int ds_special(struct dataset *ds, char *line, struct dsctx *dsc) {
     line += 2;
     SKIPSPACE(line);
     if (!*line) return 0;
-    if (!(ds->ds_subst[n] = estrdup(line))) return 0;
+    if (!(ds->ds_subst[n] = mp_strdup(ds->ds_mp, line))) return 0;
     return 1;
   }
   break;

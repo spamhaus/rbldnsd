@@ -1,4 +1,4 @@
-rbldnsd (0.994pre) unstable; urgency=low
+rbldnsd (0.993.9) unstable; urgency=low
 
   * fixed wrong return in ds_ip4trie_dump_octets(), which
     prevented some ranges from being expanded properly when
@@ -17,8 +17,9 @@ rbldnsd (0.994pre) unstable; urgency=low
     with entries 127/8 and 127.0.0.2: should also emit
     *.0.127 and *.0.0.127
   * recognize NO_MASTER_DUMP #define (disable -d option)
+  * fix memleak when loading $n substitutions (mp_strdup vs estrdup)
 
- -- Michael Tokarev <mjt@corpit.ru>  Mon, 13 Dec 2004 04:21:48 +0300
+ -- Michael Tokarev <mjt@corpit.ru>  Mon, 13 Dec 2004 04:27:51 +0300
 
 rbldnsd (0.993.1) unstable; urgency=low
 
