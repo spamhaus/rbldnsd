@@ -431,10 +431,9 @@ static int updatezone(struct zone *zone) {
     }
   }
   zone->z_stamp = stamp;
-  if (!update_zone_soa(zone, dssoa))
-    zlog(zone, LOG_WARNING, "unable to initialize SOA structure");
-  if (!update_zone_ns(zone, dsnsa, nns))
-    zlog(zone, LOG_WARNING, "unable to initialize NS structure");
+  if (!update_zone_soa(zone, dssoa) ||
+      !update_zone_ns(zone, dsnsa, nns))
+    zlog(zone, LOG_WARNING, "NS or SOA RRs are too long, will be ignored");
 
   return 1;
 }
