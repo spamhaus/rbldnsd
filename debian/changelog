@@ -1,9 +1,9 @@
-rbldnsd (0.994.99) unstable; urgency=low
+rbldnsd (0.994.1) unstable; urgency=low
 
   * fixed wrong NXDOMAIN return for a query for base subzone in
     combined dataset (should be NODATA at least, not NXDOMAIN)
 
- -- Michael Tokarev <mjt@corpit.ru>  Wed,  9 Mar 2005 17:16:35 +0300
+ -- Michael Tokarev <mjt@corpit.ru>  Thu, 10 Mar 2005 01:43:22 +0300
 
 rbldnsd (0.994) unstable; urgency=low
 

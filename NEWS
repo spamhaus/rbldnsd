@@ -3,7 +3,7 @@ $Id$
 This file describes user-visible changes in rbldnsd.
 Never news are at top.
 
-0.995 (?? ??? ????)
+0.994.1 (10 Mar 2005)
 
  - bugfix: for queries for base subzone in combined dataset,
    rbldnsd improperly returned NXDOMAIN instead of NODATA -- eg
