@@ -115,7 +115,8 @@ static int satoi(const char *s) {
 
 static int do_reload(void) {
   int r;
-  char ibuf[256], *ip;
+  char ibuf[150];
+  int ip;
 #ifndef NOTIMES
   struct tms tms;
   clock_t utm, etm;
@@ -132,20 +133,22 @@ static int do_reload(void) {
   if (!r)
     return 1;
 
-  ip = ibuf + sprintf(ibuf, "zones reloaded");
+  ip = ssprintf(ibuf, sizeof(ibuf), "zones reloaded");
 #ifndef NOTIMES
   etm = times(&tms) - etm;
   utm = tms.tms_utime - utm;
 # define sec(tm) (unsigned long)(tm/HZ), (unsigned long)((tm*100/HZ)%100)
-  ip += sprintf(ip, ", time %lu.%lue/%lu.%luu sec", sec(etm), sec(utm));
+  ip += ssprintf(ibuf + ip, sizeof(ibuf) - ip,
+        ", time %lu.%lue/%lu.%luu sec", sec(etm), sec(utm));
 # undef sec
 #endif /* NOTIMES */
 #ifndef NOMEMINFO
   {
     struct mallinfo mi = mallinfo();
 # define kb(x) ((mi.x + 512)>>10)
-    ip += sprintf(ip, ", mem arena=%d ord=%d free=%d keepcost=%d mmap=%d Kb",
-      kb(arena), kb(uordblks), kb(fordblks), kb(keepcost), kb(hblkhd));
+    ip += ssprintf(ibuf + ip, sizeof(ibuf) - ip,
+          ", mem arena=%d ord=%d free=%d keepcost=%d mmap=%d Kb",
+          kb(arena), kb(uordblks), kb(fordblks), kb(keepcost), kb(hblkhd));
 # undef kb
   }
 #endif /* NOMEMINFO */
@@ -544,8 +547,6 @@ static void init(int argc, char **argv) {
     logto = LOGTO_SYSLOG;
   }
 
-  signalled |= SIGNALLED_SSTATS;
-
 }
 
 static void sighandler(int sig) {
@@ -801,6 +802,8 @@ int main(int argc, char **argv) {
   alarm(recheck);
 #ifndef NOSTATS
   stats_time = time(NULL);
+  if (statsfile)
+    dumpstats_z();
 #endif
 
   if (numsock == 1) {
