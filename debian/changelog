@@ -2,7 +2,7 @@ rbldnsd (0.993) unstable; urgency=low
 
   * 0.993 release, finally
 
-  * cleaned up debian/rules a bit per recommendations from Sanvila
+  * cleaned up debian/rules a bit per recommendations by Santiago Vila
 
   * fixed a bug when rbldnsd was using 0.0.0.0 as A value instead
     of a real IP address (when construct like ":127.0.0.2" is specified),
