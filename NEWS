@@ -3,7 +3,7 @@ $Id$
 This file describes user-visible changes in rbldnsd.
 Never news are at top.
 
-0.992 (?? ??? ????)
+0.992 (07 Mar 2004)
 
  - feature: allow easy turning on/off individual NS
    records in $NS line, by prefixing unused nameservers

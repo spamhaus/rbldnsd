@@ -1,4 +1,4 @@
-rbldnsd (0.992pre5) unstable; urgency=low
+rbldnsd (0.992) unstable; urgency=low
 
   * add an ability to specify A value but inherit default
     TXT value:
@@ -9,7 +9,7 @@ rbldnsd (0.992pre5) unstable; urgency=low
 
   * fix syslog statistics logging mess introduced in pre4
 
- -- Michael Tokarev <mjt@corpit.ru>  Mon,  1 Mar 2004 23:23:44 +0300
+ -- Michael Tokarev <mjt@corpit.ru>  Sun,  7 Mar 2004 01:35:46 +0300
 
 rbldnsd (0.992pre4) unstable; urgency=low
 
