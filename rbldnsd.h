@@ -179,6 +179,7 @@ struct zone {	/* zone, list of zones */
   struct zonedatalist *z_zdl;		/* list of datas */
   struct zonesoa z_zsoa;		/* SOA record */
   const unsigned char *z_zns[20];	/* list of nameservers */
+    /* keep z_zns definition in sync with rbldnsd_packet.c:addrr_ns() */
   unsigned z_nns;			/* number of nameservers */
   struct zone *z_next;			/* next in list */
 };

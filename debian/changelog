@@ -1,3 +1,9 @@
+rbldnsd (0.91) unstable; urgency=low
+
+  * rotate nameserver records (simple cyclic rotation)
+
+ -- Michael Tokarev <mjt@corpit.ru>  Sat, 10 May 2003 03:25:04 +0400
+
 rbldnsd (0.90) unstable; urgency=low
 
   * 0.90 final.  Some little mods for IPv6.

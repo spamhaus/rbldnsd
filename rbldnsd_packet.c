@@ -347,6 +347,19 @@ static int addrr_ns(struct dnspacket *pkt, const struct zone *zone, int auth) {
     setnonauth(pkt->p_buf); /* non-auth answer as we can't fit the record */
     return 0;
   } while(++nsp < nse);
+  if (zone->z_nns > 1) {	/* rotate nameservers */
+    /* this is somewhat hackish: zone should not be modified here,
+     * it's constant pointer for a reason.  But it's so easy to
+     * spot errors elsewhere if an attempt will be made to modify
+     * any data in this structure inside query handling routines...
+     * After all, semantics (from nameserver point of view) does
+     * not change.  But please keep this code in sync with zone
+     * structure definition in rbldnsd.h */
+    unsigned char **znsp = (unsigned char **)zone->z_zns;
+    nsdn = znsp[0];
+    memcpy(znsp, znsp + 1, (zone->z_nns - 1) * sizeof(*znsp));
+    znsp[zone->z_nns - 1] = (unsigned char *)nsdn;
+  }
   return 1;
 }
 

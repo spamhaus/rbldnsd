@@ -3,6 +3,10 @@ $Id$
 This file describes user-visible changes in rbldnsd.
 Never news are at top.
 
+0.91
+
+ - rotate nameserver records (simple cyclic rotation)
+
 0.90 (10 May 2003)
 
  - IPv6 transport support.  Specify -4 or -6 to use particular
