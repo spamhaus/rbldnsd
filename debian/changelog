@@ -8,7 +8,10 @@ rbldnsd (0.993p1) unstable; urgency=low
 
   * cleanup NOSTATS #defines/usage a bit
 
- -- Michael Tokarev <mjt@corpit.ru>  Tue,  9 Mar 2004 03:19:46 +0300
+  * bugfix: wrong MX pref in dump (-d) in generic dataset.
+    Fix by Andreas Pommer, apommer at cosy.sbg.ac.at
+
+ -- Michael Tokarev <mjt@corpit.ru>  Tue, 30 Mar 2004 00:58:55 +0400
 
 rbldnsd (0.992) unstable; urgency=low
 

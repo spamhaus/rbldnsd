@@ -341,7 +341,7 @@ ds_generic_dump(const struct dataset *ds,
     case NSQUERY_MX:
       dns_dntop(d + 3, name, sizeof(name));
       fprintf(f, "MX\t%u\t%s.\n",
-              ((unsigned)d[0] << 8) | d[1],
+              ((unsigned)d[1] << 8) | d[2],
               name);
       break;
     }
