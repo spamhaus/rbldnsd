@@ -384,12 +384,22 @@ itself includes proxies and relays but not multihops:
   :4:Multihop open relay, see http://bl.ex.com/relay/$
   127.0.0.2
   127.0.9.12
-  # for the base zone only,
+  # for the base zone and all subzones,
   # include several additional records
-  $DATASET generic @
+  $DATASET generic proxies relays multihop @
   @ A 127.0.0.8
   www A 127.0.0.8
   @ MX mx.ex.com
+  # the above results in having the following records
+  # (provided that the base zone specified is bl.ex.com):
+  #  proxies.bl.ex.com A 127.0.0.8
+  #  www.proxies.bl.ex.com 127.0.0.8
+  #  relays.bl.ex.com A 127.0.0.8
+  #  www.relays.bl.ex.com 127.0.0.8
+  #  multihop.bl.ex.com A 127.0.0.8
+  #  www.multihop.bl.ex.com 127.0.0.8
+  #  bl.ex.com A 127.0.0.8
+  #  www.bl.ex.com 127.0.0.8
 .fi
 .IP
 Note that $NS and $SOA values applies to the base zone \fIonly\fR,
@@ -529,13 +539,68 @@ queries for combined bl.ex.com.  In second form,
 there will be only 2 data sets, every record will be
 stored only once (both datasets will be reused), but
 2 lookups will be needed to resolve queries against
-combined bl.ex.com zone.
+combined bl.ex.com zone (but difference in speed is
+almost unnoticeable).  Note that when combining
+several data files into one dataset, an exclusion entry
+in one file becomes exclusion entry in the whole dataset
+(which may be a problem when combining dialups, where
+exclusions are common, with open relays/proxies, where
+exclusions are rare if at all used).
+.PP
+Similar effect may be achieved by using \fBcombined\fR
+dataset type, sometimes more easily.  \fBcombined\fR
+dataset results in every nested dataset to be used
+independantly, like in second form above.
+
+.PP
+\fBcombined\fR dataset requires \fBrbldnsd\fR to be the
+authoritative nameserver for the whole base zone.  Most
+important, one may specify SOA and NS records for the
+base zone \fIonly\fR.  So, some DNSBLs which does not
+use a common subzone for the data, cannot use this dataset.
+An example being DSBL.org DNSBL, where each of list.dsbl.org,
+multihop.dsbl.org and unconfirmed.dsbl.org zones are separate,
+independant zones with different set of nameservers.  But for
+DSBL.org, where each dataset is really independant and used only
+once (there's no (sub)zone that is as a combinations of other
+zones), \fBcombined\fR dataset isn't necessary.  In contrast,
+relays.osirusoft.com and SORBS.net zones, where several subzones
+used and main zone is a combination of several subzones,
+\fBcombined\fR dataset is a way to go.
 
 .PP
 .B generic
-zone type is very rudimentary.  It's purpose is to
+dataset type is very rudimentary.  It's purpose is to
 complement all the other type to form complete nameserver
-that may answer to A, TXT and MX queries.
+that may answer to A, TXT and MX queries.  This is useful
+mostly to define A records for HTTP access (relays.osirusoft.com
+A, www.relays.osirusoft.com A just in case), and maybe description
+texts as a TXT record.
+
+.PP
+Since \fBrbldnsd\fR only searches \fIone\fR, most closely matching
+(sub)zone for every request, one cannot specify a single e.g.
+\fBgeneric\fR dataset in form
+.nf
+  proxies      TXT list of open proxies
+  www.proxies  A 127.0.0.8
+  relays       TXT list of open relays
+  www.relays   A 127.0.0.9
+.fi
+for several (sub)zones, each of which are represented as a zone
+too (either in command line or as \fBcombined\fR dataset).
+Instead, several \fBgeneric\fR datasets should be specified,
+separate one for every (sub)zone.  If the data for every subzone
+is the same, the same, single dataset may be used, but it should
+be specified for every zone it should apply to (see \fBcombined\fR
+dataset usage example above).
+
+.PP
+For nameserver records, it is highly recommended to list
+nameservers for a zone to be in different zone (e.g. in parent
+zone), not controlled by \fBrbldnsd\fR.  \fBrbldnsd\fR does not
+insert addresses of nameservers into ADDITIONAL section of an
+answer when asked for NS records for a zone, see BUGS section below.
 
 .SH BUGS
 
@@ -568,6 +633,27 @@ Unlike BIND,
 does not add NS records to AUTH section of every answer, even
 if such records are specified (in `generic' dataset).  This way,
 answer size is much likely to fit in a single UDP packet.
+This may be result in delays of propagation of the changed
+nameserver lists to various caches querying a DNSBL: when
+new NS records are included in every answer, caches will pick
+them up immediately instead of waiting for the old cached
+records to expire.  This is a tradeoff between efficient
+operations in normal cases and fast nameserver records
+propagation.  This may change in the future, however (probably
+controlled by an option) \- \fBrbldnsd\fR may start adding
+NS records when there's a room for them in answer packet.
+
+.PP
+Also, \fBrbldnsd\fR does not add A records into ADDITIONAL
+section in answers for nameservers.  In order to work around
+this, made nameservers to be inside another domain/zone which
+isn't handled by \fBrbldnsd\fR (and thus \fBrbldnsd\fR is
+not authoritative for that zone), i.e. instead of using
+e.g. ns0.list.dsbl.org NS for list.dsbl.org zone, use
+n0-list.dsbl.org (inside parent zone, not controlled by
+\fBrbldnsd\fR).  Since parent zone accessed much less
+frequently than the DNSBL zone itself, it may require less
+nameservers (and much less load).
 
 .PP
 .B rbldnsd
