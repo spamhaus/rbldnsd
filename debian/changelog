@@ -7,6 +7,8 @@ rbldnsd (0.992pre5) unstable; urgency=low
 
   * remove redundrand CNAMEs from master-file dump in ip4set
 
+  * fix syslog statistics logging mess introduced in pre4
+
  -- Michael Tokarev <mjt@corpit.ru>  Mon,  1 Mar 2004 23:23:44 +0300
 
 rbldnsd (0.992pre4) unstable; urgency=low

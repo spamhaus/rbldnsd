@@ -715,20 +715,18 @@ static void logstats(int reset) {
 #undef add
     dns_dntop(z->z_dn, name, sizeof(name));
     dslog(LOG_INFO, 0,
-      "stats for %ldsecs zone %.60s:"
-      C(tot) C(ok) C(nxd) C(err) C(in) C(out),
+      "stats for %ldsecs zone %.60s:" C(tot) C(ok) C(nxd) C(err) C(in) C(out),
       (long)d, name,
       z->z_stats.q_ok + z->z_stats.q_nxd + z->z_stats.q_err,
-      z->z_stats.b_in, z->z_stats.b_out,
-      z->z_stats.q_ok, z->z_stats.q_nxd, z->z_stats.q_err);
+      z->z_stats.q_ok, z->z_stats.q_nxd, z->z_stats.q_err,
+      z->z_stats.b_in, z->z_stats.b_out);
   }
   dslog(LOG_INFO, 0,
-    "stats for %ldsec (num/in/out): "
-    C(tot) C(ok) C(nxd) C(err) C(in) C(out),
+    "stats for %ldsec:" C(tot) C(ok) C(nxd) C(err) C(in) C(out),
     (long)d,
     tot.q_ok + tot.q_nxd + tot.q_err,
-    tot.b_in, tot.b_out,
-    tot.q_ok, tot.q_nxd, tot.q_err);
+    tot.q_ok, tot.q_nxd, tot.q_err,
+    tot.b_in, tot.b_out);
 #undef C
   if (reset) {
     for(z = zonelist; z; z = z->z_next) {
