@@ -255,10 +255,10 @@ vdslog(int level, int lineno, const char *fmt, va_list ap) {
   if ((logto & LOGTO_STDOUT) ||
       (level <= LOG_WARNING && (logto & LOGTO_STDERR)))
     l = pl = ssprintf(buf, sizeof(buf), "%.30s: ", progname);
-  else if (!(logto & LOG_SYSLOG))
-    return;
-  else
+  else if (logto & LOGTO_SYSLOG)
     l = pl = 0;
+  else
+    return;
   if (ds_loading) {
     l += ssprintf(buf + l, sizeof(buf) - l, "%s:%.60s:",
                   ds_loading->ds_type->dst_name, ds_loading->ds_spec);
