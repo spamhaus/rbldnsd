@@ -422,7 +422,8 @@ addrr_a_txt(struct dnspacket *pkt, unsigned qtflag,
       memcpy(lp, rr, sl);
       lp += sl;
       if (!*s++) break;
-      if (*s >= '0' && *s <= '9') { /* $1 var */
+      if (*s == '$') { si = s++; sl = 1; }
+      else if (*s >= '0' && *s <= '9') { /* $1 var */
         si = zds->zds_subst[*s - '0'];
         if (!si) { si = s - 1; sl = 2; }
         else sl = strlen(si);
