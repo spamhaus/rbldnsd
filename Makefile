@@ -27,7 +27,7 @@ LIBIP4_SRCS = ip4parse.c ip4atos.c ip4mask.c
 LIBIP4_HDRS = ip4addr.h
 
 LIB_SRCS = $(LIBDNS_SRCS) $(LIBIP4_SRCS) mempool.c
-LIB_HDRS = $(LIBDNS_HDRS) $(LIBIP4_HDRS) mempool.h qsort.h
+LIB_HDRS = $(LIBDNS_HDRS) $(LIBIP4_HDRS) mempool.h
 LIB_OBJS = $(LIB_SRCS:.c=.o)
 
 RBLDNSD_SRCS = rbldnsd.c rbldnsd_zones.c rbldnsd_packet.c \
@@ -38,7 +38,7 @@ RBLDNSD_SRCS = rbldnsd.c rbldnsd_zones.c rbldnsd_packet.c \
 RBLDNSD_HDRS = rbldnsd.h rbldnsd_zones.h
 RBLDNSD_OBJS = $(RBLDNSD_SRCS:.c=.o)
 
-MISC = rbldnsd.8 Makefile NEWS CHANGES WirehubDynablock2rbldnsd.pl
+MISC = rbldnsd.8 qsort.c Makefile NEWS CHANGES WirehubDynablock2rbldnsd.pl
 
 SRCS = $(LIB_SRCS) $(RBLDNSD_SRCS) ip4rangetest.c
 HDRS = $(LIB_HDRS) $(RBLDNSD_HDRS)
@@ -97,20 +97,20 @@ dns_dnreverse.o: dns_dnreverse.c dns.h
 ip4parse.o: ip4parse.c ip4addr.h
 ip4atos.o: ip4atos.c ip4addr.h
 ip4mask.o: ip4mask.c ip4addr.h
+mempool.o: mempool.c mempool.h
 rbldnsd.o: rbldnsd.c rbldnsd.h ip4addr.h dns.h mempool.h
 rbldnsd_zones.o: rbldnsd_zones.c dns.h rbldnsd.h ip4addr.h \
  rbldnsd_zones.h
 rbldnsd_packet.o: rbldnsd_packet.c rbldnsd.h ip4addr.h rbldnsd_zones.h \
  dns.h
 rbldnsd_generic.o: rbldnsd_generic.c rbldnsd.h ip4addr.h dns.h \
- mempool.h qsort.h
-rbldnsd_ip4set.o: rbldnsd_ip4set.c rbldnsd.h ip4addr.h dns.h qsort.h
+ mempool.h qsort.c
+rbldnsd_ip4set.o: rbldnsd_ip4set.c rbldnsd.h ip4addr.h dns.h qsort.c
 rbldnsd_ip4vset.o: rbldnsd_ip4vset.c rbldnsd.h ip4addr.h dns.h \
- mempool.h qsort.h
+ mempool.h qsort.c
 rbldnsd_dnset.o: rbldnsd_dnset.c rbldnsd.h ip4addr.h dns.h mempool.h \
- qsort.h
+ qsort.c
 rbldnsd_dnvset.o: rbldnsd_dnvset.c rbldnsd.h ip4addr.h dns.h mempool.h \
- qsort.h
+ qsort.c
 rbldnsd_util.o: rbldnsd_util.c rbldnsd.h ip4addr.h mempool.h
-mempool.o: mempool.c mempool.h
 ip4rangetest.o: ip4rangetest.c ip4addr.h rbldnsd.h

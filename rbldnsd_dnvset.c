@@ -10,7 +10,6 @@
 #include "rbldnsd.h"
 #include "dns.h"
 #include "mempool.h"
-#include "qsort.h"
 
 definezonetype(dnvset, NSQUERY_A_TXT, "set of (domain name, value) pairs");
 
@@ -134,33 +133,35 @@ dnvset_load(struct zonedata *z, FILE *f) {
   return readzlines(f, z, dnvset_parseline);
 }
 
-static inline int dnvset_cmpent(const struct entry *a, const struct entry *b) {
+static int dnvset_lt(const struct entry *a, const struct entry *b) {
   int r = strcmp(a->dn, b->dn);
-  if (r) return r;
-  if (a->r_a < b->r_a) return -1;
-  if (a->r_a > b->r_a) return 1;
-  return 0;
-}
-
-static struct entry *dnvset_finish1(struct entry *e, unsigned n, unsigned a) {
-  if (!n) return NULL;
-  QSORT(struct entry, e, n, dnvset_cmpent);
-  /* we make all the same DNs point to one string for faster searches */
-  { register struct entry *p, *t;
-    for(p = e, t = e + n - 1; p < t; ++p)
-      if (p[0].dn != p[1].dn && strcmp(p[0].dn, p[1].dn) == 0)
-        p[1].dn = p[0].dn;
-  }
-#define dnvset_eeq(a,b) a.dn == b.dn && rrs_equal(a,b)
-  REMOVE_DUPS(e, n, struct entry, dnvset_eeq);
-  SHRINK_ARRAY(e, a, n, struct entry);
-  return e;
+  return
+     r < 0 ? 1 :
+     r > 0 ? 0 :
+     a->r_a < b->r_a;
 }
 
 static int dnvset_finish(struct zonedata *z) {
   unsigned r;
-  for(r = 0; r < 2; ++r)
-    z->e[r] = dnvset_finish1(z->e[r], z->n[r], z->a[r]);
+  for(r = 0; r < 2; ++r) {
+    if (!z->n[r]) continue;
+
+#   define QSORT_TYPE struct entry
+#   define QSORT_BASE z->e[r]
+#   define QSORT_NELT z->n[r]
+#   define QSORT_LT(a,b) dnvset_lt(a,b)
+#   include "qsort.c"
+
+    /* we make all the same DNs point to one string for faster searches */
+    { register struct entry *e, *t;
+      for(e = z->e[r], t = e + z->n[r] - 1; e < t; ++e)
+        if (e[0].dn != e[1].dn && strcmp(e[0].dn, e[1].dn) == 0)
+          e[1].dn = e[0].dn;
+    }
+#define dnvset_eeq(a,b) a.dn == b.dn && rrs_equal(a,b)
+    REMOVE_DUPS(struct entry, z->e[r], z->n[r], dnvset_eeq);
+    SHRINK_ARRAY(struct entry, z->e[r], z->n[r], z->a[r]);
+  }
   zloaded("e/w=%u/%u", z->n[EP], z->n[EW]);
   return 1;
 }

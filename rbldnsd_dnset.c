@@ -10,7 +10,6 @@
 #include "rbldnsd.h"
 #include "dns.h"
 #include "mempool.h"
-#include "qsort.h"
 
 definezonetype(dnset, NSQUERY_A_TXT, "set of domain names");
 
@@ -115,20 +114,21 @@ dnset_load(struct zonedata *z, FILE *f) {
   return readzlines(f, z, dnset_parseline);
 }
 
-static struct entry *dnset_finish1(struct entry *e, unsigned n, unsigned a) {
-  if (!n) return NULL;
-#define dnset_cmpent(a,b) strcmp(a->dn, b->dn)
-  QSORT(struct entry, e, n, dnset_cmpent);
-#define dnset_eeq(a,b) strcmp(a.dn, b.dn) == 0
-  REMOVE_DUPS(e, n, struct entry, dnset_eeq);
-  SHRINK_ARRAY(e, a, n, struct entry);
-  return e;
-}
-
 static int dnset_finish(struct zonedata *z) {
   unsigned r;
-  for(r = 0; r < 2; ++r)
-    z->e[r] = dnset_finish1(z->e[r], z->n[r], z->a[r]);
+  for(r = 0; r < 2; ++r) {
+    if (!z->n[r]) continue;
+
+#   define QSORT_TYPE struct entry
+#   define QSORT_BASE z->e[r]
+#   define QSORT_NELT z->n[r]
+#   define QSORT_LT(a,b) strcmp(a->dn, b->dn) < 0
+#   include "qsort.c"
+
+#define dnset_eeq(a,b) strcmp(a.dn, b.dn) == 0
+    REMOVE_DUPS(struct entry, z->e[r], z->n[r], dnset_eeq);
+    SHRINK_ARRAY(struct entry, z->e[r], z->n[r], z->a[r]);
+  }
   zloaded("e/w=%u/%u", z->n[EP], z->n[EW]);
   return 1;
 }

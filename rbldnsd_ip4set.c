@@ -12,7 +12,6 @@
 #include <stdlib.h>
 #include "rbldnsd.h"
 #include "dns.h"
-#include "qsort.h"
 
 definezonetype(ip4set, NSQUERY_A_TXT, "set of ip4 addresses");
 
@@ -108,20 +107,21 @@ static struct zonedata *ip4set_alloc() {
   return z;
 }
 
-static ip4addr_t *ip4set_finish1(ip4addr_t *e, unsigned n, unsigned a) {
-  if (!n) return NULL;
-#define ip4set_cmpent(a,b) (*a < *b ? -1 : *a > *b ? 1 : 0)
-  QSORT(ip4addr_t, e, n, ip4set_cmpent);
-#define ip4set_eeq(a,b) a == b
-  REMOVE_DUPS(e, n, ip4addr_t, ip4set_eeq);
-  SHRINK_ARRAY(e, a, n, ip4addr_t);
-  return e;
-}
-
 static int ip4set_finish(struct zonedata *z) {
   unsigned r;
-  for(r = 0; r < 4; ++r)
-    z->e[r] = ip4set_finish1(z->e[r], z->n[r], z->a[r]);
+  for(r = 0; r < 4; ++r) {
+    if (!z->n[r]) continue;
+
+#   define QSORT_TYPE ip4addr_t
+#   define QSORT_BASE z->e[r]
+#   define QSORT_NELT z->n[r]
+#   define QSORT_LT(a,b) *a < *b
+#   include "qsort.c"
+
+#define ip4set_eeq(a,b) a == b
+    REMOVE_DUPS(ip4addr_t, z->e[r], z->n[r], ip4set_eeq);
+    SHRINK_ARRAY(ip4addr_t, z->e[r], z->n[r], z->a[r]);
+  }
   zloaded("e32/24/16/8=%u/%u/%u/%u", 
           z->n[E32], z->n[E24], z->n[E16], z->n[E08]);
   return 1;

@@ -135,7 +135,7 @@ int vssprintf(char *buf, int bufsz, const char *fmt, va_list ap);
 int PRINTFLIKE(3, 4) ssprintf(char *buf, int bufsz, const char *fmt, ...);
 
 /* a helper to shrink an array */
-#define SHRINK_ARRAY(arr, allocated, needed, type)		\
+#define SHRINK_ARRAY(type, arr, needed, allocated)		\
   if ((allocated) > (needed)) {					\
      (arr) = (type*)realloc((arr), (needed) * sizeof(type));	\
      (allocated) = (needed);					\
@@ -143,7 +143,7 @@ int PRINTFLIKE(3, 4) ssprintf(char *buf, int bufsz, const char *fmt, ...);
 
 /* a helper macro to remove dups from a sorted array */
 
-#define REMOVE_DUPS(arr, num, type, eq)	\
+#define REMOVE_DUPS(type, arr, num, eq)	\
 { register type *_p, *_e, *_t;		\
   _p = arr; _t = _p + num - 1;		\
   while(_p < _t)			\

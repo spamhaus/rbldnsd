@@ -10,7 +10,6 @@
 #include "rbldnsd.h"
 #include "dns.h"
 #include "mempool.h"
-#include "qsort.h"
 
 definezonetype(generic, NSQUERY_ANY, "generic simplified bind-format");
 
@@ -201,29 +200,31 @@ static struct zonedata *generic_alloc() {
   return z;
 }
 
-static inline int generic_cmpent(const struct entry *a, const struct entry *b) {
+static inline int generic_lt(const struct entry *a, const struct entry *b) {
   int r = strcmp(a->dn, b->dn);
-  if (r) return r;
-  if (a->dtyp < b->dtyp) return -1;
-  if (a->dtyp > b->dtyp) return 1;
-  return 0;
-}
-
-static struct entry *generic_finish1(struct entry *e, unsigned n, unsigned a) {
-  if (!n) return NULL;
-  QSORT(struct entry, e, n, generic_cmpent);
-  /* collect all equal DNs to point to the same place */
-  { struct entry *i, *t;
-    for(i = e, t = e + n - 1; i < t; ++i)
-      if (i[0].dn != i[1].dn && strcmp(i[0].dn, i[1].dn) == 0)
-        i[1].dn = i[0].dn;
-  }
-  SHRINK_ARRAY(e, a, n, struct entry);
-  return e;
+  return
+     r < 0 ? 1 :
+     r > 0 ? 0 :
+     a->dtyp < b->dtyp;
 }
 
 static int generic_finish(struct zonedata *z) {
-  z->e = generic_finish1(z->e, z->n, z->a);
+  if (z->n) {
+
+#   define QSORT_TYPE struct entry
+#   define QSORT_BASE z->e
+#   define QSORT_NELT z->n
+#   define QSORT_LT(a,b) generic_lt(a,b)
+#   include "qsort.c"
+
+    /* collect all equal DNs to point to the same place */
+    { struct entry *e, *t;
+      for(e = z->e, t = e + z->n - 1; e < t; ++e)
+        if (e[0].dn != e[1].dn && strcmp(e[0].dn, e[1].dn) == 0)
+          e[1].dn = e[0].dn;
+    }
+    SHRINK_ARRAY(struct entry, z->e, z->n, z->a);
+  }
   zloaded("e=%u", z->n);
   return 1;
 }

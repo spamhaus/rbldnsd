@@ -10,7 +10,6 @@
 #include "rbldnsd.h"
 #include "dns.h"
 #include "mempool.h"
-#include "qsort.h"
 
 definezonetype(ip4vset, NSQUERY_A_TXT, "set of (ip4, value) pairs");
 
@@ -135,23 +134,24 @@ static struct zonedata *ip4vset_alloc() {
   return z;
 }
 
-static struct entry *ip4vset_finish1(struct entry *e, unsigned n, unsigned a) {
-  if (!n) return NULL;
-#define ip4vset_cmpent(a,b) \
-    a->addr < b->addr ? -1 : a->addr > b->addr ? 1 : \
-      a->r_a < b->r_a ? -1 : a->r_a > b->r_a ? 1 : \
-        0
-  QSORT(struct entry, e, n, ip4vset_cmpent);
-#define ip4vset_eeq(a,b) a.addr == b.addr && rrs_equal(a,b)
-  REMOVE_DUPS(e, n, struct entry, ip4vset_eeq);
-  SHRINK_ARRAY(e, a, n, struct entry);
-  return e;
-}
-
 static int ip4vset_finish(struct zonedata *z) {
   unsigned r;
-  for(r = 0; r < 4; ++r)
-    z->e[r] = ip4vset_finish1(z->e[r], z->n[r], z->a[r]);
+  for(r = 0; r < 4; ++r) {
+    if (!z->n[r]) continue;
+
+#   define QSORT_TYPE struct entry
+#   define QSORT_BASE z->e[r]
+#   define QSORT_NELT z->n[r]
+#   define QSORT_LT(a,b) \
+       a->addr < b->addr ? 1 : \
+       a->addr > b->addr ? 0 : \
+       a->r_a < b->r_a
+#   include "qsort.c"
+
+#define ip4vset_eeq(a,b) a.addr == b.addr && rrs_equal(a,b)
+    REMOVE_DUPS(struct entry, z->e[r], z->n[r], ip4vset_eeq);
+    SHRINK_ARRAY(struct entry, z->e[r], z->n[r], z->a[r]);
+  }
   zloaded("e32/24/16/8=%u/%u/%u/%u",
           z->n[E32], z->n[E24], z->n[E16], z->n[E08]);
   return 1;
