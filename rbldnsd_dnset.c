@@ -202,7 +202,7 @@ ds_dnset_query(const struct dataset *ds, const struct dnsquery *query,
   const struct entry *e;
   int sub = 0;
 
-  if (!qlab) return 0;		/* empty query will never match */
+  /* if (!qlab) return 0; we will never see empty query */
 
   if (qlab > ds->maxlab[EP] 	/* if we have less labels, search unnec. */
       || !(e = ds_dnset_find(ds->e[EP], ds->n[EP], rdn, qlen, &sub))) {

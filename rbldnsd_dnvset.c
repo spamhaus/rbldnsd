@@ -204,8 +204,6 @@ ds_dnvset_query(const struct dataset *ds, const struct dnsquery *query,
   const struct entry *e, *t;
   char name[DNS_MAXDOMAIN+1];
 
-  if (!qlab) return 0;
- 
   if (qlab > ds->maxlab[EP] ||
     !(e = ds_dnvset_find(ds->e[EP], ds->n[EP], rdn, qlen, &sub))) {
     /* try wildcard; require at least 1 label on the left */
