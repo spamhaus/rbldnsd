@@ -119,7 +119,10 @@ Use IPv6 listening socket/transport, do not attempt to use IPv4.
 
 .IP "\fB\-t\fR \fIttl\fR"
 Set answer time\-to\-live value to be \fIttl\fR secounds.  All answers will
-contain \fIttl\fR as a value of time\-to\-live field.  Default is 2048.
+contain \fIttl\fR as a value of time\-to\-live field.  \fIttl\fI may
+follow by a single character specifying the time unit: s for secounds,
+m for minutes, h for hours, d for days and w for weeks.  If no unit
+modifier given, secounds assumed.  Default \fIttl\fR is 30m.
 
 .IP "\fB\-c\fR \fIcheck\fR"
 Set interval between checking for zone file changes to be \fIcheck\fR
@@ -198,19 +201,20 @@ expected, to mean one of the following:
 .IP "\fB$SOA\fR \fIttl origindn persondn serial refresh retry expire minttl"
 Specifies SOA (Start Of Authority) record for all zones using this
 dataset.  Only first SOA record is interpreted.  This is the only way
-to specify SOA \- by default,
-.B rbldnsd
-will not add any SOA record into answers, and will REFUSE to answer to
-certain queries (notably, SOA query to zone's base domain name).  It is
-recommended, but not mandatory to specify SOA record for every zone
-(it is yet unknown whenever a DNSBL nameserver should reply to SOA
-queries or not).
+to specify SOA \- by default, \fBrbldnsd\fR will not add any SOA record
+into answers, and will REFUSE to answer to certain queries (notably, SOA
+query to zone's base domain name).  It is recommended, but not mandatory
+to specify SOA record for every zone.  If no SOA is given, negative replies
+will not be cacheable by caching nameservers.
 .IP
 If \fIserial\fR value specified is zero, timestamp of most recent
 modified file will be substituted as \fIserial\fR.
 .IP
 If \fIttl\fR field is zero, default ttl (\fB\-t\fR option or last \fB$TTL\fR
 value, see below) will be used.
+.IP
+All time fields (ttl, refresh, retry, expire, minttl) may be specified
+in time units.  See \fB\-t\fR option for details.
 
 .IP "\fB$NS\fR \fIttl\fR \fInameserverdn\fR"
 Specifies NS (Name Server) record for all zones using this dataset.

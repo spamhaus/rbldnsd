@@ -65,6 +65,7 @@ struct dnsquery {	/* q */
 
 #define skipspace(s) while(*s == ' ' || *s == '\t') ++s
 char *parse_uint32(char *s, unsigned char nb[4]);
+char *parse_time(char *s, unsigned char nb[4]);
 char *parse_ttl(char *s, unsigned char ttl[4], const unsigned char defttl[4]);
 char *parse_dn(char *s, unsigned char *dn, unsigned *dnlenp);
 

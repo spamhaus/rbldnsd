@@ -13,7 +13,7 @@
 #define digit(c) ((c) >= '0' && (c) <= '9')
 #define d2n(c) ((c) - '0') 
 
-char *parse_uint32(char *s, unsigned char nb[4]) {
+static char *parse_uint32_s(char *s, unsigned *np) {
   unsigned char *t = (unsigned char*)s;
   unsigned n = 0;
   if (!digit(*t))
@@ -23,16 +23,48 @@ char *parse_uint32(char *s, unsigned char nb[4]) {
     if (n * 10 > 0xffffffffu - d2n(*t)) return 0;
     n = n * 10 + d2n(*t++);
   } while(digit(*t));
-  nb[0] = n>>24; nb[1] = n>>16; nb[2] = n>>8; nb[3] = n;
-  skipspace(t);
+  *np = n;
   return (char*)t;
 }
 
+char *parse_uint32(char *s, unsigned char nb[4]) {
+  unsigned n;
+  if (!(s = parse_uint32_s(s, &n))) return NULL;
+  if (*s) {
+    if (*s != ' ' && *s != '\t') return NULL;
+    do ++s; while(*s == ' ' || *s == '\t');
+  }
+  nb[0] = n>>24; nb[1] = n>>16; nb[2] = n>>8; nb[3] = n;
+  return s;
+}
+
+char *parse_time(char *s, unsigned char nb[4]) {
+  unsigned n;
+  unsigned m = 1;
+  if (!(s = parse_uint32_s(s, &n))) return NULL;
+  switch(*s) {
+    case 'w': case 'W': m *= 7;		/* week */
+    case 'd': case 'D': m *= 24;	/* day */
+    case 'h': case 'H': m *= 60;	/* hours */
+    case 'm': case 'M': m *= 60;	/* minues */
+      if (0xffffffffu / m < n) return NULL;
+      n *= m;
+    case 's': case 'S':			/* secounds */
+      ++s;
+      break;
+  }
+  if (*s) {
+    if (*s && *s != ' ' && *s != '\t') return NULL;
+    do ++s; while(*s == ' ' || *s == '\t');
+  }
+  nb[0] = n>>24; nb[1] = n>>16; nb[2] = n>>8; nb[3] = n;
+  return s;
+}
+
 char *parse_ttl(char *s, unsigned char ttl[4], const unsigned char defttl[4]) {
-  s = parse_uint32(s, ttl);
-  if (s)
-    if (memcmp(ttl, "\0\0\0\0", 4) == 0)
-      memcpy(ttl, defttl, 4);
+  s = parse_time(s, ttl);
+  if (s && memcmp(ttl, "\0\0\0\0", 4) == 0)
+    memcpy(ttl, defttl, 4);
   return s;
 }
 

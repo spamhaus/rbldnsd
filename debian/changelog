@@ -9,6 +9,7 @@ rbldnsd (0.91pre) unstable; urgency=low
   * fixed glitch in dnset - min DN labels was always 0 (tiny speedup only)
   * fixed default A RR to be 127.0.0.2, not 2.0.0.127
   * added a note about absolute vs relative domain names into manpage
+  * allow to specify a unit (s, m, h, d, w) for all time values
 
  -- Michael Tokarev <mjt@corpit.ru>  Wed, 14 May 2003 19:20:28 +0400
 

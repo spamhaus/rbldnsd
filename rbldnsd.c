@@ -59,13 +59,13 @@ void error(int errnum, const char *fmt, ...) {
   _exit(1);
 }
 
-unsigned char defttl[4];	/* default record TTL */
 static int recheck = 60;	/* interval between checks for reload */
 static int accept_in_cidr;	/* accept 127.0.0.1/8-style CIDRs */
 static int initialized;		/* 1 when initialized */
 static char *logfile;		/* log file name */
 static int logmemtms;		/* print memory usage and (re)load time info */
-const char def_rr[5] = "\177\0\0\2\0";	/* default A RR */
+unsigned char defttl[4] = "\0\0\07\010";	/* default record TTL */
+const char def_rr[5] = "\177\0\0\2\0";		/* default A RR */
 
 /* a list of zonetypes. */
 const struct dataset_type *dataset_types[] = {
@@ -145,7 +145,7 @@ static void NORETURN usage(int exitcode) {
 " -4 - use IPv4 socket type\n"
 " -6 - use IPv6 socket type\n"
 #endif
-" -t ttl - TTL value set in answers (2048)\n"
+" -t ttl - TTL value set in answers (30m)\n"
 " -e - enable CIDR ranges where prefix is not on the range boundary\n"
 "  (by default ranges such 127.0.0.1/8 will be rejected)\n"
 " -c check - check for file updates every `check' secs (60)\n"
@@ -181,7 +181,6 @@ static int init(int argc, char **argv, struct zone **zonep) {
   gid_t gid = 0;
   int fd;
   int nodaemon = 0, quickstart = 0;
-  unsigned ttl = 2048;
 #ifndef NOIPv6
   struct addrinfo hints, *aires, *ai;
   char host[NI_MAXHOST], serv[NI_MAXSERV];
@@ -220,9 +219,8 @@ static int init(int argc, char **argv, struct zone **zonep) {
     case 'w': workdir = optarg; break;
     case 'p': pidfile = optarg; break;
     case 't':
-      if ((c = satoi(optarg)) < 0)
+      if (!(p = parse_time(optarg, defttl)) || *p)
         error(0, "invalid ttl (-t) value `%.50s'", optarg);
-      ttl = c;
       break;
     case 'c':
       if ((c = satoi(optarg)) < 0)
@@ -241,9 +239,6 @@ static int init(int argc, char **argv, struct zone **zonep) {
   if (!(argc -= optind))
     error(0, "no zone(s) to service specified (-h for help)");
   argv += optind;
-
-  defttl[0] = ttl>>24; defttl[1] = ttl>>16;
-  defttl[2] = ttl>>8; defttl[3] = ttl;
 
   if (nodaemon)
     logto = LOGTO_STDOUT;
