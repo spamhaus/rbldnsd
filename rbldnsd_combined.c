@@ -192,7 +192,7 @@ ds_combined_query(const struct dataset *ds, const struct dnsqinfo *qi,
     if (dsl->dsl_queryfn(dsl->dsl_ds, &sqi, pkt))
       found = 1;
   /* if it was a query for our base subzone, always return `found' */
-  return found || !sqi.qi_dnlen;
+  return found || !sqi.qi_dnlab;
 }
 
 #ifndef NO_MASTER_DUMP
