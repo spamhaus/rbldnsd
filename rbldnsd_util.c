@@ -234,7 +234,7 @@ char *estrdup(const char *str) {
 
 int vssprintf(char *buf, int bufsz, const char *fmt, va_list ap) {
   int r = vsnprintf(buf, bufsz, fmt, ap);
-  return r < 0 ? 0 : r >= bufsz ? bufsz - 1 : r;
+  return r < 0 ? 0 : r >= bufsz ? buf[bufsiz-1] = '\0', bufsz - 1 : r;
 }
 
 int ssprintf(char *buf, int bufsz, const char *fmt, ...) {
@@ -317,11 +317,23 @@ void dsloaded(const char *fmt, ...) {
   else {
     struct tm *tm = gmtime(&ds_loading->ds_stamp);
     char buf[128];
-    vsnprintf(buf, sizeof(buf), fmt, ap);
+    vssprintf(buf, sizeof(buf), fmt, ap);
     dslog(LOG_INFO, 0, "%04d%02d%02d %02d%02d%02d: %s",
           tm->tm_year + 1900, tm->tm_mon + 1, tm->tm_mday,
           tm->tm_hour, tm->tm_min, tm->tm_sec,
           buf);
   }
   va_end(ap);
+}
+
+void zlog(int level, const struct zone *zone, const char *fmt, ...) {
+  va_list ap;
+  char buf[128];
+  char name[DNS_MAXDOMAIN+1];
+
+  va_start(ap, fmt);
+  vssprintf(buf, sizeof(buf), fmt, ap);
+  va_end(ap);
+  dns_dntop(zone->z_dn, name, sizeof(name));
+  dslog(level, 0, "zone %.70s: %s", name, buf);
 }

@@ -286,6 +286,8 @@ void PRINTFLIKE(3,4) dslog(int level, int lineno, const char *fmt, ...);
 void PRINTFLIKE(2,3) dswarn(int lineno, const char *fmt, ...);
 void PRINTFLIKE(1,2) dsloaded(const char *fmt, ...);
 extern struct dataset *ds_loading;
+void PRINTFLIKE(3,4)
+zlog(int level, const struct zone *zone, const char *fmt, ...);
 
 int readdslines(FILE *f, struct dataset *ds);
 /* parse $SPECIAL */
