@@ -3,6 +3,70 @@ $Id$
 This file describes user-visible changes in rbldnsd.
 Never news are at top.
 
+0.993 (?? ??? ????)
+
+ - feature, safety: implement and enforce $MAXRANGE4
+   special like this:
+     $MAXRANGE /24
+     $MAXRANGE 256
+   the maximum "size" of a single entry, in number
+   of IPv4 addresses it covers.  If an entry covers
+   more addresses, it is ignored (and warning is
+   logged).  The constraint may be decreased by the
+   following $MAXRANGE special, but can not be
+   increased.  Global per dataset.
+ 
+ - feature, safety: ignore incomplete last lines
+   (lines w/o end-of-line terminator) in data
+   files (to prevent mis-interpreting of incomplete
+   data)
+
+ - feature, safety: check for data file changes during
+   reloads (while reading data), and abort loading
+   (and mark all zones to return SERVFAIL until next
+   reload) if a change is detected.
+
+ - safety: do not treat bare numbers as /8 ranges.
+     10 -- wrong from now on
+     10/8 -- ok
+     10-11 -- ok
+
+ - safety: require equal number of octets for x-y
+   style ranges:
+     1.2.3-2.3.4.5 -- wrong
+     1.2.3.0-2.3.4.5 -- ok
+     1.2.3.4-2.3.4 -- wrong
+     1.2.3.4-2.3.4.5 -- ok
+   and the "repeat-last-octet" variant is still
+   ok too, obviously:
+     1.2-3 -- ok
+     1.2.3-4 -- ok
+     1.2.3.4-5 -- ok
+
+ - safety: only accept complete, 4-octet IPv4
+   addresses in ip4tset, do not allow weird stuff
+   like inet_aton() allows:
+     10   = 0.0.0.10 -- wrong
+     10.1 = 10.0.0.1 -- wrong
+
+ - bugfix: several more small fixes for IP4 address
+   parser
+
+ - refine logging a bit, make it less verbose
+   (esp. when logging problems)
+
+ - bugfix: query logging (-l) with background
+   reloading: the file was not flushed properly
+   (resulted in double logging)
+
+ - bugfix: dump (-d) of MX record (generic dataset)
+   was incorrect
+
+ - bugfix: wrong subzone in $ORIGIN when dumping (-d)
+   combined dataset
+
+ - bugfix: incorect (opposite) evaluation of maxttl
+
 0.992 (07 Mar 2004)
 
  - feature: allow easy turning on/off individual NS
