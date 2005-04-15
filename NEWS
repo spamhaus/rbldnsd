@@ -3,6 +3,13 @@ $Id$
 This file describes user-visible changes in rbldnsd.
 Never news are at top.
 
+0.994b (16 Apr 2005)
+
+ - bugfix: use of uninitialized pointer in ip4set and ip4trie
+   datasets when input data file (A+TXT template for a given
+   entry) is invalid, instead of rejecting the line.  This can
+   lead to "random" crashes.
+
 0.994a (10 Mar 2005)
 
  - bugfix: for queries for base subzone in combined dataset,

@@ -1,3 +1,11 @@
+rbldnsd (0.994b) unstable; urgency=low
+
+  * fixed bug when it was possible to use uninitialized pointer
+    in case of invalid A+TXT template in ip4set and ip4trie
+    datasets
+
+ -- Michael Tokarev <mjt@corpit.ru>  Sat, 16 Apr 2005 02:08:16 +0400
+
 rbldnsd (0.994a) unstable; urgency=low
 
   * fixed wrong NXDOMAIN return for a query for base subzone in
