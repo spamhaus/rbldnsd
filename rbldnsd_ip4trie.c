@@ -76,7 +76,7 @@ ds_ip4trie_line(struct dataset *ds, char *s, struct dsctx *dsc) {
     if (!*s || ISCOMMENT(*s))
       rr = dsd->def_rr;
     else if (!(rrl = parse_a_txt(s, &rr, dsd->def_rr, dsc)))
-      dswarn(dsc, "invalid value");
+      return 1;
     else if (!(rr = mp_dmemdup(ds->ds_mp, rr, rrl)))
       return 0;
   }

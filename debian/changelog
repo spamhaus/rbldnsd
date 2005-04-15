@@ -4,7 +4,16 @@ rbldnsd (0.994.99) unstable; urgency=low
 
  -- Michael Tokarev <mjt@corpit.ru>  Thu, 10 Mar 2005 01:57:14 +0300
 
-rbldnsd (0.994.1) unstable; urgency=low
+rbldnsd (0.994b) unstable; urgency=low
+
+  * use of uninitialized pointer in ip4set and ip4trie
+    datasets when input data file (A+TXT template for a given
+    entry) is invalid, instead of rejecting the line.  This can
+    lead to "random" crashes.
+
+ -- Michael Tokarev <mjt@corpit.ru>  Thu, 10 Mar 2005 01:57:14 +0300
+
+rbldnsd (0.994a) unstable; urgency=low
 
   * fixed wrong NXDOMAIN return for a query for base subzone in
     combined dataset (should be NODATA at least, not NXDOMAIN)
