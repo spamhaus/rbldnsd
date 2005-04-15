@@ -377,3 +377,22 @@ int PRINTFLIKE(3, 4) ssprintf(char *buf, int bufsz, const char *fmt, ...);
       ) \
   )
 
+struct ip4trie_node {	/* IPv4 trie node */
+  ip4addr_t ip4t_prefix;		/* high bits of address prefix */
+  ip4addr_t ip4t_bits;			/* number of bits in prefix */
+  struct ip4trie_node *ip4t_right;	/* if (bit+1) bit is set, go here.. */
+  struct ip4trie_node *ip4t_left;	/* ..or else here. */
+  const char *ip4t_data;		/* data of the node if any */
+};
+
+struct ip4trie {
+  struct ip4trie_node *ip4t_root;	/* root node of the tree */
+  unsigned ip4t_nents;			/* number of entries so far */
+  unsigned ip4t_nnodes;			/* total number of nodes in tree */
+};
+
+const char *ip4trie_lookup(const struct ip4trie *trie, ip4addr_t q);
+
+struct ip4trie_node *
+ip4trie_addnode(struct ip4trie *trie, ip4addr_t prefix, unsigned bits,
+                struct mempool *mp);
