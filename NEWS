@@ -3,14 +3,7 @@ $Id$
 This file describes user-visible changes in rbldnsd.
 Never news are at top.
 
-0.995 (?? ??? ????)
-
- - feature: ENDS0 support for UDPsize, allowing replies larger than 512
-   bytes for clients claiming EDNS0 support (appropriate OPT record in
-   additional section in query).  Not really user-visible change per se,
-   but may be quite visible for clients especially when our replies are large.
-
-0.994.1 (10 Mar 2005)
+0.994a (10 Mar 2005)
 
  - bugfix: for queries for base subzone in combined dataset,
    rbldnsd improperly returned NXDOMAIN instead of NODATA -- eg
