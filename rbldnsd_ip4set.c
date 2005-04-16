@@ -225,6 +225,7 @@ ds_ip4set_query(const struct dataset *ds, const struct dnsqinfo *qi,
   const char *ipsubst;
 
   if (!qi->qi_ip4valid) return 0;
+  check_query_overwrites(qi);
 
 #define try(i,mask) \
  (dsd->n[i] && \
@@ -243,7 +244,7 @@ ds_ip4set_query(const struct dataset *ds, const struct dnsqinfo *qi,
   do addrr_a_txt(pkt, qi->qi_tflag, e->rr, ipsubst, ds);
   while(++e < t && e->addr == f);
 
-  return 1;
+  return NSQUERY_FOUND;
 }
 
 #ifndef NO_MASTER_DUMP

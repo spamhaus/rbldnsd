@@ -22,7 +22,7 @@ struct dsdata {
   unsigned minlab;	/* min level of labels */
 };
 
-definedstype(generic, DSTF_ZERODN, "generic simplified bind-format");
+definedstype(generic, 0, "generic simplified bind-format");
 
 static void ds_generic_reset(struct dsdata *dsd, int UNUSED unused_freeall) {
   if (dsd->e) free(dsd->e);
@@ -302,7 +302,7 @@ ds_generic_query(const struct dataset *ds, const struct dnsqinfo *qi,
     while(l < t && l->ldn == dn && l->dtyp == qt);
     ds_generic_add_rrs(pkt, e, l);
   }
-  return 1;
+  return NSQUERY_FOUND;
 }
 
 #ifndef NO_MASTER_DUMP

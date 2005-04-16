@@ -26,7 +26,7 @@ struct dsdata {
   struct zone *zlist;			/* list of subzones */
 };
 
-definedstype(combined, 0, "several datasets/subzones combined");
+definedstype(combined, DSTF_SPECIAL, "several datasets/subzones combined");
 
 static void ds_combined_reset(struct dsdata *dsd, int freeall) {
   struct dataset *dslist = dsd->dslist;
@@ -110,12 +110,18 @@ int ds_combined_newset(struct dataset *ds, char *line, struct dsctx *dsc) {
       /* end of the saved list, allocate new dataset */
       const struct dstype **dstp = ds_types, *dst;
       dstp = ds_types;
-      while(*dstp == &dataset_combined_type || strcmp(p, (*dstp)->dst_name))
+      while(strcmp(p, (*dstp)->dst_name))
         if (!*++dstp) {
           dslog(LOG_ERR, dsc, "unknown dataset type `%.60s'", p);
           return -1;
         }
       dst = *dstp;
+      if (dst->dst_flags & DSTF_SPECIAL) {
+        dslog(LOG_ERR, dsc,
+              "dataset type `%s' cannot be used inside `combined'",
+              dst->dst_name);
+        return -1;
+      }
       dssub = (struct dataset *)ezalloc(sizeof(struct dataset) + dst->dst_size);
       if (!dssub)
         return -1;
@@ -189,10 +195,9 @@ ds_combined_query(const struct dataset *ds, const struct dnsqinfo *qi,
   if (!zone) return 0;
   sqi.qi_tflag = qi->qi_tflag;
   for (dsl = zone->z_dsl; dsl; dsl = dsl->dsl_next)
-    if (dsl->dsl_queryfn(dsl->dsl_ds, &sqi, pkt))
-      found = 1;
+    found |= dsl->dsl_queryfn(dsl->dsl_ds, &sqi, pkt);
   /* if it was a query for our base subzone, always return `found' */
-  return found || !sqi.qi_dnlab;
+  return found || (sqi.qi_dnlab ? 0 : NSQUERY_FOUND);
 }
 
 #ifndef NO_MASTER_DUMP

@@ -75,7 +75,7 @@ be read into memory only once).
 There are several dataset formats available, each is suitable
 and optimized (in terms of memory, speed and ease of use)
 for a specific task.  Available dataset types may be grouped
-into 3 categories:
+into the following categories:
 .IP
 lists of IP addresses.  When a query is done to a zone with such
 data, query is interpreted as an IP address in a reverse form
@@ -94,6 +94,12 @@ generic list of various types of records, as an auxilary data
 to form a complete nameserver.  This format is similar to bind\-style
 datafiles, but very simplified.  One may specify A, TXT, NS and MX
 records here.
+.IP
+combined set, different datasets from the list above combined
+in the single (set of) source files, for easy maintenance.
+.IP
+acl, or Access Control List.  This is a pseudo dataset, that works
+by overweriting query results based on the requestor (peer) IP address.
 
 .SH OPTIONS
 
@@ -650,6 +656,77 @@ will result in the following text to be generated:
   See http://www.example.com/bl/relay/127.0.0.3 for details
   This spammer wants some $$.  See http://www.example.com/bl/127.0.0.4
 .fi
+
+.SS "acl Dataset"
+.PP
+This is not a real dataset, while the syntax and usage is the same as
+with other datasets.  Instead of defining which records exists in a
+given zone and which does not,
+.B acl
+dataset specifies which client hosts (peers) are allowed to query the
+given zone.  The dataset specifies a set of IPv4 address ranges
+(currently, IPv6 addresses are not supported) in a form of CIDRs
+(with the syntax exactly the same as understood by
+.B ip4trie
+dataset), together with action specifiers.  When a query is made from
+an IP address listed (not
+.I for
+the IP address), specified action changes rules used to construct the
+reply.  Possible actions and their meanings are:
+.IP :\fBignore\fR
+ignore all queries from this IP address altogether.
+.B rbldnsd
+acts like there was no query received at all.
+.IP :\fBrefuse\fR
+refuse all queries from the IP in question.
+.B rbldnsd
+will always return REFUSED DNS response code.
+.IP :\fBempty\fR
+pretend there's no data in all other datasets for the given zone.
+This means that all the clients in question will always receive
+reply from
+.B rbldnsd
+telling that the requested IP address or domain name is not listed in
+a given DNSBL.
+.B rbldnsd
+still replies to metadata queries (SOA and NS records, and to all queries
+satisfied by generic dataset if specified for the given zone) as usual.
+.IP \fIa_txt_template\fR
+usual A+TXT template as used by other datasets.  This means that
+.B rbldnsd
+will reply to any valid DNSBL query with "it is listed" answer, so that
+the client in question will see every IP address or domain name is
+listed in a given DNSBL.  TXT record used in the reply is taken from
+the acl dataset instead of real datasets.
+Again, just like with \fBempty\fR case, \fBrbldnsd\fR will continue
+replying to metadata queries (including generic datasets if any) as
+usual.
+.PP
+Only one ACL dataset can be specified for a given zone, and each zone
+must have at least one non-acl dataset.  It is also possible to specify
+one global ACL dataset, by specifying empty zone name (which is not allowed
+for other dataset types), like
+.br
+.nf
+  \fBrbldnsd\fR ... :\fBacl\fR:\fIfilename\fR...
+.fi
+.br
+In this case the ACL defined in \fIfilename\fR applies to all zones.
+If there are both global ACL and local zone-specific ACL specified,
+both will be consulted and actions taken in the order specified above,
+ie, if either ACL returns \fBignore\fR for this IP, the request will
+be ignored, else if either ACL returns \fBrefuse\fR, the query will
+be refused, and so on.  If both ACLs specifies "always listed" A+TXT
+template, the reply will contain A+TXT from global ACL.
+.PP
+For this dataset type, only a few $-style specials are recognized.
+In particular, $SOA and $NS keywords are not allowed.
+When
+.B rbldnsd
+performs \fB$\fR substitution in the TXT template returned from
+ACL dataset, it will use client IP address to substitute for a
+single $ character, instead of the IP address or domain name
+found in the original query.
 
 .SH SIGNALS
 

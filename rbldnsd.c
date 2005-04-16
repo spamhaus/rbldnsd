@@ -114,18 +114,17 @@ static struct iovec *stats_iov;
 
 /* a list of zonetypes. */
 const struct dstype *ds_types[] = {
-#define ds(x) &dataset_##x##_type
-  ds(ip4set),
-  ds(ip4tset),
-  ds(ip4trie),
-  ds(dnset),
+  dstype(ip4set),
+  dstype(ip4tset),
+  dstype(ip4trie),
+  dstype(dnset),
 #ifdef DNHASH
-  ds(dnhasn),
+  dstype(dnhasn),
 #endif
-  ds(generic),
-  ds(combined),
+  dstype(combined),
+  dstype(generic),
+  dstype(acl),
   NULL
-#undef ds
 };
 
 static int satoi(const char *s) {
@@ -955,30 +954,31 @@ static void do_signalled(void) {
   sigprocmask(SIG_SETMASK, &ssempty, NULL);
 }
 
+#ifndef NOIPv6
+static struct sockaddr_storage peer_sa;
+#else
+static struct sockaddr_in peer_sa;
+#endif
+static struct dnspacket pkt;
+
 static void request(int fd) {
   int q, r;
-#ifndef NOIPv6
-  struct sockaddr_storage sa;
-#else
-  struct sockaddr_in sa;
-#endif
-  socklen_t salen = sizeof(sa);
-  struct dnspacket pkt;
+  socklen_t salen = sizeof(peer_sa);
 
-  salen = sizeof(sa);
   q = recvfrom(fd, pkt.p_buf, sizeof(pkt.p_buf), 0,
-               (struct sockaddr *)&sa, &salen);
+               (struct sockaddr *)&peer_sa, &salen);
   if (q <= 0)			/* interrupted? */
     return;
 
+  pkt.p_peerlen = salen;
   r = replypacket(&pkt, q, zonelist);
   if (!r)
     return;
   if (flog)
-    logreply(&pkt, (struct sockaddr *)&sa, salen, flog, flushlog);
+    logreply(&pkt, flog, flushlog);
 
   /* finally, send a reply */
-  while(sendto(fd, pkt.p_buf, r, 0, (struct sockaddr *)&sa, salen) < 0)
+  while(sendto(fd, pkt.p_buf, r, 0, (struct sockaddr *)&peer_sa, salen) < 0)
     if (errno != EINTR) break;
 
 }
@@ -993,6 +993,8 @@ int main(int argc, char **argv) {
   if (statsfile)
     dumpstats_z();
 #endif
+
+  pkt.p_peer = (struct sockaddr *)&peer_sa;
 
   if (numsock == 1) {
     /* optimized case for only one socket */

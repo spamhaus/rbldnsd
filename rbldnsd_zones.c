@@ -12,6 +12,7 @@
 #include "rbldnsd.h"
 
 static struct dataset *ds_list;
+struct dataset *g_dsacl;
 
 static struct dataset *newdataset(char *spec) {
   /* type:file,file,file... */
@@ -116,6 +117,7 @@ struct zone *addzone(struct zone *zonelist, const char *spec) {
   char name[DNS_MAXDOMAIN];
   unsigned char dn[DNS_MAXDN];
   unsigned dnlen;
+  struct dataset *ds;
 
   p = strchr(spec, ':');
   if (!p || p - spec >= DNS_MAXDOMAIN)
@@ -128,10 +130,26 @@ struct zone *addzone(struct zone *zonelist, const char *spec) {
   if (!dnlen)
     error(0, "invalid domain name `%.80s'", name);
 
-  zone = newzone(&zonelist, dn, dnlen, NULL);
-
   p = estrdup(p+1);
-  connectdataset(zone, newdataset(p), tmalloc(struct dslist));
+  ds = newdataset(p);
+
+  if (!dn[0]) {
+    if (!isdstype(ds->ds_type, acl))
+      error(0, "missing domain name in `%.60s'", spec);
+    if (g_dsacl)
+      error(0, "global acl specified more than once");
+    g_dsacl = ds;
+  }
+  else {
+    zone = newzone(&zonelist, dn, dnlen, NULL);
+    if (isdstype(ds->ds_type, acl)) {
+      if (zone->z_dsacl)
+        error(0, "repeated ACL definition for zone `%.60s'", name);
+      zone->z_dsacl = ds;
+    }
+    else
+      connectdataset(zone, ds, tmalloc(struct dslist));
+  }
   free(p);
 
   return zonelist;
@@ -146,7 +164,7 @@ int ds_special(struct dataset *ds, char *line, struct dsctx *dsc) {
 
   if ((line[1] == 'o' || line[1] == 'O') &&
       (line[2] == 'a' || line[2] == 'A') &&
-      ISSPACE(line[3])) {
+      ISSPACE(line[3]) && !isdstype(ds->ds_type, acl)) {
 
     /* SOA record */
     struct dssoa dssoa;
@@ -183,7 +201,7 @@ int ds_special(struct dataset *ds, char *line, struct dsctx *dsc) {
   case 'n': case 'N':
 
   if ((line[1] == 's' || line[1] == 'S') &&
-      ISSPACE(line[2])) {
+      ISSPACE(line[2]) && !isdstype(ds->ds_type, acl)) {
 
      unsigned char dn[DNS_MAXDN];
      unsigned dnlen;
@@ -329,7 +347,7 @@ int ds_special(struct dataset *ds, char *line, struct dsctx *dsc) {
       (line[5] == 'E' || line[5] == 'e') &&
       (line[6] == 'T' || line[6] == 't') &&
       ISSPACE(line[7]) &&
-      ds->ds_type == &dataset_combined_type) {
+      isdstype(ds->ds_type, combined)) {
     line += 8;
     SKIPSPACE(line);
     return ds_combined_newset(ds, line, dsc);

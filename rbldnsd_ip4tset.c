@@ -116,6 +116,7 @@ ds_ip4tset_query(const struct dataset *ds, const struct dnsqinfo *qi,
   const char *ipsubst;
 
   if (!qi->qi_ip4valid) return 0;
+  check_query_overwrites(qi);
 
   if (!dsd->n || !ds_ip4tset_find(dsd->e, dsd->n, qi->qi_ip4))
     return 0;
@@ -123,7 +124,7 @@ ds_ip4tset_query(const struct dataset *ds, const struct dnsqinfo *qi,
   ipsubst = (qi->qi_tflag & NSQUERY_TXT) ? ip4atos(qi->qi_ip4) : NULL;
   addrr_a_txt(pkt, qi->qi_tflag, dsd->def_rr, ipsubst, ds);
 
-  return 1;
+  return NSQUERY_FOUND;
 }
 
 #ifndef NO_MASTER_DUMP

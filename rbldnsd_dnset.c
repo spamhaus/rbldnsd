@@ -217,6 +217,7 @@ ds_dnset_query(const struct dataset *ds, const struct dnsqinfo *qi,
   char name[DNS_MAXDOMAIN+1];
 
   if (!qlab) return 0;		/* do not match empty dn */
+  check_query_overwrites(qi);
 
   if (qlab > dsd->maxlab[EP] 	/* if we have less labels, search unnec. */
       || qlab < dsd->minlab[EP]	/* ditto for more */
@@ -262,7 +263,7 @@ ds_dnset_query(const struct dataset *ds, const struct dnsqinfo *qi,
   do addrr_a_txt(pkt, qi->qi_tflag, e->rr, name, ds);
   while(++e < t && e->ldn == dn);
 
-  return 1;
+  return NSQUERY_FOUND;
 }
 
 #ifndef NO_MASTER_DUMP

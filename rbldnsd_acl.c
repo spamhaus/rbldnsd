@@ -15,24 +15,21 @@ struct dsdata {
   const char *def_action;
 };
 
-definedstype(acl, 0, "Access Control List dataset");
-
 /* special cases for pseudo-RRs */
 static const struct {
   const char *name;
-  const char *rr;
+  unsigned rr;
 } keywords[] = {
   /* ignore (don't answer) queries from this IP */
-#define RR_BLACKHOLE	((const char *)1)
- { "blackhole", RR_BLACKHOLE },
- { "ignore", RR_BLACKHOLE },
+#define RR_IGNORE	1
+ { "ignore", RR_IGNORE },
+ { "blackhole", RR_IGNORE },
  /* refuse *data* queries from this IP (but not metadata) */
-#define RR_REFUSE	((const char *)2)
+#define RR_REFUSE	2
  { "refuse", RR_REFUSE },
  /* pretend the zone is completely empty */
-#define RR_EMPTY	((const char *)3)
+#define RR_EMPTY	3
  { "empty", RR_EMPTY },
-#define RR_LAST RR_EMPTY
 };
 
 static void ds_acl_reset(struct dsdata *dsd, int UNUSED unused_freeall) {
@@ -53,7 +50,7 @@ static const char *keyword(const char *s) {
       if ((*p >= 'A' && *p <= 'Z' ? *p - 'A' + 'a' : *p) != *k++)
         break;
       else if (!*++p || *p == ':' || ISSPACE(*p) || ISCOMMENT(*p))
-        return keywords[i].rr;
+        return (const char *)(keywords[i].rr);
   return NULL;
 }
 
@@ -139,29 +136,28 @@ static void ds_acl_finish(struct dataset *ds, struct dsctx *dsc) {
            dsd->trie.ip4t_nnodes * sizeof(struct ip4trie_node));
 }
 
-int
-ds_acl_query(const struct dataset *ds, const struct dnsqinfo *qi,
-             struct dnspacket UNUSED *pkt) {
-  const struct sockaddr_in *sin = (const struct sockaddr_in *)qi;
+int ds_acl_query(const struct dataset *ds, struct dnspacket *pkt) {
+  const struct sockaddr_in *sin = (const struct sockaddr_in *)pkt->p_peer;
   const char *rr;
-  if (sin->sin_family != AF_INET) return 0;
+  if (sin->sin_family != AF_INET || sizeof(*sin) > pkt->p_peerlen)
+    return 0;
   rr = ip4trie_lookup(&ds->ds_dsd->trie, ntohl(sin->sin_addr.s_addr));
-#if 0
-  switch(rr) {
-  case NULL: return 0;
-  case RR_BLACKHOLE: return 1;
-  case RR_REFUSE: return 2;
-  case RR_EMPTY: return 3;
-  default: return 4;
+  switch((unsigned long)rr) {
+  case 0: return 0;
+  case RR_IGNORE:	return NSQUERY_IGNORE;
+  case RR_REFUSE:	return NSQUERY_REFUSE;
+  case RR_EMPTY:	return NSQUERY_EMPTY;
   }
-#endif
-  return 0;
+  if (!pkt->p_substrr) {
+    pkt->p_substrr = rr;
+    pkt->p_substds = ds;
+  }
+  return NSQUERY_ALWAYS;
 }
 
-#ifndef NO_MASTER_DUMP
-static void
-ds_acl_dump(const struct dataset UNUSED *ds,
-            const unsigned char UNUSED *unused_odn,
-            FILE UNUSED *f) {
-}
-#endif
+//definedstype(acl, DSTF_SPECIAL, "Access Control List dataset");
+const struct dstype dataset_acl_type = {
+  "acl", DSTF_SPECIAL, sizeof(struct dsdata),
+  ds_acl_reset, ds_acl_start, ds_acl_line, ds_acl_finish,
+  NULL, NULL, "Access Control List dataset"
+};

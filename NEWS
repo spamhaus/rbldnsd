@@ -5,6 +5,14 @@ Never news are at top.
 
 0.995 (?? ??? ????)
 
+ - feature: (initial, experimental) ACL support.  It is possble to force
+   certain kinds of replies to be sent to certain clients (based on the
+   client IP address), regardless of the query the client performs.
+   Read rbldnsd(8) manpage for the details.
+   This feature is experimental.  Basic idea will remain but details are
+   likely to change in the future, as requiriments will be understood
+   better.
+
  - feature: ENDS0 support for UDPsize, allowing replies larger than 512
    bytes for clients claiming EDNS0 support (appropriate OPT record in
    additional section in query).  Not really user-visible change per se,

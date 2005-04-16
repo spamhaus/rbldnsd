@@ -2,7 +2,43 @@ rbldnsd (0.994.99) unstable; urgency=low
 
   * finally: EDNS0 support.  Patch was here for a long time, now applied.
 
- -- Michael Tokarev <mjt@corpit.ru>  Thu, 10 Mar 2005 01:57:14 +0300
+  * ACL (initial, experimental) support, with quite some changes all over
+    to make it possible/easier:
+    - add peer address info pointers to struct dnspacket
+      (and made both struct packet and peer sockaddr to be static
+       in rbldnsd.c); remove peer address parameters from
+       logreply().
+    - add DSTF_SPECIAL flag, to indicate this dataset type can't be nested;
+      modify rbldnsd_combined.c accordingly
+    - remove (unused) DSTF_ZERODN flag
+    - define two new helper macros, dstype(name) and isdstype(dst,name),
+      to refer to types of datasets, and use the macros in the code
+    - add ACL-specific RR info into struct dnspacket
+    - dataset query types now return bitflags, not true/false:
+      NSQUERY_FOUND (1) - found a matching record
+      NSQUERY_ADDPEER (2) - for "always listed" acl, we should add
+       the "always listed" ACL RR into the reply packet.
+      return NSQUERY_FOUND instead of generic `1' in all dataset->queryfns.
+    - extend qi_tflag to also include ACL-specific flags:
+      NSQUERY_IGNORE, NSQUERY_REFUSE, NSQUERY_EMPTY, NSQUERY_ALWAYS
+    - add check_query_overwrites() macro to test the above flags and
+      return NSQUERY_ADDPEER or other bits in dataset->queryfn routines,
+      and use this macro in all non-metadata datasets
+    - when constructing reply, collect flags from queryfns, not boolean.
+    - add g_dsacl and zone->z_dsacl pointers (global and zone-specific
+      datasets)
+    - modify rbldnsd_zones.c:addzone() to recognize ACLs and to disallow
+      empty base zone domain name.
+    - disallow $NS and $SOA for ACL-type datasets in ds_special()
+    - new dataset file: rbldnsd_acl.c.  Add acl dataset into global
+      dataset type list.
+    - actually call ACL-specific routine -- ds_acl_query() -- when
+      constructing reply to a query
+    - when at the end of constructing answer section of the reply
+      we notice "always-listed" ACL has been triggered, add
+      ACL-specific A+TXT records into the reply
+
+ -- Michael Tokarev <mjt@corpit.ru>  Sat, 16 Apr 2005 17:43:43 +0400
 
 rbldnsd (0.994b) unstable; urgency=low
 

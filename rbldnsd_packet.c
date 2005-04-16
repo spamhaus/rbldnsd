@@ -13,6 +13,16 @@
 #include "rbldnsd.h"
 #include "rbldnsd_hooks.h"
 
+#ifndef NOIPv6
+# ifndef NI_MAXHOST
+#  define IPSIZE 1025
+# else
+#  define IPSIZE NI_MAXHOST
+# endif
+#else
+# define IPSIZE 16
+#endif
+
 static int addrr_soa(struct dnspacket *pkt, const struct zone *zone, int auth);
 static int addrr_ns(struct dnspacket *pkt, const struct zone *zone, int auth);
 static int version_req(struct dnspacket *pkt, const struct dnsquery *qry);
@@ -267,6 +277,18 @@ int replypacket(struct dnspacket *pkt, unsigned qlen, struct zone *zone) {
   int found;
   extern int lazy; /*XXX hack*/
 
+  pkt->p_substrr = 0;
+  /* check global ACL */
+  if (g_dsacl && g_dsacl->ds_stamp) {
+    found = ds_acl_query(g_dsacl, pkt);
+    if (found & NSQUERY_IGNORE) {
+      do_stats(gstats.q_err += 1; gstats.b_in += qlen);
+      return 0;
+    }
+  }
+  else
+    found = 0;
+
   if (!parsequery(pkt, qlen, &qry)) {
     do_stats(gstats.q_err += 1; gstats.b_in += qlen);
     return 0;
@@ -317,6 +339,7 @@ int replypacket(struct dnspacket *pkt, unsigned qlen, struct zone *zone) {
       refuse(DNS_R_NOTIMPL);
     qi.qi_tflag = NSQUERY_OTHER;
   }
+  qi.qi_tflag |= found;
   h[p_f2] = DNS_R_NOERROR;
 
   /* find matching zone */
@@ -330,8 +353,19 @@ int replypacket(struct dnspacket *pkt, unsigned qlen, struct zone *zone) {
 #define refuse(code)  _refuse(code, err_z)
   do_stats(zone->z_stats.b_in += qlen);
 
+  if (zone->z_dsacl && zone->z_dsacl->ds_stamp) {
+    qi.qi_tflag |= ds_acl_query(zone->z_dsacl, pkt);
+    if (qi.qi_tflag & NSQUERY_IGNORE) {
+      do_stats(gstats.q_err += 1);
+      return 0;
+    }
+  }
+
   if (!zone->z_stamp)	/* do not answer if not loaded */
     refuse(DNS_R_SERVFAIL);
+
+  if (qi.qi_tflag & NSQUERY_REFUSE)
+    refuse(DNS_R_REFUSED);
 
 #ifdef do_hook_query_access
   if ((found = hook_query_access(zone, NULL, &qi))) {
@@ -342,7 +376,7 @@ int replypacket(struct dnspacket *pkt, unsigned qlen, struct zone *zone) {
 
   if (qi.qi_dnlab == 0) {	/* query to base zone: SOA and NS */
 
-    found = 1;
+    found = NSQUERY_FOUND;
 
     if ((qi.qi_tflag & NSQUERY_SOA) && !addrr_soa(pkt, zone, 0))
       found = 0;
@@ -361,8 +395,21 @@ int replypacket(struct dnspacket *pkt, unsigned qlen, struct zone *zone) {
 
   /* search the datasets */
   for(dsl = zone->z_dsl; dsl; dsl = dsl->dsl_next)
-    if (dsl->dsl_queryfn(dsl->dsl_ds, &qi, pkt))
-      found = 1;	/* positive answer */
+    found |= dsl->dsl_queryfn(dsl->dsl_ds, &qi, pkt);
+
+  if (found & NSQUERY_ADDPEER) {
+#ifdef NOIPv6
+    addrr_a_txt(pkt, qi.qi_tflag, pkt->p_substrr,
+                inet_ntoa(((struct sockaddr_in*)pkt->p_peer)->sin_addr),
+                pkt->p_substds);
+#else
+    char subst[IPSIZE];
+    if (getnameinfo(pkt->p_peer, pkt->p_peerlen,
+                    subst, NI_MAXHOST, NULL, 0, NI_NUMERICHOST) != 0)
+      subst[0] = '\0';
+    addrr_a_txt(pkt, qi.qi_tflag, pkt->p_substrr, subst, pkt->p_substds);
+#endif
+  }
 
   /* now complete the reply: add AUTH etc sections */
   if (!found) {			/* negative result */
@@ -568,6 +615,11 @@ struct zonens {		/* cached NS RRs */
 
 void init_zones_caches(struct zone *zonelist) {
   while(zonelist) {
+    if (!zonelist->z_dsl) {
+      char name[DNS_MAXDOMAIN];
+      dns_dntop(zonelist->z_dn, name, sizeof(name));
+      error(0, "missing data for zone `%s'", name);
+    }
     zonelist->z_zsoa = tmalloc(struct zonesoa);
     /* for NS RRs, we allocate MAX_NS caches:
      * each stores one variant of NS rotation */
@@ -836,33 +888,21 @@ static int version_req(struct dnspacket *pkt, const struct dnsquery *qry) {
   return 1;		
 }
 
-void logreply(const struct dnspacket *pkt,
-              const struct sockaddr *peeraddr,
-              int UNUSED peeraddrlen,
-              FILE *flog, int flushlog) {
-#ifndef NOIPv6
-# ifndef NI_MAXHOST
-#  define IPSIZE 1025
-# else
-#  define IPSIZE NI_MAXHOST
-# endif
-#else
-# define IPSIZE 16
-#endif
+void logreply(const struct dnspacket *pkt, FILE *flog, int flushlog) {
   char cbuf[DNS_MAXDOMAIN + IPSIZE + 50];
   char *cp = cbuf;
   const unsigned char *const q = pkt->p_sans - 4;
 
   cp += sprintf(cp, "%lu ", (unsigned long)time(NULL));
 #ifndef NOIPv6
-  if (getnameinfo(peeraddr, peeraddrlen,
+  if (getnameinfo(pkt->p_peer, pkt->p_peerlen,
                   cp, NI_MAXHOST, NULL, 0,
                   NI_NUMERICHOST) == 0)
     cp += strlen(cp);
   else
     *cp++ = '?';
 #else
-  strcpy(cp, ip4atos(ntohl(((struct sockaddr_in*)peeraddr)->sin_addr.s_addr)));
+  strcpy(cp, inet_ntoa(((struct sockaddr_in*)pkt->p_peer)->sin_addr.s_addr));
   cp += strlen(cp);
 #endif
   *cp++ = ' ';

@@ -34,12 +34,17 @@ struct zone;
 struct dataset;
 struct dsdata;
 struct dsctx;
+struct sockaddr;
 
 struct dnspacket {		/* private structure */
   unsigned char p_buf[DNS_EDNS0_MAXPACKET]; /* packet buffer */
   unsigned char *p_endp;	/* end of packet buffer */
   unsigned char *p_cur;		/* current pointer */
   unsigned char *p_sans;	/* start of answers */
+  const char *p_substrr;	/* for always-listed queries */
+  const struct dataset *p_substds;
+  const struct sockaddr *p_peer;/* address of the requesting client */
+  unsigned p_peerlen;
 };
 
 struct dnsquery {	/* q */
@@ -109,6 +114,16 @@ ds_dumpfn_t(const struct dataset *ds, const unsigned char *odn, FILE *f);
 #define NSQUERY_TXT	(1u<<4)
 #define NSQUERY_ANY	0xffffu
 
+/* special cases for ACLs */
+#define NSQUERY_IGNORE	0x010000u
+#define NSQUERY_REFUSE	0x020000u
+#define NSQUERY_EMPTY	0x040000u
+#define NSQUERY_ALWAYS	0x080000u
+
+/* result flags from dataset queryfn */
+#define NSQUERY_FOUND	0x01
+#define NSQUERY_ADDPEER	0x02
+
 struct dstype {	/* dst */
   const char *dst_name;		/* name of the type */
   unsigned dst_flags;		/* how to pass arguments to queryfn */
@@ -124,7 +139,7 @@ struct dstype {	/* dst */
 
 /* dst_flags */
 #define DSTF_IP4REV	0x01	/* ip4 set */
-#define DSTF_ZERODN	0x04	/* query for zero dn too */
+#define DSTF_SPECIAL	0x08	/* special ds: non-recursive */
 
 #define declaredstype(t) extern const struct dstype dataset_##t##_type
 #define definedstype(t, flags, descr) \
@@ -148,6 +163,10 @@ declaredstype(dnset);
 declaredstype(dnhash);
 declaredstype(generic);
 declaredstype(combined);
+declaredstype(acl);
+
+#define dstype(type) (&dataset_##type##_type)
+#define isdstype(dst, type)	((dst) == dstype(type))
 
 extern const struct dstype *ds_types[];
 
@@ -235,6 +254,7 @@ struct zone {	/* zone, list of zones */
   unsigned z_dstflags;			/* flags of all datasets */
   struct dslist *z_dsl;			/* list of datasets */
   struct dslist **z_dslp;		/* last z_dsl in list */
+  struct dataset *z_dsacl;		/* zone ACL */
   /* SOA record */
   const struct dssoa *z_dssoa;		/* original SOA from a dataset */
   struct zonesoa *z_zsoa;		/* pre-packed SOA record */
@@ -262,10 +282,7 @@ findqzone(const struct zone *zonelist,
           struct dnsqinfo *qi);
 
 /* log a reply */
-struct sockaddr;
-void logreply(const struct dnspacket *pkt,
-              const struct sockaddr *peeraddr, int peeraddrlen,
-              FILE *flog, int flushlog);
+void logreply(const struct dnspacket *pkt, FILE *flog, int flushlog);
 
 /* details of DNS packet structure are in rbldnsd_packet.c */
 
@@ -275,6 +292,13 @@ void addrr_a_txt(struct dnspacket *pkt, unsigned qtflag,
                  const struct dataset *ds);
 void addrr_any(struct dnspacket *pkt, unsigned dtp,
                const void *data, unsigned dsz, unsigned ttl);
+
+#define check_query_overwrites(qi) \
+  if ((qi)->qi_tflag & NSQUERY_EMPTY)  return 0; \
+  if ((qi)->qi_tflag & NSQUERY_ALWAYS) return NSQUERY_ADDPEER
+
+int ds_acl_query(const struct dataset *ds, struct dnspacket *pkt);
+
 #ifndef NO_MASTER_DUMP
 void dump_a_txt(const char *name, const unsigned char *rr,
                 const char *subst, const struct dataset *ds, FILE *f);
@@ -321,6 +345,7 @@ int ds_combined_newset(struct dataset *ds, char *line, struct dsctx *dsc);
 extern unsigned def_ttl, min_ttl, max_ttl;
 extern const char def_rr[5];
 extern int accept_in_cidr;
+extern struct dataset *g_dsacl;	/* global acl */
 
 extern const char *show_version; /* version.bind CH TXT */
 
