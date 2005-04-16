@@ -102,7 +102,7 @@ static void ds_ip4trie_finish(struct dataset *ds, struct dsctx *dsc) {
            dsd->trie.ip4t_nnodes * sizeof(struct ip4trie_node));
 }
 
-int
+static int
 ds_ip4trie_query(const struct dataset *ds, const struct dnsqinfo *qi,
                  struct dnspacket *pkt) {
   const char *rr;
