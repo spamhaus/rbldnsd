@@ -1,4 +1,4 @@
-rbldnsd (0.994.99) unstable; urgency=low
+rbldnsd (0.994.92) unstable; urgency=low
 
   * finally: EDNS0 support.  Patch was here for a long time, now applied.
 
