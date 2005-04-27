@@ -37,7 +37,8 @@ static void ds_acl_reset(struct dsdata *dsd, int UNUSED unused_freeall) {
 }
 
 static void ds_acl_start(struct dataset *ds) {
-  ds->ds_dsd->def_rr = ds->ds_dsd->def_action = def_rr;
+  ds->ds_dsd->def_rr = def_rr;
+  ds->ds_dsd->def_action = (char*)RR_IGNORE;
 }
 
 static const char *keyword(const char *s) {

@@ -5,6 +5,8 @@ rbldnsd (0.994.93) unstable; urgency=low
   * when queried for NS or ANY to the base zone, return NS recs in
     both answer and authority sections.
 
+  * in acl "dataset", default action is now "ignore", not "always-listed"
+
  -- Michael Tokarev <mjt@corpit.ru>  Wed, 27 Apr 2005 16:17:25 +0400
 
 rbldnsd (0.994.92) unstable; urgency=low
