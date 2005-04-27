@@ -23,6 +23,8 @@
 # define IPSIZE 16
 #endif
 
+#define MAX_GLUE (MAX_NS*2)
+
 static int addrr_soa(struct dnspacket *pkt, const struct zone *zone, int auth);
 static int addrr_ns(struct dnspacket *pkt, const struct zone *zone, int auth);
 static int version_req(struct dnspacket *pkt, const struct dnsquery *qry);
@@ -425,7 +427,7 @@ int replypacket(struct dnspacket *pkt, unsigned qlen, struct zone *zone) {
       addrr_soa(pkt, zone, 1);	/* add SOA if any to AUTHORITY */
     }
     else if (zone->z_nns &&
-             (!(qi.qi_tflag & NSQUERY_NS) || qi.qi_dnlab) &&
+//             (!(qi.qi_tflag & NSQUERY_NS) || qi.qi_dnlab) &&
              !lazy)
       addrr_ns(pkt, zone, 1); /* add nameserver records to positive reply */
     do_stats(zone->z_stats.q_ok += 1);
@@ -607,9 +609,11 @@ struct zonesoa {	/* cached SOA RR */
 };
 
 struct zonens {		/* cached NS RRs */
-  unsigned size;		/* total size of all NS RRs */
-  struct dnjump jump[MAX_NS*2];	/* jumps: for qDNs and for NSes */
-  struct dnjump *jend;		/* last jump */
+  unsigned nssize;			/* size of all NS RRs */
+  unsigned tsize;			/* size of NS+glue recs */
+  struct dnjump jump[MAX_NS*2+MAX_GLUE];/* jumps: for qDNs and for NSes */
+  struct dnjump *nsjend;		/* last NS jump */
+  struct dnjump *tjend;			/* last glue jump */
   unsigned char data[CACHEBUF_SIZE];
 };
 
@@ -685,31 +689,82 @@ static int addrr_soa(struct dnspacket *pkt, const struct zone *zone, int auth) {
   return 1;
 }
 
-int update_zone_ns(struct zone *zone, const struct dsns *dsns, unsigned ttl) {
+static unsigned char *
+find_glue(struct zone *zone, const unsigned char *nsdn,
+          struct dnspacket *pkt, const struct zone *zonelist) {
+  struct dnsqinfo qi;
+  unsigned lab;
+  unsigned char dnbuf[DNS_MAXDN], *dp;
+  unsigned char *dnlptr[DNS_MAXLABELS];
+  const struct dslist *dsl;
+  const struct zone *qzone;
+
+  /* lowercase the nsdn and find label pointers */
+  lab = 0; dp = dnbuf;
+  while((*dp = *nsdn)) {
+    const unsigned char *e = nsdn + *nsdn + 1;
+    dnlptr[lab++] = dp++;
+    while(++nsdn < e)
+      *dp++ = dns_dnlc(*nsdn);
+  }
+
+  qzone = findqzone(zonelist, dp - dnbuf + 1, lab, dnlptr, &qi);
+  if (!qzone)
+    return NULL;
+
+  /* pefrorm fake query */
+  qi.qi_tflag = NSQUERY_A/*|NSQUERY_AAAA*/;
+  dp = pkt->p_cur;
+  for(dsl = qzone->z_dsl; dsl; dsl = dsl->dsl_next)
+    dsl->dsl_queryfn(dsl->dsl_ds, &qi, pkt);
+
+  if (dp == pkt->p_cur) {
+    char name[DNS_MAXDOMAIN];
+    dns_dntop(qi.qi_dn, name, sizeof(name));
+    zlog(LOG_WARNING, zone, "no glue record(s) for %.60s NS found", name);
+    return NULL;
+  }
+
+  return dp;
+}
+
+int update_zone_ns(struct zone *zone, const struct dsns *dsns, unsigned ttl,
+                   const struct zone *zonelist) {
   struct zonens *zns;
   unsigned char *cpos, *sizep;
   struct dncompr compr;
   unsigned size, i, ns, nns;
   const unsigned char *nsdna[MAX_NS];
   const unsigned char *dn;
+  unsigned char *nsrrs[MAX_NS], *nsrre[MAX_NS];
+  unsigned nglue;
+  struct dnspacket pkt;
 
-  nns = 0;
-  while(dsns) {
+  memset(&pkt, 0, sizeof(pkt));
+  pkt.p_sans = pkt.p_cur = pkt.p_buf + p_hdrsize;
+  pkt.p_endp = pkt.p_buf + CACHEBUF_SIZE + p_hdrsize;
+
+  for(nns = 0; dsns; dsns = dsns->dsns_next) {
     i = 0;
     while(i < nns && !dns_dnequ(nsdna[i], dsns->dsns_dn))
       ++i;
-    if (i >= nns) {
-      if (nns < MAX_NS)
-        nsdna[nns++] = dsns->dsns_dn;
-      else {
-        zlog(LOG_WARNING, zone,
-             "too many NS records specified, only first %d will be used",
-             MAX_NS);
-        break;
-      }
+    if (i < nns)
+      continue;
+    if (nns >= MAX_NS) {
+      zlog(LOG_WARNING, zone,
+           "too many NS records specified, only first %d will be used", MAX_NS);
+      break;
     }
-    dsns = dsns->dsns_next;
+    nsdna[nns] = dsns->dsns_dn;
+    if ((nsrrs[nns] = find_glue(zone, dsns->dsns_dn, &pkt, zonelist)))
+      nsrre[nns] = pkt.p_cur;
+    ++nns;
   }
+  if (pkt.p_buf[p_ancnt1])	/* too many glue recs */
+    return 0;
+  nglue = pkt.p_buf[p_ancnt2];
+  if (nns * 2 + nglue > sizeof(zns->jump)/sizeof(zns->jump[0]))
+    return 0;
 
   memcpy(zone->z_nsdna, nsdna, nns * sizeof(nsdna[0]));
   memset(nsdna + nns, 0, (MAX_NS - nns) * sizeof(nsdna[0]));
@@ -737,7 +792,23 @@ int update_zone_ns(struct zone *zone, const struct dsns *dsns, unsigned ttl) {
       PACK16(sizep, size);
     }
 
-    dnc_finish(&compr, cpos, &zns->size, &zns->jend);
+    dnc_finish(&compr, cpos, &zns->nssize, &zns->nsjend);
+    if (nglue) {
+      for(i = 0; i < nns; ++i) {
+        unsigned char *grr = nsrrs[i];
+        while(grr && grr < nsrre[i]) {
+          /* pack the glue record. jump, type+class, ttl, size (= 4 or 16) */
+          grr += 2;
+          size = 10 + grr[2+2+4+1];
+          cpos = dnc_add(&compr, cpos, nsdna[i]);
+          if (!cpos || cpos + size > compr.bend) return 0;
+          memcpy(cpos, grr, size);
+          grr += size;
+          cpos += size;
+        }
+      }
+    }
+    dnc_finish(&compr, cpos, &zns->tsize, &zns->tjend);
 
     if (++ns >= nns) break;
 
@@ -748,6 +819,7 @@ int update_zone_ns(struct zone *zone, const struct dsns *dsns, unsigned ttl) {
 
   }
   zone->z_nns = nns;
+  zone->z_nglue = nglue;
 
   return 1;
 }
@@ -757,9 +829,16 @@ static int addrr_ns(struct dnspacket *pkt, const struct zone *zone, int auth) {
   const struct zonens *zns = zone->z_zns + cns;
   if (!zone->z_nns)
     return 0;
-  if (!dnc_final(pkt, zns->data, zns->size, zns->jump, zns->jend))
-    return 0;
-  pkt->p_buf[auth ? p_nscnt : p_ancnt] += zone->z_nns;
+  if (auth) {
+    if (!dnc_final(pkt, zns->data, zns->tsize, zns->jump, zns->tjend))
+      return 0;
+    pkt->p_buf[p_nscnt] += zone->z_nns;
+    pkt->p_buf[p_arcnt] += zone->z_nglue;
+  } else {
+    if (!dnc_final(pkt, zns->data, zns->nssize, zns->jump, zns->nsjend))
+      return 0;
+    pkt->p_buf[p_ancnt] += zone->z_nns;
+  }
   /* pick up next variation of NS ordering */
   ++cns;
   if (cns >= zone->z_nns)

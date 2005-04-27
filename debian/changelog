@@ -1,3 +1,12 @@
+rbldnsd (0.994.93) unstable; urgency=low
+
+  * glue records for NSes, finally.
+
+  * when queried for NS or ANY to the base zone, return NS recs in
+    both answer and authority sections.
+
+ -- Michael Tokarev <mjt@corpit.ru>  Wed, 27 Apr 2005 16:17:25 +0400
+
 rbldnsd (0.994.92) unstable; urgency=low
 
   * finally: EDNS0 support.  Patch was here for a long time, now applied.

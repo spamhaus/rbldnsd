@@ -5,6 +5,13 @@ Never news are at top.
 
 0.995 (?? ??? ????)
 
+ - feature: allow glue records for nameservers (IPv4 only for now,
+   as there's no AAAA record support yet).  Generic dataset it the
+   most appropriate place to specify actual A records for the NSes.
+
+ - when replying to NS or ANY query to the base zone, rbldnsd now
+   returns set of nameservers in both ANSWER and AUTHORITY section.
+
  - feature: (initial, experimental) ACL support.  It is possble to force
    certain kinds of replies to be sent to certain clients (based on the
    client IP address), regardless of the query the client performs.

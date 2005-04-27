@@ -262,6 +262,7 @@ struct zone {	/* zone, list of zones */
   unsigned z_nns;			/* number of NSes in z_dsnsa[] */
   unsigned z_nsttl;			/* ttl for NS records */
   unsigned z_cns;			/* current NS in rotation */
+  unsigned z_nglue;			/* number of glue records */
   struct zonens *z_zns;			/* pre-packed NS records */
 #ifndef NOSTATS
   struct dnsstats z_stats;		/* statistic counters */
@@ -272,7 +273,8 @@ struct zone {	/* zone, list of zones */
 
 void init_zones_caches(struct zone *zonelist);
 int update_zone_soa(struct zone *zone, const struct dssoa *dssoa);
-int update_zone_ns(struct zone *zone, const struct dsns *dsns, unsigned ttl);
+int update_zone_ns(struct zone *zone, const struct dsns *dsns, unsigned ttl,
+                   const struct zone *zonelist);
 
 /* parse query and construct a reply to it, return len of answer or 0 */
 int replypacket(struct dnspacket *p, unsigned qlen, struct zone *zone);

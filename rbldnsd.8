@@ -949,21 +949,6 @@ is the same, the same, single dataset may be used, but it should
 be specified for every zone it should apply to (see \fBcombined\fR
 dataset usage example above).
 
-.SS "NS records belongs to separate zone"
-.PP
-.B Rbldnsd
-does not insert A records for nameservers into the ADDITIONAL
-section in replies, so NS records \fIshould not\fR point to the
-zone served by \fBrbldnsd\fR, or else you will have chicken\-and\-eggs
-problem and your zone will be broken from the DNS point of view.
-In order to work around this problem, set up nameservers inside
-another domain/zone that isn't handled by \fBrbldnsd\fR (and thus
-\fBrbldnsd\fR is not authoritative for that zone), i.e. instead of
-using quite natural ns0.bl.ex.com NS for bl.ex.com zone, use n0-bl.ex.com
-or ns0.blns.ex.com (inside parent zone, not controlled by \fBrbldnsd\fR).
-Since the parent zone is accessed much less frequently than the DNSBL
-zone itself, it usually requires less nameservers.
-
 .SH BUGS
 
 .PP
@@ -995,11 +980,6 @@ will not always return a list of nameserver records in the AUTHORITY
 section of every positive answer: NS records will be provided
 (if given) only if there's a room for them in single UDP packet.
 If records does not fit, AUTHORITY section will be empty.
-
-.PP
-Also, \fBrbldnsd\fR does not add A records for nameservers into
-the ADDITIONAL section in replies.  See NOTES section above for
-more details.
 
 .PP
 .B rbldnsd

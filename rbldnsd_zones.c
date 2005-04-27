@@ -426,7 +426,7 @@ static int loaddataset(struct dataset *ds) {
   return 1;
 }
 
-static int updatezone(struct zone *zone) {
+static int updatezone(struct zone *zone, const struct zone *zonelist) {
   time_t stamp = 0;
   const struct dssoa *dssoa = NULL;
   const struct dsns *dsns = NULL;
@@ -447,7 +447,7 @@ static int updatezone(struct zone *zone) {
 
   zone->z_stamp = stamp;
   if (!update_zone_soa(zone, dssoa) ||
-      !update_zone_ns(zone, dsns, nsttl))
+      !update_zone_ns(zone, dsns, nsttl, zonelist))
     zlog(LOG_WARNING, zone,
          "NS or SOA RRs are too long, will be ignored");
 
@@ -457,6 +457,7 @@ static int updatezone(struct zone *zone) {
 int reloadzones(struct zone *zonelist) {
   struct dataset *ds;
   struct dsfile *dsf;
+  struct zone *zone;
   int reloaded = 0;
   int errors = 0;
   extern void start_loading();
@@ -504,10 +505,10 @@ int reloadzones(struct zone *zonelist) {
 
   if (reloaded) {
 
-    for(; zonelist; zonelist = zonelist->z_next) {
-      if (!updatezone(zonelist)) {
-        zlog(LOG_WARNING, zonelist, "zone will not be serviced");
-        zonelist->z_stamp = 0;
+    for(zone = zonelist; zone; zone = zone->z_next) {
+      if (!updatezone(zone, zonelist)) {
+        zlog(LOG_WARNING, zone, "zone will not be serviced");
+        zone->z_stamp = 0;
       }
     }
 
