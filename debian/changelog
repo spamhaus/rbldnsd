@@ -7,7 +7,7 @@ rbldnsd (0.994.93) unstable; urgency=low
 
   * in acl "dataset", default action is now "ignore", not "always-listed"
 
- -- Michael Tokarev <mjt@corpit.ru>  Wed, 27 Apr 2005 16:17:25 +0400
+ -- Michael Tokarev <mjt@corpit.ru>  Wed, 27 Apr 2005 19:04:56 +0400
 
 rbldnsd (0.994.92) unstable; urgency=low
 

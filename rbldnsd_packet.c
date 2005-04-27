@@ -793,21 +793,17 @@ int update_zone_ns(struct zone *zone, const struct dsns *dsns, unsigned ttl,
     }
 
     dnc_finish(&compr, cpos, &zns->nssize, &zns->nsjend);
-    if (nglue) {
-      for(i = 0; i < nns; ++i) {
-        unsigned char *grr = nsrrs[i];
-        while(grr && grr < nsrre[i]) {
+    if (nglue)
+      for(i = 0; i < nns; ++i)
+        for(dn = nsrrs[i]; dn && dn < nsrre[i]; ) {
           /* pack the glue record. jump, type+class, ttl, size (= 4 or 16) */
-          grr += 2;
-          size = 10 + grr[2+2+4+1];
-          cpos = dnc_add(&compr, cpos, nsdna[i]);
+          dn += 2;
+          size = 10 + dn[2+2+4+1];
+          cpos = dnc_add(&compr, cpos, zone->z_nsdna[i]);
           if (!cpos || cpos + size > compr.bend) return 0;
-          memcpy(cpos, grr, size);
-          grr += size;
-          cpos += size;
+          memcpy(cpos, dn, size);
+          dn += size; cpos += size;
         }
-      }
-    }
     dnc_finish(&compr, cpos, &zns->tsize, &zns->tjend);
 
     if (++ns >= nns) break;
