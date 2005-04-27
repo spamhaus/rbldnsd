@@ -68,8 +68,8 @@ struct dnsqinfo {	/* qi */
 
 #define PACK32(b,n) ((b)[0]=(n)>>24,(b)[1]=(n)>>16,(b)[2]=(n)>>8,(b)[3]=(n))
 #define PACK32S(b,n) (*b++=(n)>>24,*b++=(n)>>16,*b++=(n)>>8,*b++=n)
-#define PACK16(b,n) ((b)[0]=(n)>>8,(b)[1]=(n))
-#define PACK16S(b,n) (*b++=(n)>>8,*b++=(n))
+#define PACK16(b,n) ((b)[0]=(n)>>8,(b)[1]=(unsigned char)(n))
+#define PACK16S(b,n) (*b++=(n)>>8,*b++=(unsigned char)(n))
 
 unsigned unpack32(const unsigned char nb[4]);
 
