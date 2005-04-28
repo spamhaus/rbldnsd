@@ -1,3 +1,14 @@
+rbldnsd (0.994.94) unstable; urgency=low
+
+  * fixed EDNS0 (it now really works)
+
+  * fixed NS+glue records - if there's no room for glue but auth section
+    can be added, add auth w/o glue
+
+  * remove p_..cnt #defines (to be p_..cnt2), as they're confusing
+
+ -- Michael Tokarev <mjt@corpit.ru>  Thu, 28 Apr 2005 15:24:10 +0400
+
 rbldnsd (0.994.93) unstable; urgency=low
 
   * glue records for NSes, finally.

@@ -66,13 +66,6 @@ static int version_req(struct dnspacket *pkt, const struct dnsquery *qry);
  * next two bytes are query class (IN, HESIOD etc)
  */
 
-/* since all counts are <255 due to size constraints, define
- * aliases for 2nd bytes */
-#define p_qdcnt p_qdcnt2
-#define p_ancnt p_ancnt2
-#define p_nscnt p_nscnt2
-#define p_arcnt p_arcnt2
-
 static int
 parsequery(struct dnspacket *pkt, unsigned qlen,
            struct dnsquery *qry) {
@@ -387,7 +380,7 @@ int replypacket(struct dnspacket *pkt, unsigned qlen, struct zone *zone) {
       found = 0;
     if (!found) {
       pkt->p_cur = pkt->p_sans;
-      h[p_ancnt] = h[p_nscnt] = 0;
+      h[p_ancnt2] = h[p_nscnt2] = 0;
       refuse(DNS_R_REFUSED);
     }
 
@@ -423,11 +416,11 @@ int replypacket(struct dnspacket *pkt, unsigned qlen, struct zone *zone) {
 #endif
   }
   else {
-    if (!h[p_ancnt]) {	/* positive reply, no answers */
+    if (!h[p_ancnt2]) {	/* positive reply, no answers */
       addrr_soa(pkt, zone, 1);	/* add SOA if any to AUTHORITY */
     }
     else if (zone->z_nns &&
-//             (!(qi.qi_tflag & NSQUERY_NS) || qi.qi_dnlab) &&
+             /* (!(qi.qi_tflag & NSQUERY_NS) || qi.qi_dnlab) && */
              !lazy)
       addrr_ns(pkt, zone, 1); /* add nameserver records to positive reply */
     do_stats(zone->z_stats.q_ok += 1);
@@ -438,7 +431,7 @@ int replypacket(struct dnspacket *pkt, unsigned qlen, struct zone *zone) {
   if (rlen() > DNS_MAXPACKET) {	/* add OPT record for long replies */
     /* as per parsequery(), we always have 11 bytes for minimal OPT record at
      * the end of our reply packet, OR rlen() does not exceed DNS_MAXPACKET */
-    h[p_arcnt1] = 1;
+    h[p_arcnt2] += 1;	/* arcnt is limited to 254 records */
     h = pkt->p_cur;
     *h++ = 0;			/* empty (root) DN */
     PACK16S(h, DNS_T_OPT);
@@ -447,6 +440,7 @@ int replypacket(struct dnspacket *pkt, unsigned qlen, struct zone *zone) {
     *h++ = 0; *h++ = 0;		/* rest of the TTL field */
     *h++ = 0; *h++ = 0;		/* RDLEN */
     pkt->p_cur = h;
+    h = pkt->p_buf;		/* restore for rlen() to work */
   }
   do_stats(zone->z_stats.b_out += rlen());
   return rlen();
@@ -685,7 +679,7 @@ static int addrr_soa(struct dnspacket *pkt, const struct zone *zone, int auth) {
   }
   /* for AUTHORITY section for NXDOMAIN etc replies, use minttl as TTL */
   if (auth) memcpy(c + zsoa->ttloff, zsoa->minttl, 4);
-  pkt->p_buf[auth ? p_nscnt : p_ancnt]++;
+  pkt->p_buf[auth ? p_nscnt2 : p_ancnt2]++;
   return 1;
 }
 
@@ -760,7 +754,7 @@ int update_zone_ns(struct zone *zone, const struct dsns *dsns, unsigned ttl,
       nsrre[nns] = pkt.p_cur;
     ++nns;
   }
-  if (pkt.p_buf[p_ancnt1])	/* too many glue recs */
+  if (pkt.p_buf[p_ancnt1] || pkt.p_buf[p_ancnt2] > 254)	/* too many glue recs */
     return 0;
   nglue = pkt.p_buf[p_ancnt2];
   if (nns * 2 + nglue > sizeof(zns->jump)/sizeof(zns->jump[0]))
@@ -825,16 +819,14 @@ static int addrr_ns(struct dnspacket *pkt, const struct zone *zone, int auth) {
   const struct zonens *zns = zone->z_zns + cns;
   if (!zone->z_nns)
     return 0;
-  if (auth) {
-    if (!dnc_final(pkt, zns->data, zns->tsize, zns->jump, zns->tjend))
-      return 0;
-    pkt->p_buf[p_nscnt] += zone->z_nns;
-    pkt->p_buf[p_arcnt] += zone->z_nglue;
-  } else {
-    if (!dnc_final(pkt, zns->data, zns->nssize, zns->jump, zns->nsjend))
-      return 0;
-    pkt->p_buf[p_ancnt] += zone->z_nns;
+  if (auth && dnc_final(pkt, zns->data, zns->tsize, zns->jump, zns->tjend)) {
+    pkt->p_buf[p_nscnt2] += zone->z_nns;
+    pkt->p_buf[p_arcnt2] += zone->z_nglue;
   }
+  else if (!dnc_final(pkt, zns->data, zns->nssize, zns->jump, zns->nsjend))
+    return 0;
+  else
+    pkt->p_buf[auth ? p_ancnt2 : p_nscnt2] += zone->z_nns;
   /* pick up next variation of NS ordering */
   ++cns;
   if (cns >= zone->z_nns)
@@ -920,7 +912,7 @@ void addrr_any(struct dnspacket *pkt, unsigned dtp,
   PACK16S(c, dsz);
   memcpy(c, data, dsz);
   pkt->p_cur = c + dsz;
-  pkt->p_buf[p_ancnt] += 1; /* increment numanswers */
+  pkt->p_buf[p_ancnt2] += 1; /* increment numanswers */
 }
 
 void
@@ -959,8 +951,8 @@ static int version_req(struct dnspacket *pkt, const struct dnsquery *qry) {
   *c++ = --dsz;
   memcpy(c, show_version, dsz);
   pkt->p_cur = c + dsz;
-  pkt->p_buf[p_ancnt] += 1; /* increment numanswers */
-  return 1;		
+  pkt->p_buf[p_ancnt2] += 1; /* increment numanswers */
+  return 1;
 }
 
 void logreply(const struct dnspacket *pkt, FILE *flog, int flushlog) {
@@ -986,7 +978,7 @@ void logreply(const struct dnspacket *pkt, FILE *flog, int flushlog) {
       dns_typename(((unsigned)q[0]<<8)|q[1]),
       dns_classname(((unsigned)q[2]<<8)|q[3]),
       dns_rcodename(pkt->p_buf[p_f2] & pf2_rcode),
-      pkt->p_buf[p_ancnt], pkt->p_cur - pkt->p_buf);
+      pkt->p_buf[p_ancnt2], pkt->p_cur - pkt->p_buf);
   if (flushlog)
     write(fileno(flog), cbuf, cp - cbuf);
   else
