@@ -3,7 +3,7 @@ $Id$
 This file describes user-visible changes in rbldnsd.
 Never news are at top.
 
-0.995 (?? ??? ????)
+0.995 (28 Apr 2005)
 
  - feature: allow glue records for nameservers (IPv4 only for now,
    as there's no AAAA record support yet).  Generic dataset it the
