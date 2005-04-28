@@ -836,6 +836,9 @@ static int addrr_ns(struct dnspacket *pkt, const struct zone *zone, int auth) {
   else if (!dnc_final(pkt, zns->data, zns->nssize, zns->jump, zns->nsjend))
     return 0;
   else
+    /* we can't overflow p_ancnt2 (255 max) because addrr_ns(auth=0)
+     * is called before all other answers will be collected,
+     * and MAX_NS (zone->z_nns) is definitely less than 255 */
     pkt->p_buf[auth ? p_nscnt2 : p_ancnt2] += zone->z_nns;
   /* pick up next variation of NS ordering */
   ++cns;
@@ -911,7 +914,7 @@ void addrr_any(struct dnspacket *pkt, unsigned dtp,
   ttl = checkrr_present(pkt->p_sans, c, dtp, data, dsz, ttl);
   if (!ttl) return; /* if RR is already present, do nothing */
 
-  if (!fit(pkt, c, 12 + dsz)) {
+  if (!fit(pkt, c, 12 + dsz) || pkt->p_buf[p_ancnt2] == 255) {
     setnonauth(pkt->p_buf); /* non-auth answer as we can't fit the record */
     return;
   }

@@ -2,6 +2,10 @@ rbldnsd (0.995) unstable; urgency=low
 
   * released 0.995
 
+  * ensure we do not return more than 255 answers (which can happen when
+    EDNS0 size extensions are enabled), as the code isn't prepared to handle
+    2-byte numanswers field in DNS packet header.
+
  -- Michael Tokarev <mjt@corpit.ru>  Thu, 28 Apr 2005 23:57:32 +0400
 
 rbldnsd (0.994.94) unstable; urgency=low
