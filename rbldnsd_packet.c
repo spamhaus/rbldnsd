@@ -373,6 +373,7 @@ int replypacket(struct dnspacket *pkt, unsigned qlen, struct zone *zone) {
 
     found = NSQUERY_FOUND;
 
+    /* NS and SOA with auth=0 will only touch answer section */
     if ((qi.qi_tflag & NSQUERY_SOA) && !addrr_soa(pkt, zone, 0))
       found = 0;
     else
@@ -407,6 +408,8 @@ int replypacket(struct dnspacket *pkt, unsigned qlen, struct zone *zone) {
   }
 
   /* now complete the reply: add AUTH etc sections */
+  /* addrr_ns(auth=1) should be called last as it fills in
+   * both AUTH and ADDITIONAL sections */
   if (!found) {			/* negative result */
     addrr_soa(pkt, zone, 1);	/* add SOA if any to AUTHORITY */
     h[p_f2] = DNS_R_NXDOMAIN;
@@ -431,7 +434,7 @@ int replypacket(struct dnspacket *pkt, unsigned qlen, struct zone *zone) {
   if (rlen() > DNS_MAXPACKET) {	/* add OPT record for long replies */
     /* as per parsequery(), we always have 11 bytes for minimal OPT record at
      * the end of our reply packet, OR rlen() does not exceed DNS_MAXPACKET */
-    h[p_arcnt2] += 1;	/* arcnt is limited to 254 records */
+    h[p_arcnt2] += 1;		/* arcnt is limited to 254 records */
     h = pkt->p_cur;
     *h++ = 0;			/* empty (root) DN */
     PACK16S(h, DNS_T_OPT);
@@ -754,9 +757,11 @@ int update_zone_ns(struct zone *zone, const struct dsns *dsns, unsigned ttl,
       nsrre[nns] = pkt.p_cur;
     ++nns;
   }
-  if (pkt.p_buf[p_ancnt1] || pkt.p_buf[p_ancnt2] > 254)	/* too many glue recs */
-    return 0;
+  /* number of additional records must not exceed 254: (room for EDNS0 OPT) */
   nglue = pkt.p_buf[p_ancnt2];
+  if (pkt.p_buf[p_ancnt1] || nglue > 254)	/* too many glue recs */
+    return 0;
+  /* check if we have enouth dnjump slots */
   if (nns * 2 + nglue > sizeof(zns->jump)/sizeof(zns->jump[0]))
     return 0;
 
@@ -785,12 +790,12 @@ int update_zone_ns(struct zone *zone, const struct dsns *dsns, unsigned ttl,
       size = cpos - sizep - 2;
       PACK16(sizep, size);
     }
-
     dnc_finish(&compr, cpos, &zns->nssize, &zns->nsjend);
+
     if (nglue)
       for(i = 0; i < nns; ++i)
         for(dn = nsrrs[i]; dn && dn < nsrre[i]; ) {
-          /* pack the glue record. jump, type+class, ttl, size (= 4 or 16) */
+          /* pack the glue record. dnjump, type+class, ttl, size (= 4 or 16) */
           dn += 2;
           size = 10 + dn[2+2+4+1];
           cpos = dnc_add(&compr, cpos, zone->z_nsdna[i]);
@@ -802,6 +807,7 @@ int update_zone_ns(struct zone *zone, const struct dsns *dsns, unsigned ttl,
 
     if (++ns >= nns) break;
 
+    /* rotate list of NSes */
     dn = nsdna[0];
     memmove(nsdna, nsdna + 1, (nns - 1) * sizeof(nsdna[0]));
     nsdna[nns - 1] = dn;
@@ -819,6 +825,10 @@ static int addrr_ns(struct dnspacket *pkt, const struct zone *zone, int auth) {
   const struct zonens *zns = zone->z_zns + cns;
   if (!zone->z_nns)
     return 0;
+  /* if auth=1, we're adding last records (except maybe EDNS0 OPT),
+   * so it's ok to fill in both AUTH and ADDITIONAL sections. */
+  /* If we can't fit both NS and glue recs, try NS only, omitting glue.
+   * For auth=0, don't add glue records at all.  */
   if (auth && dnc_final(pkt, zns->data, zns->tsize, zns->jump, zns->tjend)) {
     pkt->p_buf[p_nscnt2] += zone->z_nns;
     pkt->p_buf[p_arcnt2] += zone->z_nglue;
