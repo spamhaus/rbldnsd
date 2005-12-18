@@ -1,3 +1,9 @@
+rbldnsd (0.996) unstable; urgency=low
+
+  * deal with realloc(smaller_size) returning NULL
+
+ -- Michael Tokarev <mjt@corpit.ru>  Sun, 18 Dec 2005 21:40:12 +0300
+
 rbldnsd (0.995) unstable; urgency=low
 
   * released 0.995

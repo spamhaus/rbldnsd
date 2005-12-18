@@ -366,10 +366,17 @@ int vssprintf(char *buf, int bufsz, const char *fmt, va_list ap);
 int PRINTFLIKE(3, 4) ssprintf(char *buf, int bufsz, const char *fmt, ...);
 
 /* a helper to shrink an array */
+/* some malloc implementations may return NULL on realloc()
+ * even if newsize is smaller than current size, so deal with
+ * this here.  Note that if realloc() fails, we're under memory
+ * pressure here, so next reload will probably hit ENOMEM anyway...
+ */
 #define SHRINK_ARRAY(type, arr, needed, allocated)	\
   if ((allocated) > (needed)) {				\
-     (arr) = trealloc(type, (arr), (needed));		\
-     (allocated) = (needed);				\
+     type *_temp = trealloc(type, (arr), (needed));	\
+     if (_temp) {					\
+       (arr) = _temp; (allocated) = (needed);		\
+     }							\
   }
 
 /* a helper macro to remove dups from a sorted array */
