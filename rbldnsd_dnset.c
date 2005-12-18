@@ -23,6 +23,7 @@ struct entry {
 struct dsdata {
   unsigned n[2]; /* number of entries */
   unsigned a[2]; /* entries allocated (used only when loading) */
+  unsigned h[2]; /* hint: number of entries to allocate next time */
   struct entry *e[2]; /* entries: plain and wildcard */
   unsigned maxlab[2]; /* max level of labels */
   unsigned minlab[2]; /* min level of labels */
@@ -36,10 +37,12 @@ struct dsdata {
 definedstype(dnset, 0, "set of (domain name, value) pairs");
 
 static void ds_dnset_reset(struct dsdata *dsd, int UNUSED unused_freeall) {
+  unsigned h0 = dsd->h[0], h1 = dsd->h[1];
   if (dsd->e[EP]) free(dsd->e[EP]);
   if (dsd->e[EW]) free(dsd->e[EW]);
   memset(dsd, 0, sizeof(*dsd));
   dsd->minlab[EP] = dsd->minlab[EW] = DNS_MAXDN;
+  dsd->h[0] = h0; dsd->h[1] = h1;
 }
 
 static void ds_dnset_start(struct dataset *ds) {
@@ -54,7 +57,8 @@ ds_dnset_addent(struct dsdata *dsd, int idx,
 
   e = dsd->e[idx];
   if (dsd->n[idx] >= dsd->a[idx]) { /* expand array */
-    dsd->a[idx] = dsd->a[idx] ? dsd->a[idx] << 1 : 64;
+    dsd->a[idx] = dsd->a[idx] ? dsd->a[idx] << 1 :
+                  dsd->h[idx] ? dsd->h[idx] : 64;
     e = trealloc(struct entry, e, dsd->a[idx]);
     if (!e) return 0;
     dsd->e[idx] = e;
@@ -154,7 +158,13 @@ static void ds_dnset_finish(struct dataset *ds, struct dsctx *dsc) {
   struct dsdata *dsd = ds->ds_dsd;
   unsigned r;
   for(r = 0; r < 2; ++r) {
-    if (!dsd->n[r]) continue;
+    if (!dsd->n[r]) {
+      dsd->h[r] = 0;
+      continue;
+    }
+    dsd->h[r] = dsd->a[r];
+    while((dsd->h[r] >> 1) >= dsd->n[r])
+      dsd->h[r] >>= 1;
 
 #   define QSORT_TYPE struct entry
 #   define QSORT_BASE dsd->e[r]
