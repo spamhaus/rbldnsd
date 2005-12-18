@@ -11,7 +11,7 @@
 struct dsdata {
   unsigned n;		/* count */
   unsigned a;		/* allocated (only for loading) */
-  unsigned f;		/* how much to allocate next time */
+  unsigned h;		/* hint: how much to allocate next time */
   ip4addr_t *e;		/* array of entries */
   const char *def_rr;	/* default A and TXT RRs */
 };
@@ -56,7 +56,7 @@ ds_ip4tset_line(struct dataset *ds, char *s, struct dsctx *dsc) {
   if (dsd->n >= dsd->a) {
     ip4addr_t *e = dsd->e;
     if (!dsd->a)
-      dsd->a = dsd->f ? dsd->f : 64;
+      dsd->a = dsd->h ? dsd->h : 64;
     else
       dsd->a <<= 1;
     e = trealloc(ip4addr_t, e, dsd->a);
@@ -75,10 +75,12 @@ static void ds_ip4tset_finish(struct dataset *ds, struct dsctx *dsc) {
   ip4addr_t *e = dsd->e;
   unsigned n = dsd->n;
 
-  if (n) {
-    dsd->f = dsd->a;
-    while((dsd->f >> 1) >= n)
-      dsd->f >>= 1;
+  if (!n)
+    dsd->h = 0;
+  else {
+    dsd->h = dsd->a;
+    while((dsd->h >> 1) >= n)
+      dsd->h >>= 1;
 
 #   define QSORT_TYPE ip4addr_t
 #   define QSORT_BASE e

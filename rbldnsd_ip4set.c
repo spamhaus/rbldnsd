@@ -16,7 +16,7 @@ struct entry {
 struct dsdata {
   unsigned n[4];	/* counts */
   unsigned a[4];	/* allocated (only for loading) */
-  unsigned f[4];	/* how much to allocate next time */
+  unsigned h[4];	/* hint, how much to allocate next time */
   struct entry *e[4];	/* entries */
   const char *def_rr;	/* default A and TXT RRs */
 };
@@ -58,7 +58,7 @@ ds_ip4set_addent(struct dsdata *dsd, unsigned idx,
 
   if (dsd->n[idx] + count > dsd->a[idx]) {
     if (!dsd->a[idx])
-      dsd->a[idx] = dsd->f[idx] ? dsd->f[idx] : 64;
+      dsd->a[idx] = dsd->h[idx] ? dsd->h[idx] : 64;
     while(dsd->n[idx] + count > dsd->a[idx])
       dsd->a[idx] <<= 1;
     e = trealloc(struct entry, e, dsd->a[idx]);
@@ -174,12 +174,12 @@ static void ds_ip4set_finish(struct dataset *ds, struct dsctx *dsc) {
   unsigned r;
   for(r = 0; r < 4; ++r) {
     if (!dsd->n[r]) {
-      dsd->f[r] = 0;
+      dsd->h[r] = 0;
       continue;
     }
-    dsd->f[r] = dsd->a[r];
-    while((dsd->f[r] >> 1) >= dsd->n[r])
-      dsd->f[r] >>= 1;
+    dsd->h[r] = dsd->a[r];
+    while((dsd->h[r] >> 1) >= dsd->n[r])
+      dsd->h[r] >>= 1;
 
 #   define QSORT_TYPE struct entry
 #   define QSORT_BASE dsd->e[r]

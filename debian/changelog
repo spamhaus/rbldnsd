@@ -4,7 +4,10 @@ rbldnsd (0.996) unstable; urgency=low
 
   * add next-reload-size hint to dnset too
 
- -- Michael Tokarev <mjt@corpit.ru>  Sun, 18 Dec 2005 21:41:45 +0300
+  * (cosmetic code) unify several structure member names across
+    different *sets
+
+ -- Michael Tokarev <mjt@corpit.ru>  Sun, 18 Dec 2005 21:42:56 +0300
 
 rbldnsd (0.995) unstable; urgency=low
 
