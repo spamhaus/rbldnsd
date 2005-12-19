@@ -2,6 +2,8 @@
  * Nameserver zones: structures and routines
  */
 
+#define _GNU_SOURCE
+#define _BSD_SOURCE
 #include <stdio.h>
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -359,6 +361,10 @@ static int ds_special(struct dataset *ds, char *line, struct dsctx *dsc) {
   return 0;
 }
 
+#ifdef NO_FGETS_UNLOCKED
+# define fgets_unlocked fgets
+#endif
+
 static int readdslines(FILE *f, struct dataset *ds, struct dsctx *dsc) {
 #define bufsiz 8192
   char _buf[bufsiz+4], *line, *eol;
@@ -367,7 +373,7 @@ static int readdslines(FILE *f, struct dataset *ds, struct dsctx *dsc) {
   struct dataset *dscur = ds;
   ds_linefn_t *linefn = dscur->ds_type->dst_linefn;
 
-  while(fgets(buf, bufsiz, f)) {
+  while(fgets_unlocked(buf, bufsiz, f)) {
     eol = buf + strlen(buf) - 1;
     if (eol < buf) /* can this happen? */
       continue;

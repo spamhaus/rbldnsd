@@ -26,7 +26,10 @@ rbldnsd (0.996) unstable; urgency=low
   * configure script now accepts some --disable- and --enable- options
     (--disable-ipv6)
 
- -- Michael Tokarev <mjt@corpit.ru>  Mon, 19 Dec 2005 17:56:33 +0300
+  * use fgets_unlocked() to read data files (slightly faster)
+    on systems which support it (with configure check)
+
+ -- Michael Tokarev <mjt@corpit.ru>  Tue, 20 Dec 2005 00:15:56 +0300
 
 rbldnsd (0.995) unstable; urgency=low
 
