@@ -7,7 +7,9 @@ rbldnsd (0.996) unstable; urgency=low
   * (cosmetic code) unify several structure member names across
     different *sets
 
- -- Michael Tokarev <mjt@corpit.ru>  Sun, 18 Dec 2005 21:42:56 +0300
+  * up MAX_NS from 20 to 32, per request from Spamhaus
+
+ -- Michael Tokarev <mjt@corpit.ru>  Mon, 19 Dec 2005 11:29:49 +0300
 
 rbldnsd (0.995) unstable; urgency=low
 

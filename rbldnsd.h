@@ -244,7 +244,7 @@ struct dnsstats {
 extern struct dnsstats gstats;	/* global statistics counters */
 #endif /* NO_STATS */
 
-#define MAX_NS 20
+#define MAX_NS 32
 
 struct zone {	/* zone, list of zones */
   unsigned z_stamp;			/* timestamp, 0 if not loaded */
