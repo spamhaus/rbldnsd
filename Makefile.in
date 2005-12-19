@@ -62,7 +62,8 @@ RBLDNSD_SRCS = rbldnsd.c rbldnsd_zones.c rbldnsd_packet.c \
 RBLDNSD_HDRS = rbldnsd.h rbldnsd_hooks.h
 RBLDNSD_OBJS = $(RBLDNSD_SRCS:.c=.o) lib$(NAME).a
 
-MISC = configure $(NAME).8 qsort.c Makefile.in dns_maketab.awk $(NAME).spec \
+MISC = configure configure.lib \
+  $(NAME).8 qsort.c Makefile.in dns_maketab.awk $(NAME).spec \
   NEWS TODO CHANGES-0.81 README.user
 DEBFILES  = debian/changelog debian/copyright debian/rules debian/control \
   debian/postinst debian/$(NAME).default debian/$(NAME).init
@@ -138,7 +139,7 @@ depend dep deps: $(SRCS) $(GSRC)
 	  mv -f Makefile.tmp Makefile.in ; \
 	fi
 
-config.h Makefile: configure Makefile.in debian/changelog
+config.h Makefile: configure configure.lib Makefile.in debian/changelog
 	./configure
 	@echo
 	@echo Please rerun make >&2

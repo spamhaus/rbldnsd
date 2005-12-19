@@ -20,7 +20,10 @@ rbldnsd (0.996) unstable; urgency=low
     Note if you had automated building procedure you have to change
     your #defines.
 
- -- Michael Tokarev <mjt@corpit.ru>  Mon, 19 Dec 2005 17:33:14 +0300
+  * new configure script, using shell functions in configure.lib - much
+    more manageable.
+
+ -- Michael Tokarev <mjt@corpit.ru>  Mon, 19 Dec 2005 17:37:07 +0300
 
 rbldnsd (0.995) unstable; urgency=low
 
