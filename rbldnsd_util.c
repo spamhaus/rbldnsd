@@ -147,6 +147,7 @@ int readdslines(FILE *f, struct dataset *ds, struct dsctx *dsc) {
   }
   return 1;
 #undef buf
+#undef bufsiz
 }
 
 int parse_a_txt(char *str, const char **rrp, const char *def_rr,
