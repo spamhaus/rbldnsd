@@ -156,7 +156,7 @@ struct zone *addzone(struct zone *zonelist, const char *spec) {
 }
 
 /* parse $SPECIAL construct */
-int ds_special(struct dataset *ds, char *line, struct dsctx *dsc) {
+static int ds_special(struct dataset *ds, char *line, struct dsctx *dsc) {
 
   switch(*line) {
 
@@ -357,6 +357,60 @@ int ds_special(struct dataset *ds, char *line, struct dsctx *dsc) {
   }
 
   return 0;
+}
+
+static int readdslines(FILE *f, struct dataset *ds, struct dsctx *dsc) {
+#define bufsiz 8192
+  char _buf[bufsiz+4], *line, *eol;
+#define buf (_buf+4)  /* keep room for 4 IP octets in addrtxt() */
+  int noeol = 0;
+  struct dataset *dscur = ds;
+  ds_linefn_t *linefn = dscur->ds_type->dst_linefn;
+
+  while(fgets(buf, bufsiz, f)) {
+    eol = buf + strlen(buf) - 1;
+    if (eol < buf) /* can this happen? */
+      continue;
+    if (noeol) { /* read parts of long line up to \n */
+      if (*eol == '\n')
+        noeol = 0;
+      continue;
+    }
+    ++dsc->dsc_lineno;
+    if (*eol == '\n')
+      --eol;
+    else if (feof(f)) {
+      dslog(LOG_WARNING, dsc, "incomplete last line (ignored)");
+      break;
+    }
+    else {
+      dswarn(dsc, "long line (truncated)");
+      noeol = 1; /* mark it to be read above */
+    }
+    /* skip whitespace */
+    line = buf;
+    SKIPSPACE(line);
+    while(eol >= line && ISSPACE(*eol))
+      --eol;
+    eol[1] = '\0';
+    if (line[0] == '$' ||
+        ((ISCOMMENT(line[0]) || line[0] == ':') && line[1] == '$')) {
+      int r = ds_special(ds, line[0] == '$' ? line + 1 : line + 2, dsc);
+      if (!r)
+        dswarn(dsc, "invalid or unrecognized special entry");
+      else if (r < 0)
+        return 0;
+      dscur = dsc->dsc_subset ? dsc->dsc_subset : ds;
+      linefn = dscur->ds_type->dst_linefn;
+      continue;
+    }
+    if (line[0] && !ISCOMMENT(line[0]))
+      if (!linefn(dscur, line, dsc))
+        return 0;
+  }
+  return 1;
+#undef buf
+#undef bufsiz
 }
 
 static void freedataset(struct dataset *ds) {

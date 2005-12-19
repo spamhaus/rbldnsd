@@ -337,10 +337,6 @@ void PRINTFLIKE(2,3) dsloaded(struct dsctx *dsc, const char *fmt, ...);
 void PRINTFLIKE(3,4)
 zlog(int level, const struct zone *zone, const char *fmt, ...);
 
-int readdslines(FILE *f, struct dataset *ds, struct dsctx *dsc);
-/* parse $SPECIAL */
-int ds_special(struct dataset *ds, char *line, struct dsctx *dsc);
-
 /* from rbldnsd_combined.c, special routine used inside ds_special() */
 int ds_combined_newset(struct dataset *ds, char *line, struct dsctx *dsc);
 

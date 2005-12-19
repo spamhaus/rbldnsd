@@ -12,7 +12,11 @@ rbldnsd (0.996) unstable; urgency=low
   * fix a nasty typo in vssprintf() (bufsiz => bufsz).  DO #undefine
     constants which aren't needed anymore!
 
- -- Michael Tokarev <mjt@corpit.ru>  Mon, 19 Dec 2005 11:51:04 +0300
+  * rearrange code a bit: move readslines() from rbldnsd_util.c to
+    rbldnsd_zones.c, make some functions static and remove declarations
+    from rbldnsd.h.  No code changes.
+
+ -- Michael Tokarev <mjt@corpit.ru>  Mon, 19 Dec 2005 11:57:34 +0300
 
 rbldnsd (0.995) unstable; urgency=low
 
