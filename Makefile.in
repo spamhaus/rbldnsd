@@ -103,7 +103,7 @@ rbldnsd.o: rbldnsd.c debian/changelog
 clean:
 	-rm -f $(RBLDNSD_OBJS) $(LIB_OBJS) lib$(NAME).a $(GSRC) config.log
 distclean: clean
-	-rm -f $(NAME) config.h Makefile
+	-rm -f $(NAME) config.h Makefile config.status
 
 spec:
 	@sed "s/^Version:.*/Version: $(VERSION)/" $(NAME).spec \
