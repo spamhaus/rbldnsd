@@ -434,20 +434,20 @@ vdslog(int level, struct dsctx *dsc, const char *fmt, va_list ap) {
     write(1, buf, l);
 }
 
-void dslog(int level, struct dsctx *dsl, const char *fmt, ...) {
+void dslog(int level, struct dsctx *dsc, const char *fmt, ...) {
   va_list ap;
   va_start(ap, fmt);
-  vdslog(level, dsl, fmt, ap);
+  vdslog(level, dsc, fmt, ap);
   va_end(ap);
 }
 
 #define MAXWARN 5
 
-void dswarn(struct dsctx *dsl, const char *fmt, ...) {
-  if (++dsl->dsc_warns <= MAXWARN) { /* prevent syslog flood */
+void dswarn(struct dsctx *dsc, const char *fmt, ...) {
+  if (++dsc->dsc_warns <= MAXWARN) { /* prevent syslog flood */
     va_list ap;
     va_start(ap, fmt);
-    vdslog(LOG_WARNING, dsl, fmt, ap);
+    vdslog(LOG_WARNING, dsc, fmt, ap);
     va_end(ap);
   }
 }
