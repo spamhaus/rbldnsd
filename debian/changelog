@@ -9,7 +9,10 @@ rbldnsd (0.996) unstable; urgency=low
 
   * up MAX_NS from 20 to 32, per request from Spamhaus
 
- -- Michael Tokarev <mjt@corpit.ru>  Mon, 19 Dec 2005 11:29:49 +0300
+  * fix a nasty typo in vssprintf() (bufsiz => bufsz).  DO #undefine
+    constants which aren't needed anymore!
+
+ -- Michael Tokarev <mjt@corpit.ru>  Mon, 19 Dec 2005 11:51:04 +0300
 
 rbldnsd (0.995) unstable; urgency=low
 
