@@ -226,8 +226,8 @@ struct dslist {	/* dsl */
 struct zonesoa;
 struct zonens;
 
-#ifndef NOSTATS
-#if !defined(NOSTDINT_H)
+#ifndef NO_STATS
+#if !defined(NO_STDINT_H)
 typedef uint64_t dnscnt_t;
 #define PRI_DNSCNT PRIu64
 #elif SIZEOF_LONG < 8 && defined(SIZEOF_LONG_LONG)
@@ -264,7 +264,7 @@ struct zone {	/* zone, list of zones */
   unsigned z_cns;			/* current NS in rotation */
   unsigned z_nglue;			/* number of glue records */
   struct zonens *z_zns;			/* pre-packed NS records */
-#ifndef NOSTATS
+#ifndef NO_STATS
   struct dnsstats z_stats;		/* statistic counters */
   struct dnsstats z_pstats;		/* for stats monitoring: prev values */
 #endif

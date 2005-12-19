@@ -13,7 +13,7 @@
 #include "rbldnsd.h"
 #include "rbldnsd_hooks.h"
 
-#ifndef NOIPv6
+#ifndef NO_IPv6
 # ifndef NI_MAXHOST
 #  define IPSIZE 1025
 # else
@@ -256,7 +256,7 @@ findqzone(const struct zone *zone,
   return zone;
 }
 
-#ifdef NOSTATS
+#ifdef NO_STATS
 # define do_stats(x)
 #else
 # define do_stats(x) x
@@ -394,7 +394,7 @@ int replypacket(struct dnspacket *pkt, unsigned qlen, struct zone *zone) {
     found |= dsl->dsl_queryfn(dsl->dsl_ds, &qi, pkt);
 
   if (found & NSQUERY_ADDPEER) {
-#ifdef NOIPv6
+#ifdef NO_IPv6
     addrr_a_txt(pkt, qi.qi_tflag, pkt->p_substrr,
                 inet_ntoa(((struct sockaddr_in*)pkt->p_peer)->sin_addr),
                 pkt->p_substds);
@@ -974,7 +974,7 @@ void logreply(const struct dnspacket *pkt, FILE *flog, int flushlog) {
   const unsigned char *const q = pkt->p_sans - 4;
 
   cp += sprintf(cp, "%lu ", (unsigned long)time(NULL));
-#ifndef NOIPv6
+#ifndef NO_IPv6
   if (getnameinfo(pkt->p_peer, pkt->p_peerlen,
                   cp, NI_MAXHOST, NULL, 0,
                   NI_NUMERICHOST) == 0)

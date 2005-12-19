@@ -38,15 +38,16 @@ cat >confdef.h <<EOF
  * Generated automatically by configure. */
 
 /* defines:
- NOSTDINT_H - system lacks <stdint.h> include file.  In this case, define:
+ NO_STDINT_H - system lacks <stdint.h> include file.  In this case, define:
    SIZEOF_SHORT
    SIZEOF_INT
    SIZEOF_LONG
    SIZEOF_LONG_LONG (if supported)
- NOIPv6 - system lacks IPv6 support
- NOMEMINFO - system lacks mallinfo()
- NOPOLL - system lacks poll(), use select() instead
-  NOSELECT_H - system lacks <sys/select.h> too
+ NO_IPv6 - system lacks IPv6 support
+ NO_MEMINFO - system lacks mallinfo()
+ NO_POLL - system lacks poll(), use select() instead
+  NO_SELECT_H - system lacks <sys/select.h> too
+ NO_IOVEC - iovec operations (writev/readv) are unavailable
 */
 
 EOF
@@ -174,7 +175,7 @@ if $CC -E conftest.c >conftest.out 2>&5; then
   echo yes
 else
   echo no
-  echo "#define NOSTDINT_H 1" >>confdef.h
+  echo "#define NO_STDINT_H 1" >>confdef.h
   echo $en "checking sizes of standard integer types... $ec"
   rm -f conftest*; cat >conftest.c <<EOF
 #include <stdio.h>
@@ -266,7 +267,7 @@ if $CC -o conftest conftest.c $LIBS 2>&5 ; then
   echo yes
 else
   echo no
-  echo "#define NOIPv6 1" >>confdef.h
+  echo "#define NO_IPv6 1" >>confdef.h
 fi
 
 echo $en "checking for mallinfo()... $ec"
@@ -283,7 +284,7 @@ if $CC -o conftest conftest.c $LIBS 2>&5 ; then
   echo yes
 else
   echo no
-  echo "#define NOMEMINFO 1" >>confdef.h
+  echo "#define NO_MEMINFO 1" >>confdef.h
 fi
 
 echo $en "checking for poll()... $ec"
@@ -299,7 +300,7 @@ if $CC -o conftest conftest.c 2>&5; then
   echo yes
 else
   echo "no, using select()"
-  echo "#define NOPOLL 1" >>confdef.h
+  echo "#define NO_POLL 1" >>confdef.h
   echo $en "checking for <sys/select.h>... $ec"
   rm -f conftest*; cat >conftest.c <<EOF
 #include <sys/time.h>
@@ -312,7 +313,7 @@ EOF
     echo yes
   else
     echo no
-    echo "#define NOSELECT_H 1" >>confdefs.h
+    echo "#define NO_SELECT_H 1" >>confdefs.h
   fi
 fi
 
@@ -355,7 +356,7 @@ if $CC -o conftest conftest.c 2>&5; then
   echo yes
 else
   echo "no"
-  echo "#define NOIOVEC 1" >>confdef.h
+  echo "#define NO_IOVEC 1" >>confdef.h
 fi
 
 echo $en "creating Makefile... $ec"

@@ -16,7 +16,11 @@ rbldnsd (0.996) unstable; urgency=low
     rbldnsd_zones.c, make some functions static and remove declarations
     from rbldnsd.h.  No code changes.
 
- -- Michael Tokarev <mjt@corpit.ru>  Mon, 19 Dec 2005 11:57:34 +0300
+  * cosmetic again: NOSTATS, NOSTDINT_H etc => NO_STATS, NO_STDINT_H etc.
+    Note if you had automated building procedure you have to change
+    your #defines.
+
+ -- Michael Tokarev <mjt@corpit.ru>  Mon, 19 Dec 2005 17:33:14 +0300
 
 rbldnsd (0.995) unstable; urgency=low
 

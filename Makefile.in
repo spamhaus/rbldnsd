@@ -14,17 +14,17 @@ RANLIB = @RANLIB@
 AWK = @AWK@
 
 # Disable statistic counters
-#DEFS = -DNOSTATS
+#DEFS = -DNO_STATS
 # Disable printing zone (re)load time using utimes()
-#DEFS = -DNOTIMES
+#DEFS = -DNO_TIMES
 # Disable memory info logging (mallinfo)
-#DEFS = -DNOMEMINFO
+#DEFS = -DNO_MEMINFO
 # If you don't want/have IPv6 support (transport only)
-#DEFS = -DNOIPv6
+#DEFS = -DNO_IPv6
 # To turn on recognision of ipv6-mapped ipv4 queries (silly idea?)
 #DEFS = -DRECOGNIZE_IP4IN6
 # To use select() instead of poll()
-#DEFS = -DNOPOLL
+#DEFS = -DNO_POLL
 # To disable master-format (named) dump (-d option)
 #DEFS = -DNO_MASTER_DUMP
 #

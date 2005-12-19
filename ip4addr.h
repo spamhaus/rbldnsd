@@ -8,7 +8,7 @@
 
 #include "config.h"
 
-#if !defined(NOSTDINT_H)
+#if !defined(NO_STDINT_H)
 # include <stdint.h>
 typedef uint32_t ip4addr_t; /* host byte order */
 #elif SIZEOF_SHORT == 4

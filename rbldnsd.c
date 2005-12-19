@@ -26,24 +26,24 @@
 #include "rbldnsd.h"
 #include "rbldnsd_hooks.h"
 
-#ifndef NOSELECT_H
+#ifndef NO_SELECT_H
 # include <sys/select.h>
 #endif
-#ifndef NOPOLL
+#ifndef NO_POLL
 # include <sys/poll.h>
 #endif
-#ifndef NOMEMINFO
+#ifndef NO_MEMINFO
 # include <malloc.h>
 #endif
-#ifndef NOTIMES
+#ifndef NO_TIMES
 # include <sys/times.h>
 #endif
-#ifndef NOSTDINT_H
+#ifndef NO_STDINT_H
 /* if system have stdint.h, assume it have inttypes.h too */
 # include <inttypes.h>
 #endif
-#ifndef NOSTATS
-# ifndef NOIOVEC
+#ifndef NO_STATS
+# ifndef NO_IOVEC
 #  include <sys/uio.h>
 #  define STATS_IPC_IOVEC 1
 # endif
@@ -87,7 +87,7 @@ void error(int errnum, const char *fmt, ...) {
 static unsigned recheck = 60;	/* interval between checks for reload */
 static int initialized;		/* 1 when initialized */
 static char *logfile;		/* log file name */
-#ifndef NOSTATS
+#ifndef NO_STATS
 static char *statsfile;		/* statistics file */
 static int stats_relative;	/* dump relative, not absolute, stats */
 #endif
@@ -139,7 +139,7 @@ static int do_reload(void) {
   int r;
   char ibuf[150];
   int ip;
-#ifndef NOTIMES
+#ifndef NO_TIMES
   struct tms tms;
   clock_t utm, etm;
 #ifndef HZ
@@ -149,7 +149,7 @@ static int do_reload(void) {
 #endif
   etm = times(&tms);
   utm = tms.tms_utime;
-#endif /* NOTIMES */
+#endif /* NO_TIMES */
 
   r = reloadzones(zonelist);
   if (!r)
@@ -160,15 +160,15 @@ static int do_reload(void) {
 #endif
 
   ip = ssprintf(ibuf, sizeof(ibuf), "zones reloaded");
-#ifndef NOTIMES
+#ifndef NO_TIMES
   etm = times(&tms) - etm;
   utm = tms.tms_utime - utm;
 # define sec(tm) (unsigned long)(tm/HZ), (unsigned long)((tm*100/HZ)%100)
   ip += ssprintf(ibuf + ip, sizeof(ibuf) - ip,
         ", time %lu.%lue/%lu.%luu sec", sec(etm), sec(utm));
 # undef sec
-#endif /* NOTIMES */
-#ifndef NOMEMINFO
+#endif /* NO_TIMES */
+#ifndef NO_MEMINFO
   {
     struct mallinfo mi = mallinfo();
 # define kb(x) ((mi.x + 512)>>10)
@@ -177,7 +177,7 @@ static int do_reload(void) {
           kb(arena), kb(fordblks), kb(hblkhd));
 # undef kb
   }
-#endif /* NOMEMINFO */
+#endif /* NO_MEMINFO */
   dslog(LOG_INFO, 0, ibuf);
 
   return r < 0 ? 0 : 1;
@@ -193,7 +193,7 @@ static void NORETURN usage(int exitcode) {
 " -r rootdir - chroot to this directory\n"
 " -w workdir - working directory with zone files\n"
 " -b address[/port] - bind to (listen on) this address (required)\n"
-#ifndef NOIPv6
+#ifndef NO_IPv6
 " -4 - use IPv4 socket type\n"
 " -6 - use IPv6 socket type\n"
 #endif
@@ -209,7 +209,7 @@ static void NORETURN usage(int exitcode) {
 "  during reload (may double memory requiriments)\n"
 " -q - quickstart, load zones after backgrounding\n"
 " -l [+]logfile - log queries and answers to this file (+ for unbuffered)\n"
-#ifndef NOSTATS
+#ifndef NO_STATS
 " -s [+]statsfile - write a line with short statistics summary into this\n"
 "  file every `check' (-c) secounds, for rrdtool-like applications\n"
 "  (+ to log relative, not absolute, statistics counters)\n"
@@ -238,7 +238,7 @@ static volatile int signalled;
 #define SIGNALLED_ZSTATS	0x10
 #define SIGNALLED_TERM		0x20
 
-#ifdef NOIPv6
+#ifdef NO_IPv6
 static void newsocket(struct sockaddr_in *sin) {
   int fd;
   const char *host = ip4atos(ntohl(sin->sin_addr.s_addr));
@@ -284,7 +284,7 @@ initsockets(const char *bindaddr[MAXSOCK], int nba, int UNUSED family) {
   char *host, *serv;
   const char *ba;
 
-#ifdef NOIPv6
+#ifdef NO_IPv6
 
   struct sockaddr_in sin;
   ip4addr_t sinaddr;
@@ -322,7 +322,7 @@ initsockets(const char *bindaddr[MAXSOCK], int nba, int UNUSED family) {
         error(0, "missing host part in bind address `%.60s'", ba);
     }
 
-#ifdef NOIPv6
+#ifdef NO_IPv6
 
     if (!serv || !*serv)
       sin.sin_port = port;
@@ -408,7 +408,7 @@ static void init(int argc, char **argv) {
         error(0, "too many addresses to listen on (%d max)", MAXSOCK);
       bindaddr[nba++] = optarg;
       break;
-#ifndef NOIPv6
+#ifndef NO_IPv6
     case '4': family = AF_INET; break;
     case '6': family = AF_INET6; break;
 #else
@@ -459,7 +459,7 @@ static void init(int argc, char **argv) {
       break;
 break;
     case 's':
-#ifdef NOSTATS
+#ifdef NO_STATS
       fprintf(stderr,
         "%s: warning: no statistics counters support is compiled in\n",
         progname);
@@ -651,7 +651,7 @@ static void sighandler(int sig) {
     alarm(recheck);
     signalled |= SIGNALLED_RELOAD|SIGNALLED_SSTATS;
     break;
-#ifndef NOSTATS
+#ifndef NO_STATS
   case SIGUSR1:
     signalled |= SIGNALLED_LSTATS|SIGNALLED_SSTATS;
     break;
@@ -679,7 +679,7 @@ static void setup_signals(void) {
   sigaddset(&ssblock, SIGHUP);
   sigaction(SIGALRM, &sa, NULL);
   sigaddset(&ssblock, SIGALRM);
-#ifndef NOSTATS
+#ifndef NO_STATS
   sigaction(SIGUSR1, &sa, NULL);
   sigaddset(&ssblock, SIGUSR1);
   sigaction(SIGUSR2, &sa, NULL);
@@ -690,7 +690,7 @@ static void setup_signals(void) {
   signal(SIGPIPE, SIG_IGN);	/* in case logfile is FIFO */
 }
 
-#ifndef NOSTATS
+#ifndef NO_STATS
 
 struct dnsstats gstats;
 static struct dnsstats gptot;
@@ -875,7 +875,7 @@ int start_loading() {
     fork_on_reload = -1;
     signal(SIGALRM, SIG_IGN);
     signal(SIGHUP, SIG_IGN);
-#ifndef NOSTATS
+#ifndef NO_STATS
     signal(SIGUSR1, SIG_IGN);
     signal(SIGUSR2, SIG_IGN);
 #endif
@@ -899,7 +899,7 @@ static void do_signalled(void) {
       _exit(0);
     }
     dslog(LOG_INFO, 0, "terminating");
-#ifndef NOSTATS
+#ifndef NO_STATS
     if (statsfile)
       dumpstats();
     logstats(0);
@@ -908,7 +908,7 @@ static void do_signalled(void) {
 #endif
     exit(0);
   }
-#ifndef NOSTATS
+#ifndef NO_STATS
   if (signalled & SIGNALLED_SSTATS && statsfile)
     dumpstats();
   if (signalled & SIGNALLED_LSTATS) {
@@ -954,7 +954,7 @@ static void do_signalled(void) {
   sigprocmask(SIG_SETMASK, &ssempty, NULL);
 }
 
-#ifndef NOIPv6
+#ifndef NO_IPv6
 static struct sockaddr_storage peer_sa;
 #else
 static struct sockaddr_in peer_sa;
@@ -988,7 +988,7 @@ int main(int argc, char **argv) {
   setup_signals();
   reopenlog();
   alarm(recheck);
-#ifndef NOSTATS
+#ifndef NO_STATS
   stats_time = time(NULL);
   if (statsfile)
     dumpstats_z();
@@ -1006,7 +1006,7 @@ int main(int argc, char **argv) {
   }
   else {
     /* several sockets, do select/poll loop */
-#ifdef NOPOLL
+#ifdef NO_POLL
     fd_set rfds;
     int maxfd = 0;
     int *fdi, *fde = sock + numsock;
@@ -1026,7 +1026,7 @@ int main(int argc, char **argv) {
           request(*fdi);
       }
     }
-#else /* !NOPOLL */
+#else /* !NO_POLL */
     struct pollfd pfda[MAXSOCK];
     struct pollfd *pfdi, *pfde = pfda + numsock;
     int r;
@@ -1044,7 +1044,7 @@ int main(int argc, char **argv) {
         if (!--r) break;
       }
     }
-#endif /* NOPOLL */
+#endif /* NO_POLL */
   }
 }
 
