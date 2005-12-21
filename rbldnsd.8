@@ -273,6 +273,10 @@ to the caller, without the version number.  Second \fB\-v\fR disables
 providing any information in response to such requests, i.e. \fBrbldnsd\fR
 will return REFUSE code.
 
+.IP \fB\-C\fR
+Disable automatic on\-the\-fly uncompression of data files if this feature
+is compiled in (see below).
+
 .SH "DATASET TYPES AND FORMATS"
 
 .PP
@@ -285,6 +289,15 @@ a special case outlined below in section titled "Special Entries".
 A (comma\-separated) list of files in dataset specification
 (in \fItype\fR:\fIfile\fR,\fIfile\fR,...) is interpreted as if
 all files where logically combined into one single file.
+
+.PP
+When compiled with zlib support,
+.B rbldnsd
+is able to read gzip\-compressed data files.  So, every \fIfile\fR in
+dataset specification can be compressed with \fBgzip\fR(1), and
+.B rbldnsd
+will read such a file decompressing it on\-the\-fly.  This feature
+may be turned off by specifying \fB\-C\fR option.
 
 .PP
 .B rbldnsd

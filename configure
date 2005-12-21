@@ -13,7 +13,7 @@ else
   exit 1
 fi
 
-options="ipv6 stats master_dump"
+options="ipv6 stats master_dump zlib"
 
 for opt in $options; do
   eval enable_$opt=
@@ -26,7 +26,7 @@ fi
 enable() {
   opt=`echo "$1" | sed 's/^--[^-]*-//'`
   case "$opt" in
-    ipv6|stats|master_dump) ;;
+    ipv6|stats|master_dump|zlib) ;;
     master-dump) opt=master_dump ;;
     *) echo "configure: unrecognized option \`$1'" >&2; exit 1;;
   esac
@@ -78,8 +78,6 @@ ac_subst VERSION VERSION_DATE
 ac_prog_c_compiler
 ac_prog_ranlib
 
-DEFS=
-
 if ac_header_check_v stdint.h
 then :
 else
@@ -116,21 +114,6 @@ EOF
   fi
 fi
 
-if ac_link_v "for fgets_unlocked" <<EOF
-#define _GNU_SOURCE
-#define _BSD_SOURCE
-#include <stdio.h>
-int main() {
-  char buf[10];
-  fgets_unlocked(buf, sizeof(buf), stdin);
-  return 0;
-}
-EOF
-then :
-else
-  echo "#define NO_FGETS_UNLOCKED" >>confdef.h
-fi
-
 if ac_compile_v "for socklen_t" <<EOF
 #include <sys/types.h>
 #include <sys/socket.h>
@@ -150,7 +133,7 @@ else
 fi
 
 if [ n = "$enable_ipv6" ]; then
-  DEFS="$DEFS -DNO_IPv6"
+  echo "#define NO_IPv6	1	/* option disabled */" >>confdef.h
 else
 
 if ac_link_v "for IPv6" <<EOF
@@ -244,10 +227,38 @@ else
   echo "#define NO_IOVEC 1" >>confdef.h
 fi
 
-if [ n = "$enable_stats" ]; then DEFS="$DEFS -DNO_STATS"; fi
-if [ n = "$enable_master_dump" ]; then DEFS="$DEFS -DNO_MASTER_DUMP"; fi
+if [ n = "$enable_zlib" ]; then
+  echo "#define NO_ZLIB	1	/* option disabled */" >>confdef.h
+else
+  if ac_link_v "for zlib support" -lz <<EOF
+#include <sys/types.h>
+#include <stdio.h>
+#include <zlib.h>
+int main() {
+  z_stream z;
+  int r;
+  r = inflateInit2(&z, 0);
+  r = inflate(&z, Z_NO_FLUSH);
+  r = inflateEnd(&z);
+  return 0;
+}
+EOF
+  then
+    LIBS="$LIBS -lz"
+  else
+    if [ "$enable_zlib" ]; then
+      ac_fatal "zlib support is requested but not found/available"
+    fi
+    echo "#define NO_ZLIB" >>confdef.h
+  fi
+fi
 
-ac_subst DEFS
+if [ n = "$enable_stats" ]; then
+  echo "#define NO_STATS	1	/* option disabled */" >>confdef.h
+fi
+if [ n = "$enable_master_dump" ]; then
+  echo "#define NO_MASTER_DUMP	1	/* option disabled */" >>confdef.h
+fi
 
 ac_output Makefile
 ac_msg "creating config.h"

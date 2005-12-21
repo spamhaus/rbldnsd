@@ -343,6 +343,7 @@ int ds_combined_newset(struct dataset *ds, char *line, struct dsctx *dsc);
 extern unsigned def_ttl, min_ttl, max_ttl;
 extern const char def_rr[5];
 extern int accept_in_cidr;
+extern int nouncompress;
 extern struct dataset *g_dsacl;	/* global acl */
 
 extern const char *show_version; /* version.bind CH TXT */

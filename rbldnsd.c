@@ -92,6 +92,7 @@ static char *statsfile;		/* statistics file */
 static int stats_relative;	/* dump relative, not absolute, stats */
 #endif
 int accept_in_cidr;		/* accept 127.0.0.1/8-"style" CIDRs */
+int nouncompress;		/* disable on-the-fly decompression */
 unsigned def_ttl = 35*60;	/* default record TTL 35m */
 unsigned min_ttl, max_ttl;	/* TTL constraints */
 const char def_rr[5] = "\177\0\0\2\0";		/* default A RR */
@@ -217,6 +218,9 @@ static void NORETURN usage(int exitcode) {
 " -a (experimental) - _omit_ AUTH section when constructing reply,\n"
 "  do not return list of auth nameservers in default replies, only\n"
 "  return NS info when explicitly asked\n"
+#ifndef NO_ZLIB
+" -C - disable on-the-fly decompression of dataset files\n"
+#endif
 #ifdef do_hook_getopt
 " -H local_hook_options - process custom options (for custom builds)\n"
 #endif
@@ -399,7 +403,7 @@ static void init(int argc, char **argv) {
 
   if (argc <= 1) usage(1);
 
-  while((c = getopt(argc, argv, "u:r:b:w:t:c:p:nel:qs:h46dvafH:")) != EOF)
+  while((c = getopt(argc, argv, "u:r:b:w:t:c:p:nel:qs:h46dvafCH:")) != EOF)
     switch(c) {
     case 'u': user = optarg; break;
     case 'r': rootdir = optarg; break;
@@ -480,6 +484,7 @@ break;
     case 'v': show_version = nover++ ? NULL : "rbldnsd"; break;
     case 'a': lazy = 1; break;
     case 'f': forkon = 1; break;
+    case 'C': nouncompress = 1; break;
     case 'H':
 #ifdef do_hook_getopt
       if (hook_getopt(optarg) != 0)

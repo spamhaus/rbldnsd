@@ -2,8 +2,6 @@
  * Nameserver zones: structures and routines
  */
 
-#define _GNU_SOURCE
-#define _BSD_SOURCE
 #include <stdio.h>
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -11,7 +9,10 @@
 #include <syslog.h>
 #include <string.h>
 #include <errno.h>
+#include <unistd.h>
+#include <fcntl.h>
 #include "rbldnsd.h"
+#include "istream.h"
 
 static struct dataset *ds_list;
 struct dataset *g_dsacl;
@@ -361,23 +362,17 @@ static int ds_special(struct dataset *ds, char *line, struct dsctx *dsc) {
   return 0;
 }
 
-#ifdef NO_FGETS_UNLOCKED
-# define fgets_unlocked fgets
-#endif
-
-static int readdslines(FILE *f, struct dataset *ds, struct dsctx *dsc) {
-#define bufsiz 8192
-  char _buf[bufsiz+4], *line, *eol;
-#define buf (_buf+4)  /* keep room for 4 IP octets in addrtxt() */
+static int
+readdslines(struct istream *sp, struct dataset *ds, struct dsctx *dsc) {
+  char *line, *eol;
+  int r;
   int noeol = 0;
   struct dataset *dscur = ds;
   ds_linefn_t *linefn = dscur->ds_type->dst_linefn;
 
-  while(fgets_unlocked(buf, bufsiz, f)) {
-    eol = buf + strlen(buf) - 1;
-    if (eol < buf) /* can this happen? */
-      continue;
-    if (noeol) { /* read parts of long line up to \n */
+  while((r = istream_getline(sp, &line, '\n')) > 0) {
+    eol = line + r - 1;
+    if (noeol) {
       if (*eol == '\n')
         noeol = 0;
       continue;
@@ -385,16 +380,10 @@ static int readdslines(FILE *f, struct dataset *ds, struct dsctx *dsc) {
     ++dsc->dsc_lineno;
     if (*eol == '\n')
       --eol;
-    else if (feof(f)) {
-      dslog(LOG_WARNING, dsc, "incomplete last line (ignored)");
-      break;
-    }
     else {
       dswarn(dsc, "long line (truncated)");
       noeol = 1; /* mark it to be read above */
     }
-    /* skip whitespace */
-    line = buf;
     SKIPSPACE(line);
     while(eol >= line && ISSPACE(*eol))
       --eol;
@@ -414,9 +403,11 @@ static int readdslines(FILE *f, struct dataset *ds, struct dsctx *dsc) {
       if (!linefn(dscur, line, dsc))
         return 0;
   }
+  if (r < 0)
+    return -1;
+  if (noeol)
+    dslog(LOG_WARNING, dsc, "incomplete last line (ignored)");
   return 1;
-#undef buf
-#undef bufsiz
 }
 
 static void freedataset(struct dataset *ds) {
@@ -435,7 +426,9 @@ static void freedataset(struct dataset *ds) {
 static int loaddataset(struct dataset *ds) {
   struct dsfile *dsf;
   time_t stamp = 0;
-  FILE *f;
+  struct istream is;
+  int fd;
+  int r;
   struct stat st0, st1;
   struct dsctx dsc;
 
@@ -446,24 +439,43 @@ static int loaddataset(struct dataset *ds) {
 
   for(dsf = ds->ds_dsf; dsf; dsf = dsf->dsf_next) {
     dsc.dsc_fname = dsf->dsf_name;
-    f = fopen(dsf->dsf_name, "r");
-    if (!f || fstat(fileno(f), &st0) < 0) {
+    fd = open(dsf->dsf_name, O_RDONLY);
+    if (fd < 0 || fstat(fd, &st0) < 0) {
       dslog(LOG_ERR, &dsc, "unable to open file: %s", strerror(errno));
-      if (f) fclose(f);
+      if (fd >= 0) close(fd);
       return 0;
     }
     ds->ds_type->dst_startfn(ds);
-    if (!readdslines(f, ds, &dsc)) {
-      fclose(f);
-      return 0;
+    istream_init_fd(&is, fd);
+    if (istream_compressed(&is)) {
+      if (nouncompress) {
+        dslog(LOG_ERR, &dsc, "file is compressed, decompression disabled");
+        r = 0;
+      }
+      else {
+#ifdef NO_ZLIB
+        dslog(LOG_ERR, &dsc,
+              "file is compressed, decompression is not compiled in");
+        r = 0;
+#else
+        r = istream_uncompress_setup(&is);
+          /* either 1 or -1 but not 0 */
+#endif
+      }
     }
+    else
+      r = 1;
+    if (r > 0) r = readdslines(&is, ds, &dsc);
+    if (r > 0) r = fstat(fd, &st1) < 0 ? -1 : 1;
     dsc.dsc_lineno = 0;
-    if (ferror(f) || fstat(fileno(f), &st1) < 0) {
+    istream_destroy(&is);
+    close(fd);
+    if (!r)
+      return 0;
+    if (r < 0) {
       dslog(LOG_ERR, &dsc, "error reading file: %s", strerror(errno));
-      fclose(f);
       return 0;
     }
-    fclose(f);
     if (st0.st_mtime != st1.st_mtime ||
         st0.st_size  != st1.st_size) {
       dslog(LOG_ERR, &dsc,

@@ -1,4 +1,4 @@
-rbldnsd (0.996) unstable; urgency=low
+rbldnsd (0.995.98) unstable; urgency=low
 
   * deal with realloc(smaller_size) returning NULL
 
@@ -26,8 +26,13 @@ rbldnsd (0.996) unstable; urgency=low
   * configure script now accepts some --disable- and --enable- options
     (--disable-ipv6)
 
-  * use fgets_unlocked() to read data files (slightly faster)
-    on systems which support it (with configure check)
+  * istream.[ch] - helper module, light buffering input somewhat similar
+    to stdio, much faster, supports line oriented input, and is stackable
+    (one istream can read from another or something else).  Reading speed
+    improved significantly.
+
+  * support of automatic on-the-fly de-compression of gzip-compressed
+    data files (with a help of zlib).
 
  -- Michael Tokarev <mjt@corpit.ru>  Tue, 20 Dec 2005 00:15:56 +0300
 
