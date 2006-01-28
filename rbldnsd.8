@@ -705,6 +705,9 @@ a given DNSBL.
 .B rbldnsd
 still replies to metadata queries (SOA and NS records, and to all queries
 satisfied by generic dataset if specified for the given zone) as usual.
+.IP :\fBpass\fR
+process the request as usual.  This may be used to add a "whitelisting"
+entry for a network/host bloked by another (larger) ACL entry.
 .IP \fIa_txt_template\fR
 usual A+TXT template as used by other datasets.  This means that
 .B rbldnsd
