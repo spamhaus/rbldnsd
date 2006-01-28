@@ -172,10 +172,10 @@ static char *firstword(char *line, const char *word_lc) {
 }
 
 /* parse $SPECIAL construct */
-static int ds_special(struct dataset *ds, char *xline, struct dsctx *dsc) {
+static int ds_special(struct dataset *ds, char *line, struct dsctx *dsc) {
   char *w;
 
-  if ((w = firstword(xline, "soa"))) {
+  if ((w = firstword(line, "soa"))) {
     /* SOA record */
     struct dssoa dssoa;
     unsigned char odn[DNS_MAXDN], pdn[DNS_MAXDN];
@@ -205,8 +205,8 @@ static int ds_special(struct dataset *ds, char *xline, struct dsctx *dsc) {
     return 1;
   }
 
-  if ((w = firstword(xline, "ns")) ||
-      (w = firstword(xline, "nameserver"))) {
+  if ((w = firstword(line, "ns")) ||
+      (w = firstword(line, "nameserver"))) {
      /* NS records */
      unsigned char dn[DNS_MAXDN];
      unsigned dnlen;
@@ -284,7 +284,7 @@ static int ds_special(struct dataset *ds, char *xline, struct dsctx *dsc) {
     return 1;
   }
 
-  if ((w = firstword(xline, "ttl"))) {
+  if ((w = firstword(line, "ttl"))) {
     unsigned ttl;
     if (!(w = parse_ttl(w, &ttl, def_ttl))) return 0;
     if (*w) return 0;
@@ -293,7 +293,7 @@ static int ds_special(struct dataset *ds, char *xline, struct dsctx *dsc) {
     return 1;
   }
 
-  if ((w = firstword(xline, "maxrange4"))) {
+  if ((w = firstword(line, "maxrange4"))) {
     unsigned r;
     int cidr;
     if (*w == '/') cidr = 1, ++w;
@@ -312,7 +312,7 @@ static int ds_special(struct dataset *ds, char *xline, struct dsctx *dsc) {
     return 1;
   }
 
-  if (*(w = xline) >= '0' && *w <= '9' && ISSPACE(w[1])) {
+  if (*(w = line) >= '0' && *w <= '9' && ISSPACE(w[1])) {
     /* substitution vars */
     unsigned n = w[0] - '0';
     if (dsc->dsc_subset) ds = dsc->dsc_subset;
@@ -324,7 +324,7 @@ static int ds_special(struct dataset *ds, char *xline, struct dsctx *dsc) {
     return 1;
   }
 
-  if ((w = firstword(xline, "dataset"))) {
+  if ((w = firstword(line, "dataset"))) {
     if (!isdstype(ds->ds_type, combined))
       return 0;	/* $dataset is only allowed for combined dataset */
     return ds_combined_newset(ds, w, dsc);
