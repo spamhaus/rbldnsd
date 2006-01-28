@@ -31,6 +31,9 @@ static const struct {
  /* pretend the zone is completely empty */
 #define RR_EMPTY	3
  { "empty", RR_EMPTY },
+ /* a 'whitelist' entry: pretend this netrange isn't here */
+#define RR_PASS		4
+ { "pass", RR_PASS },
 };
 
 static void ds_acl_reset(struct dsdata *dsd, int UNUSED unused_freeall) {
@@ -149,6 +152,7 @@ int ds_acl_query(const struct dataset *ds, struct dnspacket *pkt) {
   case RR_IGNORE:	return NSQUERY_IGNORE;
   case RR_REFUSE:	return NSQUERY_REFUSE;
   case RR_EMPTY:	return NSQUERY_EMPTY;
+  case RR_PASS:		return 0;
   }
   if (!pkt->p_substrr) {
     pkt->p_substrr = rr;
