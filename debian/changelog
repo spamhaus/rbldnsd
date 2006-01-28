@@ -2,7 +2,9 @@ rbldnsd (0.995.99) unstable; urgency=low
 
   * add a 'pass' entry processing into ACL "dataset"
 
- -- Michael Tokarev <mjt@corpit.ru>  Sat, 28 Jan 2006 18:19:48 +0300
+  * (internal) reorganize ds_special() (no user-visible changes)
+
+ -- Michael Tokarev <mjt@corpit.ru>  Sat, 28 Jan 2006 18:42:17 +0300
 
 rbldnsd (0.995.98) unstable; urgency=low
 

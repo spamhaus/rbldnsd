@@ -158,37 +158,43 @@ struct zone *addzone(struct zone *zonelist, const char *spec) {
   return zonelist;
 }
 
+/* helper routine for ds_special */
+static char *firstword(char *line, const char *word_lc) {
+  while(*word_lc)
+    if (dns_dnlc(*line) != *word_lc)
+      return NULL;
+    else
+      ++word_lc, ++line;
+  if (!ISSPACE(*line))
+    return NULL;
+  SKIPSPACE(line);
+  return line;
+}
+
 /* parse $SPECIAL construct */
-static int ds_special(struct dataset *ds, char *line, struct dsctx *dsc) {
+static int ds_special(struct dataset *ds, char *xline, struct dsctx *dsc) {
+  char *w;
 
-  switch(*line) {
-
-  case 's': case 'S':
-
-  if ((line[1] == 'o' || line[1] == 'O') &&
-      (line[2] == 'a' || line[2] == 'A') &&
-      ISSPACE(line[3]) && !isdstype(ds->ds_type, acl)) {
-
+  if ((w = firstword(xline, "soa"))) {
     /* SOA record */
     struct dssoa dssoa;
     unsigned char odn[DNS_MAXDN], pdn[DNS_MAXDN];
     unsigned odnlen, pdnlen;
 
+    if (!isdstype(ds->ds_type, acl))
+      return 0;	/* don't allow SOA for ACLs */
     if (ds->ds_dssoa)
       return 1; /* ignore if already set */
 
-    line += 4;
-    SKIPSPACE(line);
-
-    if (!(line = parse_ttl(line, &dssoa.dssoa_ttl, ds->ds_ttl))) return 0;
-    if (!(line = parse_dn(line, odn, &odnlen))) return 0;
-    if (!(line = parse_dn(line, pdn, &pdnlen))) return 0;
-    if (!(line = parse_uint32(line, &dssoa.dssoa_serial))) return 0;
-    if (!(line = parse_time_nb(line, dssoa.dssoa_n+0))) return 0;
-    if (!(line = parse_time_nb(line, dssoa.dssoa_n+4))) return 0;
-    if (!(line = parse_time_nb(line, dssoa.dssoa_n+8))) return 0;
-    if (!(line = parse_time_nb(line, dssoa.dssoa_n+12))) return 0;
-    if (*line) return 0;
+    if (!(w = parse_ttl(w, &dssoa.dssoa_ttl, ds->ds_ttl))) return 0;
+    if (!(w = parse_dn(w, odn, &odnlen))) return 0;
+    if (!(w = parse_dn(w, pdn, &pdnlen))) return 0;
+    if (!(w = parse_uint32(w, &dssoa.dssoa_serial))) return 0;
+    if (!(w = parse_time_nb(w, dssoa.dssoa_n+0))) return 0;
+    if (!(w = parse_time_nb(w, dssoa.dssoa_n+4))) return 0;
+    if (!(w = parse_time_nb(w, dssoa.dssoa_n+8))) return 0;
+    if (!(w = parse_time_nb(w, dssoa.dssoa_n+12))) return 0;
+    if (*w) return 0;
 
     dssoa.dssoa_odn = mp_memdup(ds->ds_mp, odn, odnlen);
     dssoa.dssoa_pdn = mp_memdup(ds->ds_mp, pdn, pdnlen);
@@ -196,16 +202,12 @@ static int ds_special(struct dataset *ds, char *line, struct dsctx *dsc) {
     ds->ds_dssoa = mp_talloc(ds->ds_mp, struct dssoa);
     if (!ds->ds_dssoa) return -1;
     *ds->ds_dssoa = dssoa;
-
     return 1;
   }
-  break;
 
-  case 'n': case 'N':
-
-  if ((line[1] == 's' || line[1] == 'S') &&
-      ISSPACE(line[2]) && !isdstype(ds->ds_type, acl)) {
-
+  if ((w = firstword(xline, "ns")) ||
+      (w = firstword(xline, "nameserver"))) {
+     /* NS records */
      unsigned char dn[DNS_MAXDN];
      unsigned dnlen;
      struct dsns *dsns, **dsnslp;
@@ -217,6 +219,9 @@ static int ds_special(struct dataset *ds, char *line, struct dsctx *dsc) {
      unsigned cnt;
      int newformat = 0;
 #endif
+
+    if (isdstype(ds->ds_type, acl))
+      return 0;	/* don't allow NSes for ACLs */
 
 #ifndef INCOMPAT_0_99
      if (ds->ds_nsflags & DSF_NEWNS) return 1;
@@ -234,24 +239,21 @@ static int ds_special(struct dataset *ds, char *line, struct dsctx *dsc) {
      dsnslp = &ds->ds_dsns;
 #endif
 
-     line += 3;
-     SKIPSPACE(line);
-
      /*XXX parse options (AndrewSN suggested `-bloat') here */
 
-     if (!(line = parse_ttl(line, &ttl, ds->ds_ttl))) return 0;
+     if (!(w = parse_ttl(w, &ttl, ds->ds_ttl))) return 0;
 
      do {
-       if (*line == '-') {
+       if (*w == '-') {
          /* skip nameservers that start with `-' aka 'commented-out' */
-         do ++line; while (*line && !ISSPACE(*line));
-         SKIPSPACE(line);
+         do ++w; while (*w && !ISSPACE(*w));
+         SKIPSPACE(w);
 #ifndef INCOMPAT_0_99
 	 newformat = 1;
 #endif
          continue;
        }
-       if (!(line = parse_dn(line, dn, &dnlen))) return 0;
+       if (!(w = parse_dn(w, dn, &dnlen))) return 0;
        dsns = (struct dsns*)
          mp_alloc(ds->ds_mp, sizeof(struct dsns) + dnlen - 1, 1);
        if (!dsns) return -1;
@@ -263,7 +265,7 @@ static int ds_special(struct dataset *ds, char *line, struct dsctx *dsc) {
        if (!cnt++)
          dsns_first = dsns;
 #endif
-     } while(*line);
+     } while(*w);
 
 #ifndef INCOMPAT_0_99
      if (cnt > 1 || newformat) {
@@ -279,41 +281,24 @@ static int ds_special(struct dataset *ds, char *line, struct dsctx *dsc) {
 #else
      ds->ds_nsttl = ttl;
 #endif
-
-     return 1;
+    return 1;
   }
-  break;
 
-  case 't': case 'T':
-  if ((line[1] == 't' || line[1] == 'T') &&
-      (line[2] == 'l' || line[2] == 'L') &&
-      ISSPACE(line[3])) {
+  if ((w = firstword(xline, "ttl"))) {
     unsigned ttl;
-    line += 4;
-    SKIPSPACE(line);
-    if (!(line = parse_ttl(line, &ttl, def_ttl))) return 0;
-    if (*line) return 0;
+    if (!(w = parse_ttl(w, &ttl, def_ttl))) return 0;
+    if (*w) return 0;
     if (dsc->dsc_subset) dsc->dsc_subset->ds_ttl = ttl;
     else ds->ds_ttl = ttl;
     return 1;
   }
-  break;
 
-  case 'm': case 'M':
-  if ((line[1] == 'A' || line[1] == 'a') &&
-      (line[2] == 'X' || line[2] == 'x') &&
-      (line[3] == 'R' || line[3] == 'r') &&
-      (line[4] == 'A' || line[4] == 'a') &&
-      (line[5] == 'N' || line[5] == 'n') &&
-      (line[6] == 'G' || line[6] == 'g') &&
-      (line[7] == 'E' || line[7] == 'e') &&
-      line[8] == '4' && ISSPACE(line[9])) {
+  if ((w = firstword(xline, "maxrange4"))) {
     unsigned r;
     int cidr;
-    line += 10; SKIPSPACE(line);
-    if (*line == '/') cidr = 1, ++line;
+    if (*w == '/') cidr = 1, ++w;
     else cidr = 0;
-    if (!(line = parse_uint32(line, &r)) || *line || !r)
+    if (!(w = parse_uint32(w, &r)) || *w || !r)
       return 0;
     if (cidr) {
       if (r > 32) return 0;
@@ -327,36 +312,22 @@ static int ds_special(struct dataset *ds, char *line, struct dsctx *dsc) {
     return 1;
   }
 
-  case '0': case '1': case '2': case '3': case '4':
-  case '5': case '6': case '7': case '8': case '9':
-  if (ISSPACE(line[1])) {
+  if (*(w = xline) >= '0' && *w <= '9' && ISSPACE(w[1])) {
     /* substitution vars */
-    unsigned n = line[0] - '0';
+    unsigned n = w[0] - '0';
     if (dsc->dsc_subset) ds = dsc->dsc_subset;
     if (ds->ds_subst[n]) return 1; /* ignore second assignment */
-    line += 2;
-    SKIPSPACE(line);
-    if (!*line) return 0;
-    if (!(ds->ds_subst[n] = mp_strdup(ds->ds_mp, line))) return 0;
+    w += 2;
+    SKIPSPACE(w);
+    if (!*w) return 0;
+    if (!(ds->ds_subst[n] = mp_strdup(ds->ds_mp, w))) return 0;
     return 1;
   }
-  break;
 
-  case 'd': case 'D':
-  if ((line[1] == 'A' || line[1] == 'a') &&
-      (line[2] == 'T' || line[2] == 't') &&
-      (line[3] == 'A' || line[3] == 'a') &&
-      (line[4] == 'S' || line[4] == 's') &&
-      (line[5] == 'E' || line[5] == 'e') &&
-      (line[6] == 'T' || line[6] == 't') &&
-      ISSPACE(line[7]) &&
-      isdstype(ds->ds_type, combined)) {
-    line += 8;
-    SKIPSPACE(line);
-    return ds_combined_newset(ds, line, dsc);
-  }
-  break;
-
+  if ((w = firstword(xline, "dataset"))) {
+    if (!isdstype(ds->ds_type, combined))
+      return 0;	/* $dataset is only allowed for combined dataset */
+    return ds_combined_newset(ds, w, dsc);
   }
 
   return 0;
