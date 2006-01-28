@@ -4,7 +4,10 @@ rbldnsd (0.995.99) unstable; urgency=low
 
   * (internal) reorganize ds_special() (no user-visible changes)
 
- -- Michael Tokarev <mjt@corpit.ru>  Sat, 28 Jan 2006 18:42:17 +0300
+  * (internal) reorganized zone reloading code to eliminate
+    start_loading()+longjump() hack
+
+ -- Michael Tokarev <mjt@corpit.ru>  Sat, 28 Jan 2006 22:31:10 +0300
 
 rbldnsd (0.995.98) unstable; urgency=low
 

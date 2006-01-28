@@ -320,7 +320,8 @@ void connectdataset(struct zone *zone,
 struct zone *newzone(struct zone **zonelist,
                      unsigned char *dn, unsigned dnlen,
                      struct mempool *mp);
-int reloadzones(struct zone *zonelist);
+struct dataset *nextdataset2reload(struct dataset *ds);
+int loaddataset(struct dataset *ds);
 
 struct dsctx {
   struct dataset *dsc_ds;	/* currently loading dataset */

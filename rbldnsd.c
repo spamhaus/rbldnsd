@@ -21,7 +21,6 @@
 #include <time.h>
 #include <sys/time.h>	/* some systems can't include time.h and sys/time.h */
 #include <fcntl.h>
-#include <setjmp.h>
 #include <sys/wait.h>
 #include "rbldnsd.h"
 #include "rbldnsd_hooks.h"
@@ -107,8 +106,6 @@ static int numzones;		/* number of zones in zonelist */
 int lazy;			/* don't return AUTH section by default */
 static int fork_on_reload;
   /* >0 - perform fork on reloads, <0 - this is a child of reloading parent */
-static pid_t bgq_pid;		/* pid of bg query process */
-static int ipc_fd = -1;		/* pipe FD for IPC */
 #if STATS_IPC_IOVEC
 static struct iovec *stats_iov;
 #endif
@@ -128,60 +125,14 @@ const struct dstype *ds_types[] = {
   NULL
 };
 
+static int do_reload(int do_fork);
+
 static int satoi(const char *s) {
   int n = 0;
   if (*s < '0' || *s > '9') return -1;
   do n = n * 10 + (*s++ - '0');
   while (*s >= '0' && *s <= '9');
   return *s ? -1 : n;
-}
-
-static int do_reload(void) {
-  int r;
-  char ibuf[150];
-  int ip;
-#ifndef NO_TIMES
-  struct tms tms;
-  clock_t utm, etm;
-#ifndef HZ
-  static clock_t HZ;
-  if (!HZ)
-    HZ = sysconf(_SC_CLK_TCK);
-#endif
-  etm = times(&tms);
-  utm = tms.tms_utime;
-#endif /* NO_TIMES */
-
-  r = reloadzones(zonelist);
-  if (!r)
-    return 1;
-
-#ifdef do_hook_reload
-  hook_reload(zonelist);
-#endif
-
-  ip = ssprintf(ibuf, sizeof(ibuf), "zones reloaded");
-#ifndef NO_TIMES
-  etm = times(&tms) - etm;
-  utm = tms.tms_utime - utm;
-# define sec(tm) (unsigned long)(tm/HZ), (unsigned long)((tm*100/HZ)%100)
-  ip += ssprintf(ibuf + ip, sizeof(ibuf) - ip,
-        ", time %lu.%lue/%lu.%luu sec", sec(etm), sec(utm));
-# undef sec
-#endif /* NO_TIMES */
-#ifndef NO_MEMINFO
-  {
-    struct mallinfo mi = mallinfo();
-# define kb(x) ((mi.x + 512)>>10)
-    ip += ssprintf(ibuf + ip, sizeof(ibuf) - ip,
-          ", mem arena=%d free=%d mmap=%d Kb",
-          kb(arena), kb(fordblks), kb(hblkhd));
-# undef kb
-  }
-#endif /* NO_MEMINFO */
-  dslog(LOG_INFO, 0, ibuf);
-
-  return r < 0 ? 0 : 1;
 }
 
 static void NORETURN usage(int exitcode) {
@@ -395,6 +346,7 @@ static void init(int argc, char **argv) {
   gid_t gid = 0;
   int nodaemon = 0, quickstart = 0, dump = 0, nover = 0, forkon = 0;
   int family = AF_UNSPEC;
+  int cfd = -1;
 
   if ((progname = strrchr(argv[0], '/')) != NULL)
     argv[0] = ++progname;
@@ -513,7 +465,7 @@ break;
       error(errno, "unable to chroot to %.50s", rootdir);
     if (workdir && chdir(workdir) < 0)
       error(errno, "unable to chdir to %.50s", workdir);
-    if (!do_reload())
+    if (!do_reload(0))
       error(0, "zone loading errors, aborting");
     now = time(NULL);
     printf("; zone dump made %s", ctime(&now));
@@ -542,7 +494,7 @@ break;
       if (read(pfd[0], &c, 1) < 1) exit(1);
       else exit(0);
     }
-    ipc_fd = pfd[1];
+    cfd = pfd[1];
     close(pfd[0]);
     openlog(progname, LOG_PID|LOG_NDELAY, LOG_DAEMON);
     logto = LOGTO_STDERR|LOGTO_SYSLOG;
@@ -609,7 +561,7 @@ break;
   if (hook_init(zonelist) != 0) error(0, "error processing init hook");
 #endif
 
-  if (!quickstart && !do_reload())
+  if (!quickstart && !do_reload(0))
     error(0, "zone loading errors, aborting");
 
   { const struct zone *z;
@@ -630,10 +582,9 @@ break;
         version, numsock, numzones);
   initialized = 1;
 
-  if (ipc_fd >= 0) {
-    write(ipc_fd, "", 1);
-    close(ipc_fd);
-    ipc_fd = -1;
+  if (cfd >= 0) {
+    write(cfd, "", 1);
+    close(cfd);
     close(0); close(2);
     if (!flog) close(1);
     setsid();
@@ -641,7 +592,7 @@ break;
   }
 
   if (quickstart)
-    do_reload();
+    do_reload(0);
 
   /* only set "main" fork_on_reload after first reload */
   fork_on_reload = forkon;
@@ -834,71 +785,169 @@ static void reopenlog(void) {
   }
 }
 
-/* two-process reload:
- * we call reloadzones(), which first check whenever
- * any files changed, and if yes, it calls start_loading()
- * (for every dataset with changed files) and performs all
- * necessary updates.
- * In first call to start_loading(), we fork the child.
- * In child, we return (with longjmp) back into do_signalled(),
- * setjmp() returning !=0, and we just continue servicing requests
- * at this point with fork_at_reload set to -1 and with all
- * fancy signals (SIGALRM, SIGUSR?, SIGHUP) ignored.
- * In parent, real reload continues, do_reload completes,
- * and we check for bgq_pid: this is our child, we kill it,
- * and read all the counters from the pipe we opened.
- * In child (note fork_on_reload is <0), upon receiving SIGTERM,
- * we write all the stats into pipe and terminate silently.
- * All signals are still blocked during the whole reload in parent,
- * we unblock them only after we successefully reaped the child.
- * The only possible problem is when the parent gets killed (either
- * SIGKILL or crash) while child is running - in this case child will
- * stay running forever.  It may be a good idea to setup SIGALRM
- * handler in child to check for parent periodically...
- */
-
-static jmp_buf reload_ctx; /* longjmp in start_loading() */
-
-int start_loading() {
-  pid_t cpid;
-  int pfd[2];
-  if (!fork_on_reload || bgq_pid) return 0;
-  if (flog && !flushlog)
-    fflush(flog);
-  if (pipe(pfd) < 0) {
-    bgq_pid = -1;
-    return 0;
-  }
-  cpid = fork();
-  if (cpid < 0) {
-    close(pfd[0]);
-    close(pfd[1]);
-    bgq_pid = -1;
-    return 0;
-  }
-  if (!cpid) { /* child, continue answering queries */
-    fork_on_reload = -1;
-    signal(SIGALRM, SIG_IGN);
-    signal(SIGHUP, SIG_IGN);
-#ifndef NO_STATS
-    signal(SIGUSR1, SIG_IGN);
-    signal(SIGUSR2, SIG_IGN);
+static int do_reload(int do_fork) {
+  int r;
+  char ibuf[150];
+  int ip;
+  struct dataset *ds;
+  struct zone *zone;
+  pid_t cpid = 0;	/* child pid; =0 to make gcc happy */
+  int cfd = 0;		/* child stats fd; =0 to make gcc happy */
+#ifndef NO_TIMES
+  struct tms tms;
+  clock_t utm, etm;
+#ifndef HZ
+  static clock_t HZ;
 #endif
-    close(pfd[0]);
-    ipc_fd = pfd[1];
-    longjmp(reload_ctx, 1);
+#endif /* NO_TIMES */
+
+  ds = nextdataset2reload(NULL);
+  if (!ds)
+    return 1;	/* nothing to reload */
+
+  if (do_fork) {
+    int pfd[2];
+    if (flog && !flushlog)
+      fflush(flog);
+    /* forking reload. if anything fails, just do a non-forking one */
+    if (pipe(pfd) < 0)
+      do_fork = 0;
+    else if ((cpid = fork()) < 0) {	/* fork failed, close the pipe */
+      close(pfd[0]);
+      close(pfd[1]);
+      do_fork = 0;
+    }
+    else if (!cpid) {	/* child, continue answering queries */
+      signal(SIGALRM, SIG_IGN);
+      signal(SIGHUP, SIG_IGN);
+#ifndef NO_STATS
+      signal(SIGUSR1, SIG_IGN);
+      signal(SIGUSR2, SIG_IGN);
+#endif
+      close(pfd[0]);
+      /* set up the fd#1 to write stats later on SIGTERM */
+      if (pfd[1] != 1) {
+        dup2(pfd[1], 1);
+        close(pfd[1]);
+      }
+      fork_on_reload = -1;
+      return 1;
+    }
+    else {
+      close(pfd[1]);
+      cfd = pfd[0];
+    }
   }
-  close(pfd[1]);
-  ipc_fd = pfd[0];
-  bgq_pid = cpid;
-  return 0;
+
+#ifndef NO_TIMES
+#ifndef HZ
+  if (!HZ)
+    HZ = sysconf(_SC_CLK_TCK);
+#endif
+  etm = times(&tms);
+  utm = tms.tms_utime;
+#endif /* NO_TIMES */
+
+  r = 1;
+  do {
+    if (!loaddataset(ds))
+      r = 0;
+  } while ((ds = nextdataset2reload(ds)) != NULL);
+
+  for (zone = zonelist; zone; zone = zone->z_next) {
+    time_t stamp = 0;
+    const struct dssoa *dssoa = NULL;
+    const struct dsns *dsns = NULL;
+    unsigned nsttl = 0;
+    struct dslist *dsl;
+
+    for(dsl = zone->z_dsl; dsl; dsl = dsl->dsl_next) {
+      const struct dataset *ds = dsl->dsl_ds;
+      if (!ds->ds_stamp) {
+        stamp = 0;
+        break;
+      }
+      if (stamp < ds->ds_stamp)
+        stamp = ds->ds_stamp;
+      if (!dssoa)
+        dssoa = ds->ds_dssoa;
+      if (!dsns)
+        dsns = ds->ds_dsns, nsttl = ds->ds_nsttl;
+    }
+
+    zone->z_stamp = stamp;
+    if (!stamp) {
+      zlog(LOG_WARNING, zone, "will not be serviced");
+      r = 0;
+    }
+    else if (!update_zone_soa(zone, dssoa) ||
+             !update_zone_ns(zone, dsns, nsttl, zonelist))
+      zlog(LOG_WARNING, zone,
+           "NS or SOA RRs are too long, will be ignored");
+  }
+
+#ifdef do_hook_reload
+  hook_reload(zonelist);
+#endif
+
+  ip = ssprintf(ibuf, sizeof(ibuf), "zones reloaded");
+#ifndef NO_TIMES
+  etm = times(&tms) - etm;
+  utm = tms.tms_utime - utm;
+# define sec(tm) (unsigned long)(tm/HZ), (unsigned long)((tm*100/HZ)%100)
+  ip += ssprintf(ibuf + ip, sizeof(ibuf) - ip,
+        ", time %lu.%lue/%lu.%luu sec", sec(etm), sec(utm));
+# undef sec
+#endif /* NO_TIMES */
+#ifndef NO_MEMINFO
+  {
+    struct mallinfo mi = mallinfo();
+# define kb(x) ((mi.x + 512)>>10)
+    ip += ssprintf(ibuf + ip, sizeof(ibuf) - ip,
+          ", mem arena=%d free=%d mmap=%d Kb",
+          kb(arena), kb(fordblks), kb(hblkhd));
+# undef kb
+  }
+#endif /* NO_MEMINFO */
+  dslog(LOG_INFO, 0, ibuf);
+
+  /* ok, (something) loaded. */
+
+  if (do_fork) {
+    /* here we should notify query-answering child (send SIGTERM to it),
+     * and wait for it to complete.
+     * Unfortunately at least on linux, the SIGTERM sometimes gets ignored
+     * by the child process, so we're trying several times here, in a loop.
+     */
+    int s, n;
+    fd_set fds;
+    struct timeval tv;
+
+    for(n = 1; ++n;) {
+      if (kill(cpid, SIGTERM) != 0)
+        dslog(LOG_WARNING, 0, "kill(qchild): %s", strerror(errno));
+      FD_ZERO(&fds);
+      FD_SET(cfd, &fds);
+      tv.tv_sec = 0;
+      tv.tv_usec = 500000;
+      s = select(cfd+1, &fds, NULL, NULL, &tv);
+      if (s > 0) break;
+      dslog(LOG_WARNING, 0, "waiting for qchild process: %s, retrying",
+            s ? strerror(errno) : "timeout");
+    }
+    ipc_read_stats(cfd);
+    close(cfd);
+    wait(&s);
+  }
+
+  return r;
 }
 
 static void do_signalled(void) {
   sigprocmask(SIG_SETMASK, &ssblock, NULL);
   if (signalled & SIGNALLED_TERM) {
     if (fork_on_reload < 0) { /* this is a temp child; dump stats and exit */
-      ipc_write_stats(ipc_fd);
+      ipc_write_stats(1);
       if (flog && !flushlog)
         fflush(flog);
       _exit(0);
@@ -924,37 +973,8 @@ static void do_signalled(void) {
 #endif
   if (signalled & SIGNALLED_RELOG)
     reopenlog();
-  if (signalled & SIGNALLED_RELOAD) {
-    if (!fork_on_reload) /* normal reload */
-      do_reload();
-    else /* else two-process reload */
-    if (!setjmp(reload_ctx)) {
-      do_reload();
-      if (bgq_pid > 0) {
-        int s, n;
-        fd_set fds;
-        struct timeval tv;
-
-        for(n = 1; ++n;) {
-          if (kill(bgq_pid, SIGTERM) != 0)
-            dslog(LOG_WARNING, 0, "kill(qchild): %s", strerror(errno));
-          FD_ZERO(&fds);
-          FD_SET(ipc_fd, &fds);
-          tv.tv_sec = 0;
-          tv.tv_usec = 500000;
-          s = select(ipc_fd+1, &fds, NULL, NULL, &tv);
-          if (s > 0) break;
-          dslog(LOG_WARNING, 0, "waiting for qchild process: %s, retrying",
-                s ? strerror(errno) : "timeout");
-        }
-        ipc_read_stats(ipc_fd);
-        close(ipc_fd);
-        ipc_fd = -1;
-        wait(&s);
-      } /* bgq_pid > 0 */
-      bgq_pid = 0;
-    } /* 2process reload, parent */
-  }
+  if (signalled & SIGNALLED_RELOAD)
+    do_reload(fork_on_reload);
   signalled = 0;
   sigprocmask(SIG_SETMASK, &ssempty, NULL);
 }

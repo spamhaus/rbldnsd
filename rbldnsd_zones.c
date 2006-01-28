@@ -394,7 +394,7 @@ static void freedataset(struct dataset *ds) {
   memset(ds->ds_subst, 0, sizeof(ds->ds_subst));
 }
 
-static int loaddataset(struct dataset *ds) {
+int loaddataset(struct dataset *ds) {
   struct dsfile *dsf;
   time_t stamp = 0;
   struct istream is;
@@ -414,7 +414,7 @@ static int loaddataset(struct dataset *ds) {
     if (fd < 0 || fstat(fd, &st0) < 0) {
       dslog(LOG_ERR, &dsc, "unable to open file: %s", strerror(errno));
       if (fd >= 0) close(fd);
-      return 0;
+      goto fail;
     }
     ds->ds_type->dst_startfn(ds);
     istream_init_fd(&is, fd);
@@ -442,10 +442,10 @@ static int loaddataset(struct dataset *ds) {
     istream_destroy(&is);
     close(fd);
     if (!r)
-      return 0;
+      goto fail;
     if (r < 0) {
       dslog(LOG_ERR, &dsc, "error reading file: %s", strerror(errno));
-      return 0;
+      goto fail;
     }
     if (st0.st_mtime != st1.st_mtime ||
         st0.st_size  != st1.st_size) {
@@ -454,7 +454,7 @@ static int loaddataset(struct dataset *ds) {
       dslog(LOG_ERR, &dsc,
             "do not write data files directly, "
             "use temp file and rename(2) instead");
-      return 0;
+      goto fail;
     }
     dsf->dsf_stamp = st0.st_mtime;
     dsf->dsf_size  = st0.st_size;
@@ -467,97 +467,28 @@ static int loaddataset(struct dataset *ds) {
   ds->ds_type->dst_finishfn(ds, &dsc);
 
   return 1;
+
+fail:
+  freedataset(ds);
+  for (dsf = ds->ds_dsf; dsf; dsf = dsf->dsf_next)
+    dsf->dsf_stamp = 0;
+  ds->ds_stamp = 0;
+  return 0;
 }
 
-static int updatezone(struct zone *zone, const struct zone *zonelist) {
-  time_t stamp = 0;
-  const struct dssoa *dssoa = NULL;
-  const struct dsns *dsns = NULL;
-  unsigned nsttl = 0;
-  struct dslist *dsl;
-
-  for(dsl = zone->z_dsl; dsl; dsl = dsl->dsl_next) {
-    const struct dataset *ds = dsl->dsl_ds;
-    if (!ds->ds_stamp)
-      return 0;
-    if (stamp < ds->ds_stamp)
-      stamp = ds->ds_stamp;
-    if (!dssoa)
-      dssoa = ds->ds_dssoa;
-    if (!dsns)
-      dsns = ds->ds_dsns, nsttl = ds->ds_nsttl;
-  }
-
-  zone->z_stamp = stamp;
-  if (!update_zone_soa(zone, dssoa) ||
-      !update_zone_ns(zone, dsns, nsttl, zonelist))
-    zlog(LOG_WARNING, zone,
-         "NS or SOA RRs are too long, will be ignored");
-
-  return 1;
-}
-
-int reloadzones(struct zone *zonelist) {
-  struct dataset *ds;
+/* find next dataset which needs reloading */
+struct dataset *nextdataset2reload(struct dataset *ds) {
   struct dsfile *dsf;
-  struct zone *zone;
-  int reloaded = 0;
-  int errors = 0;
-  extern void start_loading();
-
-  for(ds = ds_list; ds; ds = ds->ds_next) {
-    int load = 0;
-
+  for (ds = ds ? ds->ds_next : ds_list; ds; ds = ds->ds_next)
     for(dsf = ds->ds_dsf; dsf; dsf = dsf->dsf_next) {
       struct stat st;
-      if (stat(dsf->dsf_name, &st) < 0) {
-        dslog(LOG_ERR, 0, "unable to stat file `%.60s': %s",
-              dsf->dsf_name, strerror(errno));
-        load = -1;
-        break;
-      }
-      else if (dsf->dsf_stamp != st.st_mtime ||
-               dsf->dsf_size  != st.st_size) {
-        load = 1;
-        dsf->dsf_stamp = st.st_mtime;
-        dsf->dsf_size = st.st_size;
-      }
+      if (stat(dsf->dsf_name, &st) < 0)
+        return ds;
+      if (dsf->dsf_stamp != st.st_mtime ||
+          dsf->dsf_size  != st.st_size)
+        return ds;
     }
-
-    if (!load)
-      continue;
-
-    ++reloaded;
-
-    if (load < 0 && !ds->ds_stamp) {
-      ++errors;
-      continue;
-    }
-
-    start_loading();
-
-    if (load < 0 || !loaddataset(ds)) {
-      ++errors;
-      freedataset(ds);
-      for (dsf = ds->ds_dsf; dsf; dsf = dsf->dsf_next)
-        dsf->dsf_stamp = 0;
-      ds->ds_stamp = 0;
-    }
-
-  }
-
-  if (reloaded) {
-
-    for(zone = zonelist; zone; zone = zone->z_next) {
-      if (!updatezone(zone, zonelist)) {
-        zlog(LOG_WARNING, zone, "zone will not be serviced");
-        zone->z_stamp = 0;
-      }
-    }
-
-  }
-
-  return errors ? -1 : reloaded ? 1 : 0;
+  return NULL;
 }
 
 #ifndef NO_MASTER_DUMP
