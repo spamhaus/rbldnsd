@@ -83,6 +83,70 @@ char *parse_ttl(char *s, unsigned *ttlp, unsigned defttl) {
   return s;
 }
 
+static const unsigned char mday[12] = {
+  31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31
+};
+
+#define isleap(year) \
+  ((year) % 4 == 0 && ((year) % 100 != 0 || (year) % 400 == 0))
+
+static char *
+parse_tsp(char *s, unsigned *np, unsigned min, unsigned max, unsigned w) {
+  unsigned n = 0;
+  if (!digit(*s)) return NULL;
+  do n = n * 10 + d2n(*s++);
+  while(digit(*s) && --w);
+  if (n < min || n > max) return NULL;
+  if (*s == ':' || *s == '-') ++s;
+  *np = n;
+  return s;
+}
+
+char *parse_timestamp(char *s, time_t *tsp) {
+  unsigned year, mon, day, hour, min, sec;
+
+  if ((*s == '0' || *s == '-' || *s == ':') &&
+      (ISSPACE(s[1]) || !s[1])) {
+    *tsp = 0;
+    ++s;
+    SKIPSPACE(s);
+    return s;
+  }
+  if (!(s = parse_tsp(s, &year, 1970, 2038, 4))) return NULL;
+  if (!(s = parse_tsp(s, &mon, 1, 12, 2))) return NULL;
+  mon -= 1;
+  day = mon == 1 && isleap(year) ? 29 : mday[mon];
+  if (!(s = parse_tsp(s, &day, 1, day, 2))) return NULL;
+  hour = min = sec = 0;
+  if (*s && !ISSPACE(*s))
+    if (!(s = parse_tsp(s, &hour, 0, 23, 2))) return NULL;
+  if (*s && !ISSPACE(*s))
+    if (!(s = parse_tsp(s, &min, 0, 59, 2))) return NULL;
+  if (*s && !ISSPACE(*s))
+    if (!(s = parse_tsp(s, &sec, 0, 59, 2))) return NULL;
+  if (*s) {
+    if (!ISSPACE(*s)) return NULL;
+    ++s; SKIPSPACE(s);
+  }
+
+  {
+    unsigned y4 = (year / 4) - !(year & 3);
+    unsigned y100 = y4 / 25;
+    unsigned y400 = y100 / 4;
+    day =
+      365 * (year - 1970) +
+      (y4 - 492) - (y100 - 19) + (y400 - 4) +
+      day - 1;
+    if (isleap(year) && mon > 1)
+      ++day;
+    while(mon)
+      day += mday[--mon];
+    *tsp = ((day * 24 + hour) * 60 + min) * 60 + sec;
+  }
+
+  return s;
+}
+
 char *parse_dn(char *s, unsigned char *dn, unsigned *dnlenp) {
   char *n = s;
   unsigned l;

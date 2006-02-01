@@ -82,6 +82,7 @@ char *parse_uint32_nb(char *s, unsigned char nb[4]);
 char *parse_time(char *s, unsigned *tp);
 char *parse_time_nb(char *s, unsigned char nb[4]);
 char *parse_ttl(char *s, unsigned *ttlp, unsigned defttl);
+char *parse_timestamp(char *s, time_t *tsp);
 char *parse_dn(char *s, unsigned char *dn, unsigned *dnlenp);
 /* parse line in form :ip:text into rr
  * where first 4 bytes is ip in network byte order.
@@ -201,6 +202,7 @@ struct dataset {	/* ds */
   const struct dstype *ds_type;	/* type of this data */
   struct dsdata *ds_dsd;		/* type-specific data */
   time_t ds_stamp;			/* timestamp */
+  time_t ds_expires;			/* when the dataset expires if any */
   const char *ds_spec;			/* original specification */
   struct dsfile *ds_dsf;		/* list of files for this data */
   struct dssoa *ds_dssoa;		/* SOA record */
@@ -248,6 +250,7 @@ extern struct dnsstats gstats;	/* global statistics counters */
 
 struct zone {	/* zone, list of zones */
   unsigned z_stamp;			/* timestamp, 0 if not loaded */
+  time_t z_expires;			/* when the zone expires if any */
   unsigned char z_dn[DNS_MAXDN+1];	/* zone domain name */
   unsigned z_dnlen;			/* length of z_dn */
   unsigned z_dnlab;			/* number of dn labels */

@@ -785,6 +785,19 @@ static void reopenlog(void) {
   }
 }
 
+static void check_expires(void) {
+  struct zone *zone;
+  unsigned now = time(NULL);
+  for (zone = zonelist; zone; zone = zone->z_next) {
+    if (!zone->z_stamp)
+      continue;
+    if (zone->z_expires && zone->z_expires < now) {
+      zlog(LOG_WARNING, zone, "zone data expired, zone will not be serviced");
+      zone->z_stamp = 0;
+    }
+  }
+}
+
 static int do_reload(int do_fork) {
   int r;
   char ibuf[150];
@@ -802,8 +815,10 @@ static int do_reload(int do_fork) {
 #endif /* NO_TIMES */
 
   ds = nextdataset2reload(NULL);
-  if (!ds)
+  if (!ds) {
+    check_expires();
     return 1;	/* nothing to reload */
+  }
 
   if (do_fork) {
     int pfd[2];
@@ -856,6 +871,7 @@ static int do_reload(int do_fork) {
 
   for (zone = zonelist; zone; zone = zone->z_next) {
     time_t stamp = 0;
+    time_t expires = 0;
     const struct dssoa *dssoa = NULL;
     const struct dsns *dsns = NULL;
     unsigned nsttl = 0;
@@ -869,15 +885,19 @@ static int do_reload(int do_fork) {
       }
       if (stamp < ds->ds_stamp)
         stamp = ds->ds_stamp;
+      if (ds->ds_expires && (!expires || expires > ds->ds_expires))
+        expires = ds->ds_expires;
       if (!dssoa)
         dssoa = ds->ds_dssoa;
       if (!dsns)
         dsns = ds->ds_dsns, nsttl = ds->ds_nsttl;
     }
 
+    zone->z_expires = expires;
     zone->z_stamp = stamp;
     if (!stamp) {
-      zlog(LOG_WARNING, zone, "will not be serviced");
+      zlog(LOG_WARNING, zone,
+           "not all datasets are loaded, zone will not be serviced");
       r = 0;
     }
     else if (!update_zone_soa(zone, dssoa) ||
@@ -910,6 +930,8 @@ static int do_reload(int do_fork) {
   }
 #endif /* NO_MEMINFO */
   dslog(LOG_INFO, 0, ibuf);
+
+  check_expires();
 
   /* ok, (something) loaded. */
 

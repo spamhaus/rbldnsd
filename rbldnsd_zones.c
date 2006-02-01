@@ -11,6 +11,7 @@
 #include <errno.h>
 #include <unistd.h>
 #include <fcntl.h>
+#include <time.h>
 #include "rbldnsd.h"
 #include "istream.h"
 
@@ -328,6 +329,37 @@ static int ds_special(struct dataset *ds, char *line, struct dsctx *dsc) {
     if (!isdstype(ds->ds_type, combined))
       return 0;	/* $dataset is only allowed for combined dataset */
     return ds_combined_newset(ds, w, dsc);
+  }
+
+  if ((w = firstword(line, "timestamp"))) {
+    time_t stamp, expires;
+
+    if (!(w = parse_timestamp(w, &stamp))) return 0;
+    if (!*w)
+      expires = 0;
+    else if (*w == '+') {       /* relative */
+      unsigned n;
+      if (!(w = parse_time(w + 1, &n)) || *w) return 0;
+      if (!stamp || !n) return 0;
+      expires = stamp + n;
+      if (expires < 0 || expires - n != stamp) return 0;
+    }
+    else {
+      if (!(w = parse_timestamp(w, &expires)) || *w) return 0;
+    }
+    if (stamp) {
+      time_t now = time(NULL);
+      if (stamp > now) {
+        dslog(LOG_ERR, dsc,
+              "data timestamp is %u sec in the future, aborting loading",
+              (unsigned)(stamp - now));
+        return -1;
+      }
+    }
+    if (expires &&
+        (!ds->ds_expires || ds->ds_expires > expires))
+      ds->ds_expires = expires;
+    return 1;
   }
 
   return 0;

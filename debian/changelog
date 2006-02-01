@@ -7,7 +7,10 @@ rbldnsd (0.995.99) unstable; urgency=low
   * (internal) reorganized zone reloading code to eliminate
     start_loading()+longjump() hack
 
- -- Michael Tokarev <mjt@corpit.ru>  Sat, 28 Jan 2006 22:31:10 +0300
+  * data expiration support, in form
+    $TIMESTAMP created expires
+
+ -- Michael Tokarev <mjt@corpit.ru>  Sun, 29 Jan 2006 00:43:51 +0000
 
 rbldnsd (0.995.98) unstable; urgency=low
 

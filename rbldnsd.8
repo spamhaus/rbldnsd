@@ -364,6 +364,34 @@ Specifies TTL (time-to-live) value for all records in current dataset.
 See also \fB\-t\fR option.  \fB$TTL\fR special overrides \fB\-t\fR value
 on a per-dataset basis.
 
+.IP "\fB$TIMESTAMP\fR \fIdstamp\fR [\fIexpires\fR]"
+Specifies the data timestamp \fIdstamp\fR when the data has been generated,
+and optionally when it will expire.  The timestamps are in form
+\fIyyyy\fR:\fImm\fR:\fIdd\fR[:\fIhh\fR[:\fImi\fR[:\fIss\fR]]], where
+\fIyyyy\fR is the year like 2005, \fImm\fR is the month number (01..12),
+\fIdd\fR is the month day number (01..31), \fIhh\fR is hour (00..23),
+\fImi\fR and \fIss\fR are minutes and secounds (00.59); hours, minutes
+and secounds are optional and defaults to 0; the delimiters (either
+colon or dash may be used) are optional too, but are allowed for readability.
+Also, single zero (0) or dash (\-) may be used as \fIdstamp\fR and/or
+\fIexpires\fR, indicating the value is not given.  \fIexpires\fR may also
+be specified as \fB+\fIrel\fR, where \fIrel\fR is a time specification
+(probably with suffix like s, m, h, d) as an offset to \fIdstamp\fR.
+.B rbldnsd
+compares \fIdstamp\fR with current timestamp and refuses to load the file
+if \fIdstamp\fR specifies time in the future.  And if \fIexpires\fR is
+specified,
+.B rbldnsd
+will refuse to service requests for that data if current time is greather
+than the value specified in \fIexpires\fR field.
+.IP
+Note that
+.B rbldnsd
+will check the data expiry time every time it checks for data file
+updates (when receiving SIGHUP signal or every \fB\-c\fR interval).
+If automatic data reload timer (\fB\-c\fR option) is disabled,
+zones will not be exipired automatically.
+
 .IP "\fB$MAXRANGE4\fR \fIrange-size\fR"
 Specifies maximum size of IPv4 range allowed for IPv4\-based datasets.
 If an entry covers more IP addresses than \fIrange-size\fR, it will
