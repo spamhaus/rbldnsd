@@ -3,6 +3,45 @@ $Id$
 This file describes user-visible changes in rbldnsd.
 Never news are at top.
 
+0.996 (?? ??? ????)
+
+ - feature: data expiration support, in form
+    $TIMESTAMP created expires
+   see manpage for details.
+
+ - feature: recognize new 'pass' entry in ACL "dataset", to allow
+   whitelisting of a particular network/host covered by another
+   ACL entry.
+
+ - bugfix (sort of): deal with possible null-pointer dereferences on some
+   systems such as FreeBSD where realloc(smaller_amount) may actually
+   return NULL.  Note that this particular malloc implementation (where
+   realloc() may return NULL if requested to reallocate to a smaller
+   amount of memory) perform very badly with rbldnsd in the first place:
+   rbldnsd tries to free some unused memory at the end of data load
+   process, and realloc() forces a copy so there will be extra copy of
+   a huge data and bad memory fragmentation, so on next reload rbldnsd
+   will most likely just run out of memory.  I think it's best to experiment
+   with alternative malloc implementation on such systems, eg dmalloc.
+
+ - feature: rbldnsd is now able to read gzip-compressed data files, doing
+   transparent on-the-fly decompression, if built with zlib support
+   (if built w/o zlib support, it still checks whenever datafile is
+   compressed and refuses to load it if it is).  Use -C option to turn
+   this feature off.
+
+ - due to zlib support, this version introduces rewritten data-reading
+   loop (previously with fgets()) - on some systems this results in
+   noticeable (re)load speed improvement on large datasets.
+
+ - number of max nameservers (MAX_NS in rbldnsd.h) increased from 20 to 32,
+   per request from Spamhaus.
+
+ - feature: configure script now accepts command-line options (--enable-xx
+   and --disable-xx) to turn optional features on/off (including stats,
+   ipv6, master-dump and zlib), and saves such options into config.status
+   so that automatic re-making will pick up the right options again.
+
 0.995 (28 Apr 2005)
 
  - feature: allow glue records for nameservers (IPv4 only for now,
