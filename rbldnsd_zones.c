@@ -182,7 +182,7 @@ static int ds_special(struct dataset *ds, char *line, struct dsctx *dsc) {
     unsigned char odn[DNS_MAXDN], pdn[DNS_MAXDN];
     unsigned odnlen, pdnlen;
 
-    if (!isdstype(ds->ds_type, acl))
+    if (isdstype(ds->ds_type, acl))
       return 0;	/* don't allow SOA for ACLs */
     if (ds->ds_dssoa)
       return 1; /* ignore if already set */
