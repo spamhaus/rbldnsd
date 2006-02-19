@@ -2,7 +2,10 @@ rbldnsd (0.996) unstable; urgency=low
 
   * 0.996 release
 
- -- Michael Tokarev <mjt@corpit.ru>  Sun, 19 Feb 2006 16:24:15 +0300
+  * portability fix in istream.c:
+    EPROTO=>ENOEXEC if EPROTO isn't defined
+
+ -- Michael Tokarev <mjt@corpit.ru>  Sun, 19 Feb 2006 16:41:16 +0300
 
 rbldnsd (0.995.99) unstable; urgency=low
 

@@ -13,6 +13,10 @@
 #endif
 #include "istream.h"
 
+#ifndef EPROTO
+# define EPROTO ENOEXEC
+#endif
+
 #if !defined(__GNUC__) && !defined(__attribute__)
 # define __attribute__(x)
 #endif
