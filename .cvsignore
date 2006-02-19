@@ -4,3 +4,5 @@ dns_nametab.c
 config.log
 config.h
 Makefile
+config.status
+rbldnsd.8.html
