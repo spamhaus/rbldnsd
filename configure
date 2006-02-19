@@ -51,6 +51,7 @@ Optional features (all enabled by default if system supports a feature):
   ipv6 - enable/disable IP version 6 (IPv6) support
   stats - enable/disable runtime statistics
   master-dump - enable/disable master-format (bind) dump support (-d option)
+  zlib - zlib support
 EOF
       exit 0
       ;;
