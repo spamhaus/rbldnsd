@@ -3,9 +3,9 @@ $Id$
 This file describes user-visible changes in rbldnsd.
 Never news are at top.
 
-0.996 (?? ??? ????)
+0.996 (19 Feb 2006)
 
- - feature: data expiration support, in form
+ - experimental feature: data expiration support, in form
     $TIMESTAMP created expires
    see manpage for details.
 
