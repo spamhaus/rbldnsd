@@ -3,7 +3,7 @@
 #
 
 set -e
-ac_subst=
+ac_substitutes=
 rm -f conftest* config.log
 exec 5>config.log
 cat <<EOF >&5
@@ -43,6 +43,11 @@ ac_warning() {
 # ac_run command...
 # captures output in conftest.out
 ac_run() {
+  # apparently UnixWare (for one) /bin/sh optimizes the following "if"
+  # "away", by checking if there's such a command BEFORE redirecting
+  # output.  So error message (like "gcc: command not found") goes
+  # to stderr instead of to conftest.out, and `cat conftest.out' below
+  # fails.
   if "$@" >conftest.out 2>&1; then
     return 0
   else
@@ -84,7 +89,7 @@ ac_yesno() {
 }
 
 ac_subst() {
-  ac_subst="$ac_subst $*"
+  ac_substitutes="$ac_substitutes $*"
 }
 
 ac_define() {
@@ -155,7 +160,7 @@ ac_prog_c_compiler() {
     fi
   fi
   if [ -z "$CFLAGS" ]; then
-    if ac_grep_cpp_v "whenever C compiler ($CC) is GNU CC" <<EOF
+    if ac_grep_cpp_v "whenever C compiler ($CC) is GNU CC" yEs <<EOF
 #ifdef __GNUC__
   yEs;
 #endif
@@ -183,7 +188,7 @@ EOF
   [ -n "$AR" ] || AR=ar
   [ -n "$ARFLAGS" ] || ARFLAGS=rv
   [ -n "$AWK" ] || AWK=awk
-  ac_subst="$ac_subst CC CFLAGS LD LDFLAGS LIBS AR ARFLAGS AWK"
+  ac_substitutes="$ac_substitutes CC CFLAGS LD LDFLAGS LIBS AR ARFLAGS AWK"
 }
 
 
@@ -206,7 +211,7 @@ ac_prog_ranlib() {
     else ac_result "$RANLIB"
     fi
   fi
-  ac_subst="$ac_subst RANLIB"
+  ac_substitutes="$ac_substitutes RANLIB"
 }
 
 ac_header_check_v() {
@@ -220,7 +225,7 @@ ac_library_find_v() {
   shift
   fond=
   rm -f conftest*; cat >conftest.c
-  for lib; do
+  for lib in "$@"; do
     if ac_run $CC $CFLAGS $LDFLAGS conftest.c -o conftest $LIBS $lib; then
       found=y
       break
@@ -256,10 +261,10 @@ ac_grep_cpp_v() {
 }
 
 ac_output() {
-  for var in $ac_subst; do
+  for var in $ac_substitutes; do
     eval echo "\"s|@$var@|\$$var|\""
   done >conftest.sed
-  for file; do
+  for file in "$@"; do
     ac_msg "creating $file"
     if [ -f $file.in ]; then
       sed -f conftest.sed $file.in > $file.tmp

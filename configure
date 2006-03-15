@@ -72,7 +72,8 @@ EOF
 VERSION=`sed -e 's/^[^(]*(\([^)]*\)).*/\1/' -e 1q debian/changelog`
 VERSION_DATE=`sed -n '/^ --/ { s/.*  ...,  \{0,1\}\([0-9]\{1,2\} ... [0-9]\{4\}\) .*/\1/p; q; }' debian/changelog`
 
-ac_msg "configure: $name $VERSION ($VERSION_DATE)"
+ac_msg "configure: $name"
+ac_result "$VERSION ($VERSION_DATE)"
 
 ac_subst VERSION VERSION_DATE
 
