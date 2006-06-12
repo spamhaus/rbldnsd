@@ -17,13 +17,13 @@ struct mempool { /* free-once memory pool.  All members are private */
 };
 
 void mp_init(struct mempool *mp);
-char *mp_alloc(struct mempool *mp, unsigned size, int align);
+void *mp_alloc(struct mempool *mp, unsigned size, int align);
 #define mp_talloc(mp, type) ((type*)mp_alloc((mp), sizeof(type), 1))
 void mp_free(struct mempool *mp);
 char *mp_strdup(struct mempool *mp, const char *str);
-char *mp_memdup(struct mempool *mp, const void *buf, unsigned len);
+void *mp_memdup(struct mempool *mp, const void *buf, unsigned len);
 const char *mp_dstrdup(struct mempool *mp, const char *str);
-const char *mp_dmemdup(struct mempool *mp, const void *buf, unsigned len);
+const void *mp_dmemdup(struct mempool *mp, const void *buf, unsigned len);
 /* dstrdup, dmemdup trying to pack repeated strings together */
 
 #endif
