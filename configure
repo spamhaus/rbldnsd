@@ -229,6 +229,21 @@ else
   echo "#define NO_IOVEC 1" >>confdef.h
 fi
 
+if ac_link_v "for setitimer()" <<EOF
+#include <sys/types.h>
+#include <sys/time.h>
+int main() {
+  struct itimerval itv;
+  itv.it_interval.tv_sec  = itv.it_value.tv_sec  = 10;
+  itv.it_interval.tv_usec = itv.it_value.tv_usec = 20;
+  setitimer(ITIMER_REAL, &itv, 0);
+  return 0;
+}
+EOF
+then
+  echo "#define HAVE_SETITIMER 1" >>confdef.h
+fi
+
 if [ n = "$enable_zlib" ]; then
   echo "#define NO_ZLIB	1	/* option disabled */" >>confdef.h
 else

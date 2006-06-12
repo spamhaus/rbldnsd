@@ -1,3 +1,12 @@
+rbldnsd (0.996a) unstable; urgency=low
+
+  * use setitimer() instead of alarm() on systems which supports it
+    (configure & rbldnsd.c).  This works around some broken linux
+    kernel behaviour where we sometimes lose a signal (SIGALRM in this
+    case) and rbldnsd stops checking for updates.
+
+ -- Michael Tokarev <mjt@corpit.ru>  Tue, 13 Jun 2006 01:11:51 +0400
+
 rbldnsd (0.996) unstable; urgency=low
 
   * 0.996 release

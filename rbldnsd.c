@@ -604,7 +604,9 @@ static void sighandler(int sig) {
     signalled |= SIGNALLED_RELOG|SIGNALLED_RELOAD;
     break;
   case SIGALRM:
+#ifndef HAVE_SETITIMER
     alarm(recheck);
+#endif
     signalled |= SIGNALLED_RELOAD|SIGNALLED_SSTATS;
     break;
 #ifndef NO_STATS
@@ -1034,7 +1036,17 @@ int main(int argc, char **argv) {
   init(argc, argv);
   setup_signals();
   reopenlog();
+#ifdef HAVE_SETITIMER
+  if (recheck) {
+    struct itimerval itv;
+    itv.it_interval.tv_sec  = itv.it_value.tv_sec  = recheck;
+    itv.it_interval.tv_usec = itv.it_value.tv_usec = 0;
+    if (setitimer(ITIMER_REAL, &itv, NULL) < 0)
+      error(errno, "unable to setitimer()");
+  }
+#else
   alarm(recheck);
+#endif
 #ifndef NO_STATS
   stats_time = time(NULL);
   if (statsfile)
