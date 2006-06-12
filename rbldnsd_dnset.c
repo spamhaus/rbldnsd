@@ -284,7 +284,7 @@ ds_dnset_dump(const struct dataset *ds,
               FILE *f) {
   const struct dsdata *dsd = ds->ds_dsd;
   const struct entry *e, *t;
-  unsigned char name[DNS_MAXDOMAIN+4];
+  char name[DNS_MAXDOMAIN+4];
   for (e = dsd->e[EP], t = e + dsd->n[EP]; e < t; ++e) {
     dns_dntop(e->ldn + 1, name, sizeof(name));
     dump_a_txt(name, e->rr, name, ds, f);

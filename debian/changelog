@@ -7,6 +7,7 @@ rbldnsd (0.996a) unstable; urgency=low
 
   * cosmetic: use void* instead of char* in mempool.[ch] where appropriate.
   * cosmetic: wrong type in check_expires(): unsigned instead of time_t.
+  * cosmetic: wrong type (signedness) for domain name in ds_dnset_dump()
 
  -- Michael Tokarev <mjt@corpit.ru>  Tue, 13 Jun 2006 01:14:55 +0400
 
