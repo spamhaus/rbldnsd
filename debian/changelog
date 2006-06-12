@@ -10,6 +10,7 @@ rbldnsd (0.996a) unstable; urgency=low
    - wrong type in check_expires(): unsigned instead of time_t.
    - wrong type (signedness) for domain name in ds_dnset_dump()
    - use appropriate char/uchar for domain names in ds_generic_dump()
+   - istream signedness (warning) fixes
 
  -- Michael Tokarev <mjt@corpit.ru>  Tue, 13 Jun 2006 01:14:55 +0400
 

@@ -14,7 +14,7 @@ struct istream {
   unsigned char buf[ISTREAM_BUFSIZE]; /* the data pointer */
   unsigned char pad2[ISTREAM_PAD];
   void *cookie;		/* cookie for readfn routine */
-  int  (*readfn)(struct istream *sp, char *buf, int size, int szhint);
+  int  (*readfn)(struct istream *sp, unsigned char *buf, int size, int szhint);
   void (*freefn)(struct istream *sp);
 };
 #define istream_buf(sp) ((sp)->buf+ISTREAM_EXTRA)
@@ -23,7 +23,7 @@ int istream_fillbuf(struct istream *sp);
 int istream_ensurebytes(struct istream *sp, int nbytes);
 int istream_getline(struct istream *sp, char **linep, char delim);
 void istream_init(struct istream *sp,
-                  int (*readfn)(struct istream*,char*,int,int),
+                  int (*readfn)(struct istream*,unsigned char*,int,int),
                   void (*freefn)(struct istream*), void *cookie);
 void istream_init_fd(struct istream *sp, int fd);
 void istream_destroy(struct istream *sp);

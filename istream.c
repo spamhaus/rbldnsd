@@ -49,7 +49,8 @@ int istream_getline(struct istream *sp, char **linep, char delim) {
   unsigned char *x, *s;
   int r;
 
-  *linep = s = sp->readp;
+  s = sp->readp;
+  *linep = (char*)s;
   for (;;) {
 
     /* check if we already have complete line in the buffer */
@@ -66,14 +67,17 @@ int istream_getline(struct istream *sp, char **linep, char delim) {
 
     /* if we've a 'gap' at the beginning, close it */
     if (s != sp->buf) {
-      if (!(sp->endp - s))
-        s = *linep = sp->readp = sp->endp = sp->buf;
+      if (!(sp->endp - s)) {
+        s = sp->readp = sp->endp = sp->buf;
+        *linep = (char*)s;
+      }
       else if (sp->endp > sp->buf + ISTREAM_BUFSIZE/2) {
         /* if too few bytes free */
         memmove(sp->buf, s, sp->endp - s);
         sp->endp  -= s - sp->buf;
         sp->readp = sp->endp;
-        *linep = s = sp->buf;
+        s = sp->buf;
+        *linep = (char*)s;
       }
     }
 
@@ -125,12 +129,13 @@ int istream_ensurebytes(struct istream *sp, int nbytes) {
 }
 
 static int
-istream_readfn(struct istream *sp, char *buf, int UNUSED size, int szhint) {
+istream_readfn(struct istream *sp, unsigned char *buf,
+               int UNUSED size, int szhint) {
   return read((int)sp->cookie, buf, szhint);
 }
 
 void istream_init(struct istream *sp,
-                  int (*readfn)(struct istream*,char*,int,int),
+                  int (*readfn)(struct istream*,unsigned char*,int,int),
                   void (*freefn)(struct istream*), void *cookie) {
   sp->cookie = cookie;
   sp->readfn = readfn;
@@ -174,13 +179,14 @@ struct zistream {
 
 /* always return end-of-file */
 static int
-istream_eof(struct istream UNUSED *sp, char UNUSED *buf,
+istream_eof(struct istream UNUSED *sp, unsigned char UNUSED *buf,
             int UNUSED size, int UNUSED szhint) {
   return 0;
 }
 
 static int
-zistream_readfn(struct istream *sp, char *buf, int size, int UNUSED szhint) {
+zistream_readfn(struct istream *sp, unsigned char *buf,
+                int size, int UNUSED szhint) {
   struct zistream *zsp = sp->cookie;
   int r = Z_OK;
   unsigned char *p;
