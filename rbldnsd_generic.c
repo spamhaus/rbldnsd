@@ -39,8 +39,8 @@ ds_generic_parseany(struct dataset *ds, char *s, struct dsctx *dsc) {
   struct entry *e;
   char *t;
   unsigned dtyp, dsiz, dnlab;
-  char data[DNS_MAXDN*2+20];
-  char *dp;
+  unsigned char data[DNS_MAXDN*2+20];
+  unsigned char *dp;
 
   /* allocate new entry */
   e = dsd->e;
@@ -313,7 +313,7 @@ ds_generic_dump(const struct dataset *ds,
                 FILE *f) {
   const struct dsdata *dsd = ds->ds_dsd;
   const struct entry *e, *t;
-  char dn[DNS_MAXDN];
+  unsigned char dn[DNS_MAXDN];
   char name[DNS_MAXDOMAIN+1];
   const unsigned char *ldn = NULL;
   const unsigned char *d;
@@ -328,11 +328,10 @@ ds_generic_dump(const struct dataset *ds,
       }
       else
         strcpy(name, "@");
-      d = name;
     }
     else
-      d = "";
-    fprintf(f, "%s\t%u\t", d, e->ttl);
+      name[0] = '\0';
+    fprintf(f, "%s\t%u\t", name, e->ttl);
     d = e->data;
     switch(e->dtyp) {
     case NSQUERY_A:
