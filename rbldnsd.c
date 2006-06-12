@@ -789,7 +789,7 @@ static void reopenlog(void) {
 
 static void check_expires(void) {
   struct zone *zone;
-  unsigned now = time(NULL);
+  time_t now = time(NULL);
   for (zone = zonelist; zone; zone = zone->z_next) {
     if (!zone->z_stamp)
       continue;

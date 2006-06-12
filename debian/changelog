@@ -5,7 +5,8 @@ rbldnsd (0.996a) unstable; urgency=low
     kernel behaviour where we sometimes lose a signal (SIGALRM in this
     case) and rbldnsd stops checking for updates.
 
-  * use void* instead of char* in mempool.[ch] where appropriate.
+  * cosmetic: use void* instead of char* in mempool.[ch] where appropriate.
+  * cosmetic: wrong type in check_expires(): unsigned instead of time_t.
 
  -- Michael Tokarev <mjt@corpit.ru>  Tue, 13 Jun 2006 01:14:55 +0400
 
