@@ -5,6 +5,10 @@ Never news are at top.
 
 0.996a (?? ??? 2006)
 
+ - bugfix: fix configure script breakages:
+   portability: for f; do => for f in "$@"; do
+   fix broken GNU C (mis)detection
+
  - bugfix: fix dataset "un-expiration". Previously, once a dataset has expired,
    it never "un-expires" again even if new expire time is in future.  Due to
    missing reset of a dataset structure field.
