@@ -420,6 +420,7 @@ static void freedataset(struct dataset *ds) {
   ds->ds_ttl = def_ttl;
   ds->ds_dsns = NULL;
   ds->ds_nsttl = 0;
+  ds->ds_expires = 0;
 #ifndef INCOMPAT_0_99
   ds->ds_nsflags = 0;
 #endif

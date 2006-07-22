@@ -17,7 +17,11 @@ rbldnsd (0.996a) unstable; urgency=low
     Build-Depends on zlib1g-dev, and pass --enable-zlib to ./configure
     bump Standards-Version to 3.7.2
 
- -- Michael Tokarev <mjt@corpit.ru>  Sat, 22 Jul 2006 11:02:42 +0400
+  * bugfix: fix dataset "un-expiration" time. Previously, once a dataset
+    has expired, it never "un-expires" again even if new expire time is
+    in future.  Due to missing reset of ds->ds_expire field.
+
+ -- Michael Tokarev <mjt@corpit.ru>  Sat, 22 Jul 2006 11:21:47 +0400
 
 rbldnsd (0.996) unstable; urgency=low
 
