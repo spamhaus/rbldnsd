@@ -17,7 +17,7 @@ rbldnsd (0.996a) unstable; urgency=low
     Build-Depends on zlib1g-dev, and pass --enable-zlib to ./configure
     bump Standards-Version to 3.7.2
 
- -- Michael Tokarev <mjt@corpit.ru>  Sat, 22 Jul 2006 10:45:33 +0400
+ -- Michael Tokarev <mjt@corpit.ru>  Sat, 22 Jul 2006 11:02:42 +0400
 
 rbldnsd (0.996) unstable; urgency=low
 

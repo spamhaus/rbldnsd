@@ -342,7 +342,7 @@ static int ds_special(struct dataset *ds, char *line, struct dsctx *dsc) {
       if (!(w = parse_time(w + 1, &n)) || *w) return 0;
       if (!stamp || !n) return 0;
       expires = stamp + n;
-      if (expires < 0 || expires - n != stamp) return 0;
+      if (expires < 0 || expires - (time_t)n != stamp) return 0;
     }
     else {
       if (!(w = parse_timestamp(w, &expires)) || *w) return 0;

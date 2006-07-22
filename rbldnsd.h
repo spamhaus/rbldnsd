@@ -305,7 +305,7 @@ void addrr_any(struct dnspacket *pkt, unsigned dtp,
 int ds_acl_query(const struct dataset *ds, struct dnspacket *pkt);
 
 #ifndef NO_MASTER_DUMP
-void dump_a_txt(const char *name, const unsigned char *rr,
+void dump_a_txt(const char *name, const char *rr,
                 const char *subst, const struct dataset *ds, FILE *f);
 void dump_ip4range(ip4addr_t a, ip4addr_t b, const char *rr,
 		   const struct dataset *ds, FILE *f);

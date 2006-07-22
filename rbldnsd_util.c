@@ -177,7 +177,7 @@ int parse_a_txt(char *str, const char **rrp, const char *def_rr,
     if (*str == ':') {	/* A+TXT */
       ++str;
       SKIPSPACE(str);
-      rr = (unsigned char*)str - 4;
+      rr = str - 4;
       PACK32(rr, a);
     }
     else if (*str) {
@@ -194,7 +194,7 @@ int parse_a_txt(char *str, const char **rrp, const char *def_rr,
     }
   }
   else {
-    rr = (unsigned char*)str - 4;
+    rr = str - 4;
     memcpy(rr, def_rr, 4);
   }
   if (*str) {
@@ -323,13 +323,13 @@ int txtsubst(char sb[TXTBUFSIZ], const char *txt,
 }
 
 void
-dump_a_txt(const char *name, const unsigned char *rr,
+dump_a_txt(const char *name, const char *rr,
            const char *subst, const struct dataset *ds, FILE *f) {
   if (!rr)
     fprintf(f, "%s\tCNAME\texcluded\n", name);
   else {
-    fprintf(f, "%s\tA\t%u.%u.%u.%u\n",
-            name, rr[0], rr[1], rr[2], rr[3]);
+    const unsigned char *a = (const unsigned char*)rr;
+    fprintf(f, "%s\tA\t%u.%u.%u.%u\n", name, a[0], a[1], a[2], a[3]);
     if (rr[4]) {
       char txt[TXTBUFSIZ];
       char *p, *n;
