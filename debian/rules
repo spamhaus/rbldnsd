@@ -8,7 +8,7 @@
 #export DH_VERBOSE=1
 
 # This is the debhelper compatibility version to use.
-export DH_COMPAT=3
+export DH_COMPAT=4
 
 DEFS =
 CFLAGS = -pipe -Wall -W -g
@@ -19,7 +19,7 @@ endif
 config: config.h Makefile
 config.h Makefile: configure Makefile.in
 	dh_testdir
-	CFLAGS="$(CFLAGS)" DEFS="$(DEFS)" ./configure
+	CFLAGS="$(CFLAGS)" DEFS="$(DEFS)" ./configure --enable-zlib
 
 build: debian/build-stamp
 debian/build-stamp: config.h

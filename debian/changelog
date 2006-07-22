@@ -12,7 +12,12 @@ rbldnsd (0.996a) unstable; urgency=low
    - use appropriate char/uchar for domain names in ds_generic_dump()
    - istream signedness (warning) fixes
 
- -- Michael Tokarev <mjt@corpit.ru>  Tue, 13 Jun 2006 01:14:55 +0400
+  * debian:
+    Build-Depends on debhelper>>4, and set DH_COMPAT to 4
+    Build-Depends on zlib1g-dev, and pass --enable-zlib to ./configure
+    bump Standards-Version to 3.7.2
+
+ -- Michael Tokarev <mjt@corpit.ru>  Sat, 22 Jul 2006 10:45:33 +0400
 
 rbldnsd (0.996) unstable; urgency=low
 
