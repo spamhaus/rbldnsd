@@ -3,6 +3,21 @@ $Id$
 This file describes user-visible changes in rbldnsd.
 Never news are at top.
 
+0.996a (?? ??? 2006)
+
+ - bugfix: fix dataset "un-expiration". Previously, once a dataset has expired,
+   it never "un-expires" again even if new expire time is in future.  Due to
+   missing reset of a dataset structure field.
+
+ - portability: apparently at least one (broken) linux distribution includes
+   kernel modification which leads to losing SIGALRM interrupts at times.
+   So use setitimer() instead of alarm(), if available.
+
+ - minor code cleanups here and there (fixing (real) GCC-4.1 warnings).
+
+ - Debian-specific: adopt to more recent Debian packaging requiriments,
+   and ensure that Debian package builds with zlib support
+
 0.996 (19 Feb 2006)
 
  - experimental feature: data expiration support, in form
