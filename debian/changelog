@@ -25,7 +25,10 @@ rbldnsd (0.996a) unstable; urgency=low
    - portability: for f; do => for f in "$@"; do
    - fix broken GNU C (mis)detection
 
- -- Michael Tokarev <mjt@corpit.ru>  Sat, 22 Jul 2006 11:33:33 +0400
+  * don't treat -a as experimental and mention it will be the default.
+    Add -A option.
+
+ -- Michael Tokarev <mjt@corpit.ru>  Thu, 27 Jul 2006 13:36:30 +0400
 
 rbldnsd (0.996) unstable; urgency=low
 

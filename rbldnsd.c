@@ -166,9 +166,11 @@ static void NORETURN usage(int exitcode) {
 "  file every `check' (-c) secounds, for rrdtool-like applications\n"
 "  (+ to log relative, not absolute, statistics counters)\n"
 #endif
-" -a (experimental) - _omit_ AUTH section when constructing reply,\n"
-"  do not return list of auth nameservers in default replies, only\n"
-"  return NS info when explicitly asked\n"
+" -a - omit AUTH section from regular replies, do not return list of\n"
+"  nameservers, but only return NS info when explicitly asked.\n"
+"  This is an equivalent of bind9 \"minimal-answers\" setting.\n"
+"  In future versions this mode will be the default.\n"
+" -A - put AUTH section in every reply.\n"
 #ifndef NO_ZLIB
 " -C - disable on-the-fly decompression of dataset files\n"
 #endif
@@ -355,7 +357,7 @@ static void init(int argc, char **argv) {
 
   if (argc <= 1) usage(1);
 
-  while((c = getopt(argc, argv, "u:r:b:w:t:c:p:nel:qs:h46dvafCH:")) != EOF)
+  while((c = getopt(argc, argv, "u:r:b:w:t:c:p:nel:qs:h46dvaAfCH:")) != EOF)
     switch(c) {
     case 'u': user = optarg; break;
     case 'r': rootdir = optarg; break;
@@ -435,6 +437,7 @@ break;
       break;
     case 'v': show_version = nover++ ? NULL : "rbldnsd"; break;
     case 'a': lazy = 1; break;
+    case 'A': lazy = 0; break;
     case 'f': forkon = 1; break;
     case 'C': nouncompress = 1; break;
     case 'H':

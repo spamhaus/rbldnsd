@@ -24,6 +24,12 @@ Never news are at top.
 
 0.996 (19 Feb 2006)
 
+ - -a/-A (-A is new, currently a noop) option clarification/addition.
+   Don't mark -a as experimental anymore, and note that -a mode
+   ("lazy", minimal-answers, w/o AUTH section in every reply) will
+   be the default in future versions.  -A tells rbldnsd to go to
+   "non-lazy" mode.  Document options in the manpage.
+
  - experimental feature: data expiration support, in form
     $TIMESTAMP created expires
    see manpage for details.

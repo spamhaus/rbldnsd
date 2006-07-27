@@ -1,7 +1,7 @@
 .\" $Id$
 .\" rbldnsd manpage
 .\"
-.TH rbldnsd 8 "Jul 2004"
+.TH rbldnsd 8 "Jul 2006"
 .SH NAME
 rbldnsd \- DNS daemon suitable for running DNS\-based blocklists
 .SH SYNOPSIS
@@ -276,6 +276,19 @@ will return REFUSE code.
 .IP \fB\-C\fR
 Disable automatic on\-the\-fly uncompression of data files if this feature
 is compiled in (see below).
+
+.IP \fB\-A\fR
+.IP \fB\-a\fR
+Controls "laziness" of \fBrbldnsd\fR when constructing replies.
+With \fB\-a\fR specified, \fBrbldnsd\fR does not add AUTH section
+(containing NS records) to replies unless explicitly asked for NS
+records.  It is equivalent to BIND9 "minimal\-answers" configuration
+setting.  While with \fB\-A\fR specified, \fBrbldnsd\fR will always
+fill in AUTH section, increasing size of replies dramatically but
+allowing (caching) resolver clients to react faster to changes in
+nameserver lists.  Currently (as of 0.996 version), non\-lazy
+(as with \fB\-A\fR) mode is the default, but it will change in
+future release.
 
 .SH "DATASET TYPES AND FORMATS"
 
@@ -749,7 +762,7 @@ replying to metadata queries (including generic datasets if any) as
 usual.
 .PP
 Only one ACL dataset can be specified for a given zone, and each zone
-must have at least one non-acl dataset.  It is also possible to specify
+must have at least one non\-acl dataset.  It is also possible to specify
 one global ACL dataset, by specifying empty zone name (which is not allowed
 for other dataset types), like
 .br
@@ -1053,7 +1066,7 @@ will log a warning when such truncation occurs.
 
 .SH VERSION
 
-This manpage corresponds to \fBrbldnsd\fR version \fB0.995fR.
+This manpage corresponds to \fBrbldnsd\fR version \fB0.996a\fR.
 
 .SH AUTHOR
 
