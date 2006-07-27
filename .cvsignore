@@ -1,5 +1,6 @@
 rbldnsd
-rbldnsd-*.tar.gz
+rbldnsd[-_]*.tar.gz
+rbldnsd[-_]*.tar.gz.sig
 dns_nametab.c
 config.log
 config.h
