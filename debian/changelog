@@ -1,5 +1,7 @@
 rbldnsd (0.996a) unstable; urgency=low
 
+  * the "34-Birthday Release"
+
   * use setitimer() instead of alarm() on systems which supports it
     (configure & rbldnsd.c).  This works around some broken linux
     kernel behaviour where we sometimes lose a signal (SIGALRM in this

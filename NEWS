@@ -3,7 +3,7 @@ $Id$
 This file describes user-visible changes in rbldnsd.
 Never news are at top.
 
-0.996a (?? ??? 2006)
+0.996a (27 Jul 2006) (The "34-Birthday Release")
 
  - bugfix: fix configure script breakages:
    portability: for f; do => for f in "$@"; do
