@@ -349,6 +349,7 @@ static void init(int argc, char **argv) {
   int nodaemon = 0, quickstart = 0, dump = 0, nover = 0, forkon = 0;
   int family = AF_UNSPEC;
   int cfd = -1;
+  const struct zone *z;
 
   if ((progname = strrchr(argv[0], '/')) != NULL)
     argv[0] = ++progname;
@@ -458,7 +459,6 @@ break;
 
 #ifndef NO_MASTER_DUMP
   if (dump) {
-    struct zone *z;
     time_t now;
     logto = LOGTO_STDERR;
     for(c = 0; c < argc; ++c)
@@ -561,24 +561,23 @@ break;
     zonelist = addzone(zonelist, argv[c]);
   init_zones_caches(zonelist);
 #ifdef do_hook_init
-  if (hook_init(zonelist) != 0) error(0, "error processing init hook");
+  if (hook_init(zonelist) != 0)
+    error(0, "error processing init hook");
 #endif
 
   if (!quickstart && !do_reload(0))
     error(0, "zone loading errors, aborting");
 
-  { const struct zone *z;
-    for(c = 0, z = zonelist; z; z = z->z_next)
-     ++c;
-    numzones = c;
-  }
+  /* count number of zones */
+  for(c = 0, z = zonelist; z; z = z->z_next)
+    ++c;
+  numzones = c;
+
 #if STATS_IPC_IOVEC
   stats_iov = (struct iovec *)emalloc(numzones * sizeof(struct iovec));
-  { struct zone *z;
-    for(c = 0, z = zonelist; z; z = z->z_next, ++c) {
-      stats_iov[c].iov_base = (char*)&z->z_stats;
-      stats_iov[c].iov_len = sizeof(z->z_stats);
-    }
+  for(c = 0, z = zonelist; z; z = z->z_next, ++c) {
+    stats_iov[c].iov_base = (char*)&z->z_stats;
+    stats_iov[c].iov_len = sizeof(z->z_stats);
   }
 #endif
   dslog(LOG_INFO, 0, "rbldnsd version %s started (%d socket(s), %d zone(s))",
