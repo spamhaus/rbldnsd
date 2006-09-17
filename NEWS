@@ -11,7 +11,7 @@ Never news are at top.
 
  - incompat: due to the above change ($= base template), in TXT entries which
    starts with equal sign (=), the first character (which is `=', obviously)
-   is removed.
+   is removed.  $= is now treated specially too.
 
  - feature: (experimental) support for dynamically-loaded extensions (DSOs),
    in place of (previously unfinished) compile-time "hooks" support.
