@@ -271,6 +271,9 @@ struct zone {	/* zone, list of zones */
   struct dnsstats z_stats;		/* statistic counters */
   struct dnsstats z_pstats;		/* for stats monitoring: prev values */
 #endif
+#ifndef NO_DSO
+  void *z_hookdata;			/* data ptr for hooks */
+#endif
   struct zone *z_next;			/* next in list */
 };
 
@@ -431,3 +434,38 @@ const char *ip4trie_lookup(const struct ip4trie *trie, ip4addr_t q);
 struct ip4trie_node *
 ip4trie_addnode(struct ip4trie *trie, ip4addr_t prefix, unsigned bits,
                 struct mempool *mp);
+
+/* hooks from a DSO extensions */
+#ifndef NO_DSO
+
+/* prototype for init routine */
+int rbldnsd_extension_init(char *arg, struct zone *zonelist);
+
+/* return true/false depending whenever hook needs to be reloaded */
+extern int (*hook_reload_check)(const struct zone *zonelist);
+
+/* perform actual reload, after all zones has been reloaded. */
+extern int (*hook_reload)(struct zone *zonelist);
+
+/* check whenever this query is allowed for this client:
+ *  * 0 = ok, <0 = drop the packet, >0 = refuse */
+extern int (*hook_query_access)
+  (const struct sockaddr *requestor,
+   const struct zone *zone,
+   const struct dnsqinfo *qinfo);
+
+/* notice result of the OK query */
+extern int (*hook_query_result)
+  (const struct sockaddr *requestor,
+   const struct zone *zone,
+   const struct dnsqinfo *qinfo,
+   int positive);
+
+#define call_hook(name, args)	\
+	(hook_##name ? hook_##name args : 0)
+
+#else	/* dummy "functions" */
+
+#define call_hook(name, args) 0
+
+#endif

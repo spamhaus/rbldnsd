@@ -11,7 +11,6 @@
 #include <netdb.h>
 #include <syslog.h>
 #include "rbldnsd.h"
-#include "rbldnsd_hooks.h"
 
 #ifndef NO_IPv6
 # ifndef NI_MAXHOST
@@ -362,12 +361,10 @@ int replypacket(struct dnspacket *pkt, unsigned qlen, struct zone *zone) {
   if (qi.qi_tflag & NSQUERY_REFUSE)
     refuse(DNS_R_REFUSED);
 
-#ifdef do_hook_query_access
-  if ((found = hook_query_access(zone, NULL, &qi))) {
+  if ((found = call_hook(query_access, (pkt->p_peer, zone, &qi)))) {
     if (found < 0) return 0;
     refuse(DNS_R_REFUSED);
   }
-#endif
 
   if (qi.qi_dnlab == 0) {	/* query to base zone: SOA and NS */
 
@@ -414,9 +411,7 @@ int replypacket(struct dnspacket *pkt, unsigned qlen, struct zone *zone) {
     addrr_soa(pkt, zone, 1);	/* add SOA if any to AUTHORITY */
     h[p_f2] = DNS_R_NXDOMAIN;
     do_stats(zone->z_stats.q_nxd += 1);
-#ifdef do_hook_query_result
-    hook_query_result(zone, NULL, &qi, 0);
-#endif
+    (void)call_hook(query_result, (pkt->p_peer, zone, &qi, 0));
   }
   else {
     if (!h[p_ancnt2]) {	/* positive reply, no answers */
@@ -427,9 +422,7 @@ int replypacket(struct dnspacket *pkt, unsigned qlen, struct zone *zone) {
              !lazy)
       addrr_ns(pkt, zone, 1); /* add nameserver records to positive reply */
     do_stats(zone->z_stats.q_ok += 1);
-#ifdef do_hook_query_result
-    hook_query_result(zone, NULL, &qi, 1);
-#endif
+    (void)call_hook(query_result, (pkt->p_peer, zone, &qi, 1));
   }
   if (rlen() > DNS_MAXPACKET) {	/* add OPT record for long replies */
     /* as per parsequery(), we always have 11 bytes for minimal OPT record at

@@ -13,7 +13,7 @@ else
   exit 1
 fi
 
-options="ipv6 stats master_dump zlib"
+options="ipv6 stats master_dump zlib dso"
 
 for opt in $options; do
   eval enable_$opt=
@@ -26,7 +26,7 @@ fi
 enable() {
   opt=`echo "$1" | sed 's/^--[^-]*-//'`
   case "$opt" in
-    ipv6|stats|master_dump|zlib) ;;
+    ipv6|stats|master_dump|zlib|dso) ;;
     master-dump) opt=master_dump ;;
     *) echo "configure: unrecognized option \`$1'" >&2; exit 1;;
   esac
@@ -246,8 +246,7 @@ fi
 
 if [ n = "$enable_zlib" ]; then
   echo "#define NO_ZLIB	1	/* option disabled */" >>confdef.h
-else
-  if ac_link_v "for zlib support" -lz <<EOF
+elif ac_link_v "for zlib support" -lz <<EOF
 #include <sys/types.h>
 #include <stdio.h>
 #include <zlib.h>
@@ -260,14 +259,31 @@ int main() {
   return 0;
 }
 EOF
-  then
-    LIBS="$LIBS -lz"
-  else
-    if [ "$enable_zlib" ]; then
-      ac_fatal "zlib support is requested but not found/available"
-    fi
-    echo "#define NO_ZLIB" >>confdef.h
-  fi
+then
+  LIBS="$LIBS -lz"
+elif [ "$enable_zlib" ]; then
+  ac_fatal "zlib support is requested but not found/available"
+else
+  echo "#define NO_ZLIB" >>confdef.h
+fi
+
+if [ n = "$enable_dso" ]; then
+  echo "#define NO_DSO		1	/* option disabled */" >>confdef.h
+elif ac_link_v "for dlopen() in -dl with -rdynamic" -ldl -rdynamic <<EOF
+#include <dlfcn.h>
+int main() {
+  void *handle, *func;
+  handle = dlopen("testfile", RTLD_NOW);
+  func = dlsym(handle, "function");
+  return 0;
+}
+EOF
+then
+  LIBS="$LIBS -ldl -rdynamic"
+elif [ "$enable_dso" ]; then
+  ac_fatal "dso support requires dlopen() in -ldl"
+else
+  echo "#define NO_DSO	1	/* not available */" >> confdef.h
 fi
 
 if [ n = "$enable_stats" ]; then
