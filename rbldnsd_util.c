@@ -228,8 +228,16 @@ int txtsubst(char sb[TXTBUFSIZ], const char *txt,
   unsigned sl;
   char *const e = sb + 254;
   char *lp = sb;
-  const char *s, *si;
-  if (!s0) s0 = "$";
+  const char *s, *si, *sx;
+  if (txt[0] == '=')
+    sx = ++txt;
+  else if (sn[SUBST_BASE_TEMPLATE] && *sn[SUBST_BASE_TEMPLATE]) {
+    if (*txt) s0 = txt;
+    sx = s0;
+    txt = sn[SUBST_BASE_TEMPLATE];
+  }
+  else
+    sx = txt;
   while(lp < e) {
     if ((s = strchr(txt, '$')) == NULL)
       s = (char*)txt + strlen(txt);
@@ -240,10 +248,15 @@ int txtsubst(char sb[TXTBUFSIZ], const char *txt,
     lp += sl;
     if (!*s++) break;
     if (*s == '$') { si = s++; sl = 1; }
-    else if (*s >= '0' && *s <= '9') { /* $1 var */
+    else if (*s >= '0' && *s <= '9') { /* $n var */
       si = sn[*s - '0'];
       if (!si) { si = s - 1; sl = 2; }
       else sl = strlen(si);
+      ++s;
+    }
+    else if (*s == '=') {
+      si = sx;
+      sl = strlen(si);
       ++s;
     }
     else
@@ -327,13 +340,14 @@ dump_a_txt(const char *name, const char *rr,
     fprintf(f, "%s\tCNAME\texcluded\n", name);
   else {
     const unsigned char *a = (const unsigned char*)rr;
+    char sb[TXTBUFSIZ];
+    unsigned sl = txtsubst(sb, rr + 4, subst, ds);
     fprintf(f, "%s\tA\t%u.%u.%u.%u\n", name, a[0], a[1], a[2], a[3]);
-    if (rr[4]) {
-      char txt[TXTBUFSIZ];
+    if (sl) {
       char *p, *n;
-      txt[txtsubst(txt, rr + 4, subst, ds)] = '\0';
+      sb[sl] = '\0';
       fprintf(f, "\tTXT\t\"");
-      for(p = txt; (n = strchr(p, '"')) != NULL; p = n + 1) {
+      for(p = sb; (n = strchr(p, '"')) != NULL; p = n + 1) {
         fwrite(p, 1, n - p, f);
         putc('\\', f); putc('"', f);
       }

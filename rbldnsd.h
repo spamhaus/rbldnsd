@@ -214,7 +214,8 @@ struct dataset {	/* ds */
 #define DSF_NSWARN 0x02			/* warned about new-style NS */
 #endif
   unsigned ds_ttl;			/* default ttl for a dataset */
-  char *ds_subst[10];			/* substitution variables */
+  char *ds_subst[11];			/* substitution variables */
+#define SUBST_BASE_TEMPLATE	10
   struct mempool *ds_mp;		/* memory pool for data */
   struct dataset *ds_next;		/* next in global list */
 };

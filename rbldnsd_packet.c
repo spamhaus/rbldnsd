@@ -934,11 +934,13 @@ addrr_a_txt(struct dnspacket *pkt, unsigned qtflag,
             const struct dataset *ds) {
   if (qtflag & NSQUERY_A)
     addrr_any(pkt, DNS_T_A, rr, 4, ds->ds_ttl);
-  if (rr[4] && (qtflag & NSQUERY_TXT)) {
-    char sb[TXTBUFSIZ];
+  if (qtflag & NSQUERY_TXT) {
+    char sb[TXTBUFSIZ+1];
     unsigned sl = txtsubst(sb + 1, rr + 4, subst, ds);
-    sb[0] = sl;
-    addrr_any(pkt, DNS_T_TXT, sb, sl + 1, ds->ds_ttl);
+    if (sl) {
+      sb[0] = sl;
+      addrr_any(pkt, DNS_T_TXT, sb, sl + 1, ds->ds_ttl);
+    }
   }
 }
 

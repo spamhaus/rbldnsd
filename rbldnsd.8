@@ -427,6 +427,10 @@ Specifies a \fIsubstitution variable\fR for use as $\fIn\fR placeholders
 See section "Resulting A values and TXT templates" below for description
 and usage examples.
 
+.IP "\fB$=\fR \fItext\fR"
+Set the base template for all individual TXT records.  See section
+"Resulting A values and TXT templates" below for more information.
+
 .SS "ip4set Dataset"
 .PP
 A set of IP addresses or CIDR address ranges, together with A and
@@ -688,7 +692,7 @@ example:
   127.0.0.7 IP address $ running an open relay
 .fi
 .PP
-In a TXT template, some references to substitution variables are
+In a TXT template, references to substitution variables are
 replaced with values of that variables.  In particular,
 single dollar sign ($) is replaced by a listed entry (an IP address
 in question for IP\-based datasets and the domain name for domain\-based
@@ -710,6 +714,25 @@ will result in the following text to be generated:
   See http://www.example.com/bl/spammer/127.0.0.2 for details
   See http://www.example.com/bl/relay/127.0.0.3 for details
   This spammer wants some $$.  See http://www.example.com/bl/127.0.0.4
+.fi
+.PP
+If the "base template" (\fB$=\fR variable) is defined, this template is used
+for expansion, instead of the one specified for an entry being queried.
+Inside the base template, \fB$=\fR construct is substituted with the
+text given for individual entries. In order to stop usage of base template
+\fB$=\fR for a single record, start it with \fB=\fR (which will be omitted
+from the resulting TXT value).  For example,
+.nf
+  $0 See http://www.example.com/bl?=$ ($) for details
+  127.0.0.2	r123
+  127.0.0.3
+  127.0.0.4	=See other blocklists for details about $
+.fi
+produces the following TXT records:
+.nf
+  See http://www.example.com/bl?r123 (127.0.0.2) for details
+  See http://www.example.com/bl?127.0.0.3 (127.0.0.3) for details
+  See other blocklists for details about 127.0.0.4
 .fi
 
 .SS "acl Dataset"

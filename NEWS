@@ -3,6 +3,16 @@ $Id$
 This file describes user-visible changes in rbldnsd.
 Never news are at top.
 
+0.997 (?? ??? ????)
+
+ - feature: ability to specify "base template" for a dataset, using $=
+   variable.  See manpage for details, "Resulting A values and TXT templates"
+   section.
+
+ - incompat: due to the above change ($= base template), in TXT entries which
+   starts with equal sign (=), the first character (which is `=', obviously)
+   is removed.
+
 0.996a (27 Jul 2006) (The "34-Birthday Release")
 
  - -a/-A (-A is new, currently a noop) option clarification/addition.

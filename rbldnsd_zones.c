@@ -313,9 +313,9 @@ static int ds_special(struct dataset *ds, char *line, struct dsctx *dsc) {
     return 1;
   }
 
-  if (*(w = line) >= '0' && *w <= '9' && ISSPACE(w[1])) {
+  if (((*(w = line) >= '0' && *w <= '9') || *w == '=') && ISSPACE(w[1])) {
     /* substitution vars */
-    unsigned n = w[0] - '0';
+    unsigned n = w[0] == '=' ? SUBST_BASE_TEMPLATE : w[0] - '0';
     if (dsc->dsc_subset) ds = dsc->dsc_subset;
     if (ds->ds_subst[n]) return 1; /* ignore second assignment */
     w += 2;
