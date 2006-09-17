@@ -5,7 +5,9 @@ rbldnsd (0.997) unstable; urgency=low
 
   * implement "base template" ($=) feature.
 
- -- Michael Tokarev <mjt@corpit.ru>  Sun, 17 Sep 2006 14:22:29 +0400
+  * feature: (experimental) support for dynamically-loaded extensions (DSOs)
+
+ -- Michael Tokarev <mjt@corpit.ru>  Sun, 17 Sep 2006 14:30:39 +0400
 
 rbldnsd (0.996a) unstable; urgency=low
 

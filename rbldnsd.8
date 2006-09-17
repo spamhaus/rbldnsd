@@ -290,6 +290,16 @@ nameserver lists.  Currently (as of 0.996 version), non\-lazy
 (as with \fB\-A\fR) mode is the default, but it will change in
 future release.
 
+.IP "\fB\-x\fR \fIextension\fR"
+Load the given \fIextension\fR file (a dynamically-linked library, usually
+with ".so" suffix).  This allows to gather custom statistics or perform other
+custom tasks.  See separate document for details about building and using
+extensions.  This feature is not available on all platforms, and can be
+disabled at compile time.
+
+.IP "\fB\-X\fR \fIextarg\fR"
+Pass the given argument, \fIextarg\fR, to the extension loaded with \fB\-x\fR.
+
 .SH "DATASET TYPES AND FORMATS"
 
 .PP

@@ -23,7 +23,6 @@
 #include <fcntl.h>
 #include <sys/wait.h>
 #include "rbldnsd.h"
-#include "rbldnsd_hooks.h"
 
 #ifndef NO_SELECT_H
 # include <sys/select.h>
@@ -46,6 +45,9 @@
 #  include <sys/uio.h>
 #  define STATS_IPC_IOVEC 1
 # endif
+#endif
+#ifndef NO_DSO
+# include <dlfcn.h>
 #endif
 
 #ifndef NI_MAXHOST
@@ -109,6 +111,10 @@ static int fork_on_reload;
 #if STATS_IPC_IOVEC
 static struct iovec *stats_iov;
 #endif
+#ifndef NO_DSO
+int (*hook_reload_check)(), (*hook_reload)();
+int (*hook_query_access)(), (*hook_query_result)();
+#endif
 
 /* a list of zonetypes. */
 const struct dstype *ds_types[] = {
@@ -138,7 +144,7 @@ static int satoi(const char *s) {
 static void NORETURN usage(int exitcode) {
    const struct dstype **dstp;
    printf(
-"%s: rbl dns daemon version %s%s\n"
+"%s: rbl dns daemon version %s\n"
 "Usage is: %s options zonespec...\n"
 "where options are:\n"
 " -u user[:group] - run as this user:group (rbldns)\n"
@@ -174,14 +180,15 @@ static void NORETURN usage(int exitcode) {
 #ifndef NO_ZLIB
 " -C - disable on-the-fly decompression of dataset files\n"
 #endif
-#ifdef do_hook_getopt
-" -H local_hook_options - process custom options (for custom builds)\n"
+#ifndef NO_DZO
+" -x extension - load given extension module (.so file)\n"
+" -X extarg - pass extarg to extension init routine\n"
 #endif
 " -d - dump all zones in BIND format to standard output and exit\n"
 "each zone specified using `name:type:file,file...'\n"
 "syntax, repeated names constitute the same zone.\n"
 "Available dataset types:\n"
-, progname, version, hook_info, progname);
+, progname, version, progname);
   for(dstp = ds_types; *dstp; ++dstp)
     printf(" %s - %s\n", (*dstp)->dst_name, (*dstp)->dst_descr);
   exit(exitcode);
@@ -350,6 +357,10 @@ static void init(int argc, char **argv) {
   int family = AF_UNSPEC;
   int cfd = -1;
   const struct zone *z;
+#ifndef NO_DSO
+  char *ext = NULL, *extarg = NULL;
+  int (*extinit)(const char *arg, struct zone *zonelist) = NULL;
+#endif
 
   if ((progname = strrchr(argv[0], '/')) != NULL)
     argv[0] = ++progname;
@@ -358,7 +369,7 @@ static void init(int argc, char **argv) {
 
   if (argc <= 1) usage(1);
 
-  while((c = getopt(argc, argv, "u:r:b:w:t:c:p:nel:qs:h46dvaAfCH:")) != EOF)
+  while((c = getopt(argc, argv, "u:r:b:w:t:c:p:nel:qs:h46dvaAfCx:X:")) != EOF)
     switch(c) {
     case 'u': user = optarg; break;
     case 'r': rootdir = optarg; break;
@@ -441,13 +452,13 @@ break;
     case 'A': lazy = 0; break;
     case 'f': forkon = 1; break;
     case 'C': nouncompress = 1; break;
-    case 'H':
-#ifdef do_hook_getopt
-      if (hook_getopt(optarg) != 0)
-        error(0, "error processing custom option `%s'", optarg);
-      break;
+#ifndef NO_DSO
+    case 'x': ext = optarg; break;
+    case 'X': extarg = optarg; break;
 #else
-      error(0, "no custom option processing is compiled in");
+    case 'x':
+    case 'X':
+      error(0, "extension support is not compiled in");
 #endif
     case 'h': usage(0);
     default: error(0, "type `%.50s -h' for help", progname);
@@ -506,6 +517,17 @@ break;
 
   initsockets(bindaddr, nba, family);
 
+#ifndef NO_DSO
+  if (ext) {
+    void *handle = dlopen(ext, RTLD_NOW);
+    if (!handle)
+      error(0, "unable to load extension `%s': %s", ext, dlerror());
+    extinit = dlsym(handle, "rbldnsd_extension_init");
+    if (!extinit)
+      error(0, "unable to find extension init routine in `%s'", ext);
+  }
+#endif
+
   if (!user && !(uid = getuid()))
     user = "rbldns";
 
@@ -560,9 +582,10 @@ break;
   for(c = 0; c < argc; ++c)
     zonelist = addzone(zonelist, argv[c]);
   init_zones_caches(zonelist);
-#ifdef do_hook_init
-  if (hook_init(zonelist) != 0)
-    error(0, "error processing init hook");
+
+#ifndef NO_DSO
+  if (extinit && extinit(extarg, zonelist) != 0)
+    error(0, "unable to iniitialize extension `%s'", ext);
 #endif
 
   if (!quickstart && !do_reload(0))
@@ -819,7 +842,7 @@ static int do_reload(int do_fork) {
 #endif /* NO_TIMES */
 
   ds = nextdataset2reload(NULL);
-  if (!ds) {
+  if (!ds && call_hook(reload_check, (zonelist)) == 0) {
     check_expires();
     return 1;	/* nothing to reload */
   }
@@ -868,10 +891,11 @@ static int do_reload(int do_fork) {
 #endif /* NO_TIMES */
 
   r = 1;
-  do {
+  while(ds) {
     if (!loaddataset(ds))
       r = 0;
-  } while ((ds = nextdataset2reload(ds)) != NULL);
+    ds = nextdataset2reload(ds);
+  }
 
   for (zone = zonelist; zone; zone = zone->z_next) {
     time_t stamp = 0;
@@ -910,9 +934,8 @@ static int do_reload(int do_fork) {
            "NS or SOA RRs are too long, will be ignored");
   }
 
-#ifdef do_hook_reload
-  hook_reload(zonelist);
-#endif
+  if (call_hook(reload, (zonelist)) != 0)
+    r = 0;
 
   ip = ssprintf(ibuf, sizeof(ibuf), "zones reloaded");
 #ifndef NO_TIMES

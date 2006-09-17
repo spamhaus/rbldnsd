@@ -13,6 +13,11 @@ Never news are at top.
    starts with equal sign (=), the first character (which is `=', obviously)
    is removed.
 
+ - feature: (experimental) support for dynamically-loaded extensions (DSOs),
+   in place of (previously unfinished) compile-time "hooks" support.
+   New options -x/-X, to load an extension and to specify argument for it.
+   Usage document has to be written still.
+
 0.996a (27 Jul 2006) (The "34-Birthday Release")
 
  - -a/-A (-A is new, currently a noop) option clarification/addition.

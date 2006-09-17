@@ -60,8 +60,8 @@ LIB_GSRC = $(LIBDNS_GSRC) $(LIBIP4_GSRC)
 RBLDNSD_SRCS = rbldnsd.c rbldnsd_zones.c rbldnsd_packet.c \
   rbldnsd_ip4set.c rbldnsd_ip4tset.c rbldnsd_ip4trie.c rbldnsd_dnset.c \
   rbldnsd_generic.c rbldnsd_combined.c rbldnsd_acl.c \
-  rbldnsd_hooks.c rbldnsd_util.c
-RBLDNSD_HDRS = rbldnsd.h rbldnsd_hooks.h
+  rbldnsd_util.c
+RBLDNSD_HDRS = rbldnsd.h
 RBLDNSD_OBJS = $(RBLDNSD_SRCS:.c=.o) lib$(NAME).a
 
 MISC = configure configure.lib \
@@ -161,12 +161,11 @@ ip4atos.o: ip4atos.c ip4addr.h config.h
 ip4mask.o: ip4mask.c ip4addr.h config.h
 mempool.o: mempool.c mempool.h
 istream.o: istream.c config.h istream.h
-rbldnsd.o: rbldnsd.c rbldnsd.h config.h ip4addr.h dns.h mempool.h \
-  rbldnsd_hooks.h
+rbldnsd.o: rbldnsd.c rbldnsd.h config.h ip4addr.h dns.h mempool.h
 rbldnsd_zones.o: rbldnsd_zones.c rbldnsd.h config.h ip4addr.h dns.h \
   mempool.h istream.h
 rbldnsd_packet.o: rbldnsd_packet.c rbldnsd.h config.h ip4addr.h dns.h \
-  mempool.h rbldnsd_hooks.h
+  mempool.h
 rbldnsd_ip4set.o: rbldnsd_ip4set.c rbldnsd.h config.h ip4addr.h dns.h \
   mempool.h qsort.c
 rbldnsd_ip4tset.o: rbldnsd_ip4tset.c rbldnsd.h config.h ip4addr.h dns.h \
@@ -180,8 +179,6 @@ rbldnsd_generic.o: rbldnsd_generic.c rbldnsd.h config.h ip4addr.h dns.h \
 rbldnsd_combined.o: rbldnsd_combined.c rbldnsd.h config.h ip4addr.h dns.h \
   mempool.h
 rbldnsd_acl.o: rbldnsd_acl.c rbldnsd.h config.h ip4addr.h dns.h mempool.h
-rbldnsd_hooks.o: rbldnsd_hooks.c rbldnsd.h config.h ip4addr.h dns.h \
-  mempool.h rbldnsd_hooks.h
 rbldnsd_util.o: rbldnsd_util.c rbldnsd.h config.h ip4addr.h dns.h \
   mempool.h
 dns_nametab.o: dns_nametab.c dns.h
