@@ -1,3 +1,10 @@
+rbldnsd (0.997) unstable; urgency=low
+
+  * cleanup: #ifdefed dump_a_txt() properly so it will not be compiled
+    if --disable-master-dump was specified.
+
+ -- Michael Tokarev <mjt@corpit.ru>  Sun, 17 Sep 2006 14:18:35 +0400
+
 rbldnsd (0.996a) unstable; urgency=low
 
   * the "34-Birthday Release"

@@ -219,6 +219,46 @@ unsigned unpack32(const unsigned char p[4]) {
   return n;
 }
 
+/* implement TXT substitutions.
+ * `sb' is a buffer where the result will be stored -
+ * at least 255 + 3 characters long */
+int txtsubst(char sb[TXTBUFSIZ], const char *txt,
+	     const char *s0, const struct dataset *ds) {
+  char *const *sn = ds->ds_subst;
+  unsigned sl;
+  char *const e = sb + 254;
+  char *lp = sb;
+  const char *s, *si;
+  if (!s0) s0 = "$";
+  while(lp < e) {
+    if ((s = strchr(txt, '$')) == NULL)
+      s = (char*)txt + strlen(txt);
+    sl = s - txt;
+    if (lp + sl > e)
+      sl = e - lp;
+    memcpy(lp, txt, sl);
+    lp += sl;
+    if (!*s++) break;
+    if (*s == '$') { si = s++; sl = 1; }
+    else if (*s >= '0' && *s <= '9') { /* $1 var */
+      si = sn[*s - '0'];
+      if (!si) { si = s - 1; sl = 2; }
+      else sl = strlen(si);
+      ++s;
+    }
+    else
+      sl = strlen(si = s0);
+    if (lp + sl > e) /* silently truncate TXT RR >255 bytes */
+      sl = e - lp;
+    memcpy(lp, si, sl);
+    lp += sl;
+    txt = s;
+  }
+  sl = lp - sb;
+  if (sl > 254) sl = 254;
+  return sl;
+}
+
 #ifndef NO_MASTER_DUMP
 
 void dump_ip4(ip4addr_t a, const char *rr, const struct dataset *ds, FILE *f) {
@@ -280,48 +320,6 @@ void dump_ip4range(ip4addr_t a, ip4addr_t b, const char *rr,
 
 }
 
-#endif
-
-/* implement TXT substitutions.
- * `sb' is a buffer where the result will be stored -
- * at least 255 + 3 characters long */
-int txtsubst(char sb[TXTBUFSIZ], const char *txt,
-	     const char *s0, const struct dataset *ds) {
-  char *const *sn = ds->ds_subst;
-  unsigned sl;
-  char *const e = sb + 254;
-  char *lp = sb;
-  const char *s, *si;
-  if (!s0) s0 = "$";
-  while(lp < e) {
-    if ((s = strchr(txt, '$')) == NULL)
-      s = (char*)txt + strlen(txt);
-    sl = s - txt;
-    if (lp + sl > e)
-      sl = e - lp;
-    memcpy(lp, txt, sl);
-    lp += sl;
-    if (!*s++) break;
-    if (*s == '$') { si = s++; sl = 1; }
-    else if (*s >= '0' && *s <= '9') { /* $1 var */
-      si = sn[*s - '0'];
-      if (!si) { si = s - 1; sl = 2; }
-      else sl = strlen(si);
-      ++s;
-    }
-    else
-      sl = strlen(si = s0);
-    if (lp + sl > e) /* silently truncate TXT RR >255 bytes */
-      sl = e - lp;
-    memcpy(lp, si, sl);
-    lp += sl;
-    txt = s;
-  }
-  sl = lp - sb;
-  if (sl > 254) sl = 254;
-  return sl;
-}
-
 void
 dump_a_txt(const char *name, const char *rr,
            const char *subst, const struct dataset *ds, FILE *f) {
@@ -343,6 +341,8 @@ dump_a_txt(const char *name, const char *rr,
     }
   }
 }
+
+#endif
 
 char *emalloc(unsigned size) {
   void *ptr = malloc(size);
