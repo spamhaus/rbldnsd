@@ -1,14 +1,3 @@
-rbldnsd (0.997) unstable; urgency=low
-
-  * cleanup: #ifdefed dump_a_txt() properly so it will not be compiled
-    if --disable-master-dump was specified.
-
-  * implement "base template" ($=) feature.
-
-  * feature: (experimental) support for dynamically-loaded extensions (DSOs)
-
- -- Michael Tokarev <mjt@corpit.ru>  Sun, 17 Sep 2006 14:30:39 +0400
-
 rbldnsd (0.996a) unstable; urgency=low
 
   * the "34-Birthday Release"
@@ -29,6 +18,7 @@ rbldnsd (0.996a) unstable; urgency=low
    - Build-Depends on debhelper>>4, and set DH_COMPAT to 4
    - Build-Depends on zlib1g-dev, and pass --enable-zlib to ./configure
    - bump Standards-Version to 3.7.2
+   - add Depends: on adduser
 
   * bugfix: fix dataset "un-expiration" time. Previously, once a dataset
     has expired, it never "un-expires" again even if new expire time is
