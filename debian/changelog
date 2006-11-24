@@ -9,7 +9,11 @@ rbldnsd (0.997) unstable; urgency=low
 
   * portability and readability fixes from Victor Duchovni
 
- -- Michael Tokarev <mjt@corpit.ru>  Fri, 24 Nov 2006 19:31:41 +0300
+  * added configure test for inline and __inline keywords, and only
+    use #warning keyword if __GNUC__ is defined (more portability fixes
+    from Victor Duchovni)
+
+ -- Michael Tokarev <mjt@corpit.ru>  Fri, 24 Nov 2006 19:58:07 +0300
 
 rbldnsd (0.996a) unstable; urgency=low
 

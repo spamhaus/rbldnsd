@@ -215,7 +215,10 @@ static int ds_special(struct dataset *ds, char *line, struct dsctx *dsc) {
      unsigned ttl;
 
 #ifndef INCOMPAT_0_99
+#ifdef __GNUC__
+/* some compilers don't understand #warning directive */
 #warning NS record compatibility mode: remove for 1.0 final
+#endif
      struct dsns *dsns_first = 0;
      unsigned cnt;
      int newformat = 0;

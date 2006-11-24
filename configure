@@ -116,6 +116,21 @@ EOF
   fi
 fi
 
+has_inline=
+for c in inline __inline; do
+  if ac_compile_v "for $c" <<EOF
+static $c int foo() { return 0; }
+int main() { return foo(); }
+EOF
+  then
+    has_inline=$c
+    break
+  fi
+done
+if [ "$has_inline" != inline ]; then
+  echo "#define inline" $has_inline >>confdef.h
+fi
+
 if ac_compile_v "for socklen_t" <<EOF
 #include <sys/types.h>
 #include <sys/socket.h>
