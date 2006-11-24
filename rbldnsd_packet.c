@@ -8,6 +8,7 @@
 #include <sys/types.h>
 #include <unistd.h>
 #include <netinet/in.h>
+#include <arpa/inet.h>
 #include <netdb.h>
 #include <syslog.h>
 #include "rbldnsd.h"
@@ -977,7 +978,7 @@ void logreply(const struct dnspacket *pkt, FILE *flog, int flushlog) {
   else
     *cp++ = '?';
 #else
-  strcpy(cp, inet_ntoa(((struct sockaddr_in*)pkt->p_peer)->sin_addr.s_addr));
+  strcpy(cp, inet_ntoa(((struct sockaddr_in*)pkt->p_peer)->sin_addr));
   cp += strlen(cp);
 #endif
   *cp++ = ' ';

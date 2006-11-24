@@ -97,9 +97,9 @@ ds_ip4trie_line(struct dataset *ds, char *s, struct dsctx *dsc) {
 
 static void ds_ip4trie_finish(struct dataset *ds, struct dsctx *dsc) {
   struct dsdata *dsd = ds->ds_dsd;
-  dsloaded(dsc, "ent=%u nodes=%u mem=%u",
+  dsloaded(dsc, "ent=%u nodes=%u mem=%lu",
            dsd->trie.ip4t_nents, dsd->trie.ip4t_nnodes,
-           dsd->trie.ip4t_nnodes * sizeof(struct ip4trie_node));
+           (unsigned long)dsd->trie.ip4t_nnodes * sizeof(struct ip4trie_node));
 }
 
 static int

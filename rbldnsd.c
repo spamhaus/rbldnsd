@@ -338,7 +338,7 @@ initsockets(const char *bindaddr[MAXSOCK], int nba, int UNUSED family) {
   for (i = 0; i < numsock; ++i) {
     x = 65536;
     do
-      if (setsockopt(sock[i], SOL_SOCKET, SO_RCVBUF, &x, sizeof x) == 0)
+      if (setsockopt(sock[i], SOL_SOCKET, SO_RCVBUF, (void*)&x, sizeof x) == 0)
         break;
     while ((x -= (x >> 5)) >= 1024);
   }
@@ -531,19 +531,21 @@ break;
   if (!user && !(uid = getuid()))
     user = "rbldns";
 
-  if (user && (p = strchr(user, ':')) != NULL)
-    *p++ = '\0';
   if (!user)
     p = NULL;
-  else if ((c = satoi(user)) >= 0)
-    uid = c, gid = c;
   else {
-    struct passwd *pw = getpwnam(user);
-    if (!pw)
-      error(0, "unknown user `%s'", user);
-    uid = pw->pw_uid;
-    gid = pw->pw_gid;
-    endpwent();
+    if ((p = strchr(user, ':')) != NULL)
+      *p++ = '\0';
+    if ((c = satoi(user)) >= 0)
+      uid = c, gid = c;
+    else {
+      struct passwd *pw = getpwnam(user);
+      if (!pw)
+        error(0, "unknown user `%s'", user);
+      uid = pw->pw_uid;
+      gid = pw->pw_gid;
+      endpwent();
+    }
   }
   if (!uid)
     error(0, "daemon should not run as root, specify -u option");
@@ -1039,7 +1041,7 @@ static void request(int fd) {
   int q, r;
   socklen_t salen = sizeof(peer_sa);
 
-  q = recvfrom(fd, pkt.p_buf, sizeof(pkt.p_buf), 0,
+  q = recvfrom(fd, (void*)pkt.p_buf, sizeof(pkt.p_buf), 0,
                (struct sockaddr *)&peer_sa, &salen);
   if (q <= 0)			/* interrupted? */
     return;
@@ -1052,7 +1054,8 @@ static void request(int fd) {
     logreply(&pkt, flog, flushlog);
 
   /* finally, send a reply */
-  while(sendto(fd, pkt.p_buf, r, 0, (struct sockaddr *)&peer_sa, salen) < 0)
+  while(sendto(fd, (void*)pkt.p_buf, r, 0,
+               (struct sockaddr *)&peer_sa, salen) < 0)
     if (errno != EINTR) break;
 
 }

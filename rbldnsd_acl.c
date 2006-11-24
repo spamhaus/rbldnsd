@@ -161,7 +161,7 @@ int ds_acl_query(const struct dataset *ds, struct dnspacket *pkt) {
   return NSQUERY_ALWAYS;
 }
 
-//definedstype(acl, DSTF_SPECIAL, "Access Control List dataset");
+/*definedstype(acl, DSTF_SPECIAL, "Access Control List dataset");*/
 const struct dstype dataset_acl_type = {
   "acl", DSTF_SPECIAL, sizeof(struct dsdata),
   ds_acl_reset, ds_acl_start, ds_acl_line, ds_acl_finish,

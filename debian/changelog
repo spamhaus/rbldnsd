@@ -7,7 +7,9 @@ rbldnsd (0.997) unstable; urgency=low
 
   * feature: (experimental) support for dynamically-loaded extensions (DSOs)
 
- -- Michael Tokarev <mjt@corpit.ru>  Sun, 17 Sep 2006 14:30:39 +0400
+  * portability and readability fixes from Victor Duchovni
+
+ -- Michael Tokarev <mjt@corpit.ru>  Fri, 24 Nov 2006 19:31:41 +0300
 
 rbldnsd (0.996a) unstable; urgency=low
 

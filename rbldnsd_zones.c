@@ -529,7 +529,7 @@ void dumpzone(const struct zone *z, FILE *f) {
   const struct dslist *dsl;
   { /* zone header */
     char name[DNS_MAXDOMAIN+1];
-    const unsigned char **nsdna = z->z_nsdna;
+    const unsigned char *const *nsdna = z->z_nsdna;
     const struct dssoa *dssoa = z->z_dssoa;
     unsigned nns = z->z_nns;
     unsigned n;
