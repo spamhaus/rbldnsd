@@ -29,6 +29,7 @@ rbldnsd (0.996a) unstable; urgency=low
    - Build-Depends on debhelper>>4, and set DH_COMPAT to 4
    - Build-Depends on zlib1g-dev, and pass --enable-zlib to ./configure
    - bump Standards-Version to 3.7.2
+   - add Depends: on adduser (Closes: #398560)
 
   * bugfix: fix dataset "un-expiration" time. Previously, once a dataset
     has expired, it never "un-expires" again even if new expire time is
