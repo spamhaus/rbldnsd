@@ -123,7 +123,7 @@ const struct dstype *ds_types[] = {
   dstype(ip4trie),
   dstype(dnset),
 #ifdef DNHASH
-  dstype(dnhasn),
+  dstype(dnhash),
 #endif
   dstype(combined),
   dstype(generic),
