@@ -131,7 +131,7 @@ int istream_ensurebytes(struct istream *sp, int nbytes) {
 static int
 istream_readfn(struct istream *sp, unsigned char *buf,
                int UNUSED size, int szhint) {
-  return read((int)sp->cookie, buf, szhint);
+  return read((int)(long)sp->cookie, buf, szhint);
 }
 
 void istream_init(struct istream *sp,
@@ -150,7 +150,7 @@ void istream_destroy(struct istream *sp) {
 }
 
 void istream_init_fd(struct istream *sp, int fd) {
-  istream_init(sp, istream_readfn, NULL, (void*)fd);
+  istream_init(sp, istream_readfn, NULL, (void*)(long)fd);
 }
 
 /* check for gzip magic (2 bytes) */

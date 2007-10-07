@@ -13,7 +13,12 @@ rbldnsd (0.997) unstable; urgency=low
     use #warning keyword if __GNUC__ is defined (more portability fixes
     from Victor Duchovni)
 
- -- Michael Tokarev <mjt@corpit.ru>  Fri, 24 Nov 2006 19:58:07 +0300
+  * misc type conversions here and there, and change alignment in
+    mempool.c to be sizeof(void*) instead of sizeof(int), to help
+    64bit platforms.  Thanks to Mike Quintero for an excellent
+    bugreport.
+
+ -- Michael Tokarev <mjt@corpit.ru>  Sun,  7 Oct 2007 17:58:08 +0400
 
 rbldnsd (0.996a) unstable; urgency=low
 

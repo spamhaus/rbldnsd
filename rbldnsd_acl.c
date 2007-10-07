@@ -19,7 +19,7 @@ struct dsdata {
 /* special cases for pseudo-RRs */
 static const struct {
   const char *name;
-  unsigned rr;
+  unsigned long rr;
 } keywords[] = {
   /* ignore (don't answer) queries from this IP */
 #define RR_IGNORE	1
@@ -136,9 +136,9 @@ ds_acl_line(struct dataset *ds, char *s, struct dsctx *dsc) {
 
 static void ds_acl_finish(struct dataset *ds, struct dsctx *dsc) {
   struct dsdata *dsd = ds->ds_dsd;
-  dsloaded(dsc, "ent=%u nodes=%u mem=%u",
+  dsloaded(dsc, "ent=%u nodes=%u mem=%lu",
            dsd->trie.ip4t_nents, dsd->trie.ip4t_nnodes,
-           dsd->trie.ip4t_nnodes * sizeof(struct ip4trie_node));
+           (unsigned long)dsd->trie.ip4t_nnodes * sizeof(struct ip4trie_node));
 }
 
 int ds_acl_query(const struct dataset *ds, struct dnspacket *pkt) {

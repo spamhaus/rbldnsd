@@ -16,7 +16,7 @@
  * becomes less than an average allocated block size.
  */
 
-#define alignto sizeof(int)
+#define alignto sizeof(void*)
 #define alignmask (alignto-1)
 
 void *emalloc(unsigned size);

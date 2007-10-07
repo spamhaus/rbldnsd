@@ -987,7 +987,7 @@ void logreply(const struct dnspacket *pkt, FILE *flog, int flushlog) {
       dns_typename(((unsigned)q[0]<<8)|q[1]),
       dns_classname(((unsigned)q[2]<<8)|q[3]),
       dns_rcodename(pkt->p_buf[p_f2] & pf2_rcode),
-      pkt->p_buf[p_ancnt2], pkt->p_cur - pkt->p_buf);
+      pkt->p_buf[p_ancnt2], (int)(pkt->p_cur - pkt->p_buf));
   if (flushlog)
     write(fileno(flog), cbuf, cp - cbuf);
   else
