@@ -15,34 +15,35 @@ struct entry {
 
 /*
  * We store all domain names in a sorted array, using binary
- * search to find an entry.  There are two similar arrays -
- * for plain entries and for wildcard entries - with all
- * variables indexed by EP and EW.
+ * search to find an entry.
+ */
+struct dnarr {
+  unsigned n;			/* number of entries */
+  unsigned a;			/* entries allocated so far */
+  unsigned h;			/* hint: number of ent to alloc next time */
+  struct entry *e;		/* (sorted) array of pointers to entries */
+  unsigned minlab, maxlab;	/* min and max no. of labels in array */
+};
+
+/* There are two similar arrays -
+ * for plain entries and for wildcard entries.
  */
 
 struct dsdata {
-  unsigned n[2]; /* number of entries */
-  unsigned a[2]; /* entries allocated (used only when loading) */
-  unsigned h[2]; /* hint: number of entries to allocate next time */
-  struct entry *e[2]; /* entries: plain and wildcard */
-  unsigned maxlab[2]; /* max level of labels */
-  unsigned minlab[2]; /* min level of labels */
+  struct dnarr p;		/* plain entries */
+  struct dnarr w;		/* wildcard entries */
   const char *def_rr; /* default A and TXT RRs */
 };
-
-/* indexes */
-#define EP 0			/* plain entry */
-#define EW 1			/* wildcard entry */
 
 definedstype(dnset, 0, "set of (domain name, value) pairs");
 
 static void ds_dnset_reset(struct dsdata *dsd, int UNUSED unused_freeall) {
-  unsigned h0 = dsd->h[0], h1 = dsd->h[1];
-  if (dsd->e[EP]) free(dsd->e[EP]);
-  if (dsd->e[EW]) free(dsd->e[EW]);
+  unsigned hp = dsd->p.h, hw = dsd->w.h;
+  if (dsd->p.e) free(dsd->p.e);
+  if (dsd->w.e) free(dsd->w.e);
   memset(dsd, 0, sizeof(*dsd));
-  dsd->minlab[EP] = dsd->minlab[EW] = DNS_MAXDN;
-  dsd->h[0] = h0; dsd->h[1] = h1;
+  dsd->p.minlab = dsd->w.minlab = DNS_MAXDN;
+  dsd->p.h = hp; dsd->w.h = hw;
 }
 
 static void ds_dnset_start(struct dataset *ds) {
@@ -50,28 +51,28 @@ static void ds_dnset_start(struct dataset *ds) {
 }
 
 static int
-ds_dnset_addent(struct dsdata *dsd, int idx,
+ds_dnset_addent(struct dnarr *arr,
                 const unsigned char *ldn, const char *rr,
                 unsigned dnlab) {
   struct entry *e;
 
-  e = dsd->e[idx];
-  if (dsd->n[idx] >= dsd->a[idx]) { /* expand array */
-    dsd->a[idx] = dsd->a[idx] ? dsd->a[idx] << 1 :
-                  dsd->h[idx] ? dsd->h[idx] : 64;
-    e = trealloc(struct entry, e, dsd->a[idx]);
+  e = arr->e;
+  if (arr->n >= arr->a) { /* expand array */
+    arr->a = arr->a ? arr->a << 1 :
+               arr->h ? arr->h : 64;
+    e = trealloc(struct entry, e, arr->a);
     if (!e) return 0;
-    dsd->e[idx] = e;
+    arr->e = e;
   }
 
   /* fill up an entry */
-  e += dsd->n[idx]++;
+  e += arr->n++;
   e->ldn = ldn;
   e->rr = rr;
 
   /* adjust min/max #labels */
-  if (dsd->maxlab[idx] < dnlab) dsd->maxlab[idx] = dnlab;
-  if (dsd->minlab[idx] > dnlab) dsd->minlab[idx] = dnlab;
+  if (arr->maxlab < dnlab) arr->maxlab = dnlab;
+  if (arr->minlab > dnlab) arr->minlab = dnlab;
 
   return 1;
 }
@@ -133,9 +134,9 @@ ds_dnset_line(struct dataset *ds, char *s, struct dsctx *dsc) {
   memcpy(ldn + 1, dn, dnlen);
 
   dnlen = dns_dnlabels(dn);
-  if (isplain && !ds_dnset_addent(dsd, EP, ldn, rr, dnlen))
+  if (isplain && !ds_dnset_addent(&dsd->p, ldn, rr, dnlen))
     return 0;
-  if (iswild && !ds_dnset_addent(dsd, EW, ldn, rr, dnlen))
+  if (iswild && !ds_dnset_addent(&dsd->w, ldn, rr, dnlen))
     return 0;
 
   return 1;
@@ -154,35 +155,37 @@ static int ds_dnset_lt(const struct entry *a, const struct entry *b) {
      a->rr < b->rr;
 }
 
+static void ds_dnset_finish_arr(struct dnarr *arr) {
+  if (!arr->n) {
+    arr->h = 0;
+    return;
+  }
+  arr->h = arr->a;
+  while((arr->h >> 1) >= arr->n)
+    arr->h >>= 1;
+
+# define QSORT_TYPE struct entry
+# define QSORT_BASE arr->e
+# define QSORT_NELT arr->n
+# define QSORT_LT(a,b) ds_dnset_lt(a,b)
+# include "qsort.c"
+
+  /* we make all the same DNs point to one string for faster searches */
+  { register struct entry *e, *t;
+    for(e = arr->e, t = e + arr->n - 1; e < t; ++e)
+      if (memcmp(e[0].ldn, e[1].ldn, e[0].ldn[0] + 1) == 0)
+        e[1].ldn = e[0].ldn;
+  }
+#define dnset_eeq(a,b) a.ldn == b.ldn && rrs_equal(a,b)
+  REMOVE_DUPS(struct entry, arr->e, arr->n, dnset_eeq);
+  SHRINK_ARRAY(struct entry, arr->e, arr->n, arr->a);
+}
+
 static void ds_dnset_finish(struct dataset *ds, struct dsctx *dsc) {
   struct dsdata *dsd = ds->ds_dsd;
-  unsigned r;
-  for(r = 0; r < 2; ++r) {
-    if (!dsd->n[r]) {
-      dsd->h[r] = 0;
-      continue;
-    }
-    dsd->h[r] = dsd->a[r];
-    while((dsd->h[r] >> 1) >= dsd->n[r])
-      dsd->h[r] >>= 1;
-
-#   define QSORT_TYPE struct entry
-#   define QSORT_BASE dsd->e[r]
-#   define QSORT_NELT dsd->n[r]
-#   define QSORT_LT(a,b) ds_dnset_lt(a,b)
-#   include "qsort.c"
-
-    /* we make all the same DNs point to one string for faster searches */
-    { register struct entry *e, *t;
-      for(e = dsd->e[r], t = e + dsd->n[r] - 1; e < t; ++e)
-        if (memcmp(e[0].ldn, e[1].ldn, e[0].ldn[0] + 1) == 0)
-          e[1].ldn = e[0].ldn;
-    }
-#define dnset_eeq(a,b) a.ldn == b.ldn && rrs_equal(a,b)
-    REMOVE_DUPS(struct entry, dsd->e[r], dsd->n[r], dnset_eeq);
-    SHRINK_ARRAY(struct entry, dsd->e[r], dsd->n[r], dsd->a[r]);
-  }
-  dsloaded(dsc, "e/w=%u/%u", dsd->n[EP], dsd->n[EW]);
+  ds_dnset_finish_arr(&dsd->p);
+  ds_dnset_finish_arr(&dsd->w);
+  dsloaded(dsc, "e/w=%u/%u", dsd->p.n, dsd->w.n);
 }
 
 static const struct entry *
@@ -229,9 +232,9 @@ ds_dnset_query(const struct dataset *ds, const struct dnsqinfo *qi,
   if (!qlab) return 0;		/* do not match empty dn */
   check_query_overwrites(qi);
 
-  if (qlab > dsd->maxlab[EP] 	/* if we have less labels, search unnec. */
-      || qlab < dsd->minlab[EP]	/* ditto for more */
-      || !(e = ds_dnset_find(dsd->e[EP], dsd->n[EP], dn, qlen0))) {
+  if (qlab > dsd->p.maxlab 	/* if we have less labels, search unnec. */
+      || qlab < dsd->p.minlab	/* ditto for more */
+      || !(e = ds_dnset_find(dsd->p.e, dsd->p.n, dn, qlen0))) {
 
     /* try wildcard */
 
@@ -240,17 +243,17 @@ ds_dnset_query(const struct dataset *ds, const struct dnsqinfo *qi,
      * for wildcard itself. */
     do
       --qlab, qlen0 -= *dn + 1, dn += *dn + 1;
-    while(qlab > dsd->maxlab[EW]);
+    while(qlab > dsd->w.maxlab);
 
     /* now, lookup every so long dn in wildcard array */
     for(;;) {
 
-      if (qlab < dsd->minlab[EW])
+      if (qlab < dsd->w.minlab)
         /* oh, number of labels in query become less than
          * minimum we have listed.  Nothing to search anymore */
         return 0;
 
-      if ((e = ds_dnset_find(dsd->e[EW], dsd->n[EW], dn, qlen0)))
+      if ((e = ds_dnset_find(dsd->w.e, dsd->w.n, dn, qlen0)))
         break;			/* found, listed */
 
       /* remove next label at the end of rdn */
@@ -259,11 +262,11 @@ ds_dnset_query(const struct dataset *ds, const struct dnsqinfo *qi,
       --qlab;
 
     }
-    t = dsd->e[EW] + dsd->n[EW];
+    t = dsd->w.e + dsd->w.n;
 
   }
   else
-    t = dsd->e[EP] + dsd->n[EP];
+    t = dsd->p.e + dsd->p.n;
 
   if (!e->rr) return 0;	/* exclusion */
 
@@ -285,12 +288,12 @@ ds_dnset_dump(const struct dataset *ds,
   const struct dsdata *dsd = ds->ds_dsd;
   const struct entry *e, *t;
   char name[DNS_MAXDOMAIN+4];
-  for (e = dsd->e[EP], t = e + dsd->n[EP]; e < t; ++e) {
+  for (e = dsd->p.e, t = e + dsd->p.n; e < t; ++e) {
     dns_dntop(e->ldn + 1, name, sizeof(name));
     dump_a_txt(name, e->rr, name, ds, f);
   }
   name[0] = '*'; name[1] = '.';
-  for (e = dsd->e[EW], t = e + dsd->n[EW]; e < t; ++e) {
+  for (e = dsd->w.e, t = e + dsd->w.n; e < t; ++e) {
     dns_dntop(e->ldn + 1, name + 2, sizeof(name) - 2);
     dump_a_txt(name, e->rr, name + 2, ds, f);
   }
