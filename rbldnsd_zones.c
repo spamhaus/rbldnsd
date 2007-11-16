@@ -159,24 +159,11 @@ struct zone *addzone(struct zone *zonelist, const char *spec) {
   return zonelist;
 }
 
-/* helper routine for ds_special */
-static char *firstword(char *line, const char *word_lc) {
-  while(*word_lc)
-    if (dns_dnlc(*line) != *word_lc)
-      return NULL;
-    else
-      ++word_lc, ++line;
-  if (!ISSPACE(*line))
-    return NULL;
-  SKIPSPACE(line);
-  return line;
-}
-
 /* parse $SPECIAL construct */
 static int ds_special(struct dataset *ds, char *line, struct dsctx *dsc) {
   char *w;
 
-  if ((w = firstword(line, "soa"))) {
+  if ((w = firstword_lc(line, "soa"))) {
     /* SOA record */
     struct dssoa dssoa;
     unsigned char odn[DNS_MAXDN], pdn[DNS_MAXDN];
@@ -206,8 +193,8 @@ static int ds_special(struct dataset *ds, char *line, struct dsctx *dsc) {
     return 1;
   }
 
-  if ((w = firstword(line, "ns")) ||
-      (w = firstword(line, "nameserver"))) {
+  if ((w = firstword_lc(line, "ns")) ||
+      (w = firstword_lc(line, "nameserver"))) {
      /* NS records */
      unsigned char dn[DNS_MAXDN];
      unsigned dnlen;
@@ -288,7 +275,7 @@ static int ds_special(struct dataset *ds, char *line, struct dsctx *dsc) {
     return 1;
   }
 
-  if ((w = firstword(line, "ttl"))) {
+  if ((w = firstword_lc(line, "ttl"))) {
     unsigned ttl;
     if (!(w = parse_ttl(w, &ttl, def_ttl))) return 0;
     if (*w) return 0;
@@ -297,7 +284,7 @@ static int ds_special(struct dataset *ds, char *line, struct dsctx *dsc) {
     return 1;
   }
 
-  if ((w = firstword(line, "maxrange4"))) {
+  if ((w = firstword_lc(line, "maxrange4"))) {
     unsigned r;
     int cidr;
     if (*w == '/') cidr = 1, ++w;
@@ -328,13 +315,13 @@ static int ds_special(struct dataset *ds, char *line, struct dsctx *dsc) {
     return 1;
   }
 
-  if ((w = firstword(line, "dataset"))) {
+  if ((w = firstword_lc(line, "dataset"))) {
     if (!isdstype(ds->ds_type, combined))
       return 0;	/* $dataset is only allowed for combined dataset */
     return ds_combined_newset(ds, w, dsc);
   }
 
-  if ((w = firstword(line, "timestamp"))) {
+  if ((w = firstword_lc(line, "timestamp"))) {
     time_t stamp, expires;
 
     if (!(w = parse_timestamp(w, &stamp))) return 0;

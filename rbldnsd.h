@@ -90,6 +90,7 @@ char *parse_dn(char *s, unsigned char *dn, unsigned *dnlenp);
  * readdslines() */
 int parse_a_txt(char *str, const char **rrp, const char *def_rr,
                 struct dsctx *dsc);
+char *firstword_lc(char *line, const char *word_lc);
 
 typedef void ds_startfn_t(struct dataset *ds);
 typedef int ds_linefn_t(struct dataset *ds, char *line, struct dsctx *dsc);

@@ -219,6 +219,21 @@ unsigned unpack32(const unsigned char p[4]) {
   return n;
 }
 
+/* return pointer to the next word in line if first word is the same
+ * as word_lc (ignoring case), or NULL if not.
+ */
+char *firstword_lc(char *line, const char *word_lc) {
+  while(*word_lc)
+    if (dns_dnlc(*line) != *word_lc)
+      return NULL;
+    else
+      ++word_lc, ++line;
+  if (!ISSPACE(*line))
+    return NULL;
+  SKIPSPACE(line);
+ return line;
+}
+
 /* implement TXT substitutions.
  * `sb' is a buffer where the result will be stored -
  * at least 255 + 3 characters long */
