@@ -198,7 +198,7 @@ ds_combined_query(const struct dataset *ds, const struct dnsqinfo *qi,
   for (dsl = zone->z_dsl; dsl; dsl = dsl->dsl_next)
     found |= dsl->dsl_queryfn(dsl->dsl_ds, &sqi, pkt);
   /* if it was a query for our base subzone, always return `found' */
-  return found || (sqi.qi_dnlab ? 0 : NSQUERY_FOUND);
+  return found | (sqi.qi_dnlab ? 0 : NSQUERY_FOUND);
 }
 
 #ifndef NO_MASTER_DUMP
