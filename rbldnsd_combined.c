@@ -122,7 +122,8 @@ int ds_combined_newset(struct dataset *ds, char *line, struct dsctx *dsc) {
               dst->dst_name);
         return -1;
       }
-      dssub = (struct dataset *)ezalloc(sizeof(struct dataset) + dst->dst_size);
+      dssub = (struct dataset *)
+        ezalloc(sizeof(struct dataset) + dst->dst_size);
       if (!dssub)
         return -1;
       dssub->ds_type = dst;
