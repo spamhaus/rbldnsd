@@ -1,8 +1,4 @@
-<<<<<<< rbldnsd_packet.c
 /* $Id$
-=======
-/* $Id$
->>>>>>> 1.101
  * DNS packet handling routines for rbldnsd
  */
 
