@@ -21,7 +21,7 @@ struct dnarr {
   unsigned n;			/* number of entries */
   unsigned a;			/* entries allocated so far */
   unsigned h;			/* hint: number of ent to alloc next time */
-  struct entry *e;		/* (sorted) array of pointers to entries */
+  struct entry *e;		/* (sorted) array of entries */
   unsigned minlab, maxlab;	/* min and max no. of labels in array */
 };
 
@@ -32,7 +32,7 @@ struct dnarr {
 struct dsdata {
   struct dnarr p;		/* plain entries */
   struct dnarr w;		/* wildcard entries */
-  const char *def_rr; /* default A and TXT RRs */
+  const char *def_rr;		/* default A and TXT RRs */
 };
 
 definedstype(dnset, 0, "set of (domain name, value) pairs");
@@ -141,8 +141,6 @@ ds_dnset_line(struct dataset *ds, char *s, struct dsctx *dsc) {
 
   return 1;
 }
-
-#define min(a,b) ((a)<(b)?(a):(b))
 
 static int ds_dnset_lt(const struct entry *a, const struct entry *b) {
   int r;
