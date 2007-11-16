@@ -159,14 +159,6 @@ parsequery(struct dnspacket *pkt, unsigned qlen,
   return 1;
 }
 
-#ifdef RECOGNIZE_IP4IN6
-static const unsigned char *const ip6p =
-  "\001f\001f\001f\001f\0010\0010\0010\0010"
-  "\0010\0010\0010\0010\0010\0010\0010\0010"
-  "\0010\0010\0010\0010\0010\0010\0010\0010"
-  "\003ip6";
-#endif
-
 /* parse DN (as in 4.3.2.1.in-addr.arpa) to ip4addr_t */
 static int
 dntoip4addr(const unsigned char *q,
@@ -176,6 +168,11 @@ dntoip4addr(const unsigned char *q,
   if (qlab != 4) {
 
 #ifdef RECOGNIZE_IP4IN6
+    static const unsigned char *const ip6p =
+      "\001f\001f\001f\001f\0010\0010\0010\0010"
+      "\0010\0010\0010\0010\0010\0010\0010\0010"
+      "\0010\0010\0010\0010\0010\0010\0010\0010"
+      "\003ip6";
 
      if ((qlab != 33 || qlen0 != 68 || memcmp(q + 16, ip6p, 28) != 0) &&
          (qlab != 32 || qlen0 != 64 || memcmp(q + 16, ip6p, 24) != 0))
