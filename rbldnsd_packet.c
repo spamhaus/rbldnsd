@@ -1,4 +1,8 @@
+<<<<<<< rbldnsd_packet.c
 /* $Id$
+=======
+/* $Id$
+>>>>>>> 1.101
  * DNS packet handling routines for rbldnsd
  */
 
@@ -412,7 +416,6 @@ int replypacket(struct dnspacket *pkt, unsigned qlen, struct zone *zone) {
     addrr_soa(pkt, zone, 1);	/* add SOA if any to AUTHORITY */
     h[p_f2] = DNS_R_NXDOMAIN;
     do_stats(zone->z_stats.q_nxd += 1);
-    (void)call_hook(query_result, (pkt->p_peer, zone, &qi, 0));
   }
   else {
     if (!h[p_ancnt2]) {	/* positive reply, no answers */
@@ -423,8 +426,8 @@ int replypacket(struct dnspacket *pkt, unsigned qlen, struct zone *zone) {
              !lazy)
       addrr_ns(pkt, zone, 1); /* add nameserver records to positive reply */
     do_stats(zone->z_stats.q_ok += 1);
-    (void)call_hook(query_result, (pkt->p_peer, zone, &qi, 1));
   }
+  (void)call_hook(query_result, (pkt->p_peer, zone, &qi, found));
   if (rlen() > DNS_MAXPACKET) {	/* add OPT record for long replies */
     /* as per parsequery(), we always have 11 bytes for minimal OPT record at
      * the end of our reply packet, OR rlen() does not exceed DNS_MAXPACKET */
