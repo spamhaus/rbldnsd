@@ -109,13 +109,11 @@ typedef struct {
 
       if (QSORT_LT (_mid, _lo))
         _QSORT_SWAP (_mid, _lo, _hold);
-      if (QSORT_LT (_hi, _mid))
+      if (QSORT_LT (_hi, _mid)) {
         _QSORT_SWAP (_mid, _hi, _hold);
-      else
-        goto _jump_over;
-      if (QSORT_LT (_mid, _lo))
-        _QSORT_SWAP (_mid, _lo, _hold);
-  _jump_over:;
+        if (QSORT_LT (_mid, _lo))
+          _QSORT_SWAP (_mid, _lo, _hold);
+      }
 
       _left_ptr  = _lo + 1;
       _right_ptr = _hi - 1;
