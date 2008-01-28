@@ -29,7 +29,7 @@
  *  QSORT_LT - QSORT_LT(a,b) should return true if *a < *b
  * and second, just #include this file into the place you want it.
  * Some C code will be inserted into that place, to sort array defined
- * by QSORT_TYPE, QSORT_BASE, QSORT_NELT and comparision routine QSORT_LT.
+ * by QSORT_TYPE, QSORT_BASE, QSORT_NELT and comparison routine QSORT_LT.
  */
 
 /* Swap two items pointed to by A and B using temporary buffer t. */
