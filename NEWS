@@ -3,7 +3,12 @@ $Id$
 This file describes user-visible changes in rbldnsd.
 Never news are at top.
 
-0.997 (?? ??? ????)
+0.996b (29 Mar 2008)
+
+ - most stuff is very minor, while preparing for larger changes
+   for 0.997 and 1.0.
+
+ - several (mostly minor) bug and portability fixes.
 
  - feature: ability to specify "base template" for a dataset, using $=
    variable.  See manpage for details, "Resulting A values and TXT templates"

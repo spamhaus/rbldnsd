@@ -1,4 +1,4 @@
-rbldnsd (0.997) unstable; urgency=low
+rbldnsd (0.996b) unstable; urgency=low
 
   * cleanup: #ifdefed dump_a_txt() properly so it will not be compiled
     if --disable-master-dump was specified.
@@ -6,6 +6,7 @@ rbldnsd (0.997) unstable; urgency=low
   * implement "base template" ($=) feature.
 
   * feature: (experimental) support for dynamically-loaded extensions (DSOs)
+    (disabled by default, use --enable-dso configure option)
 
   * portability and readability fixes from Victor Duchovni
 
@@ -25,7 +26,12 @@ rbldnsd (0.997) unstable; urgency=low
     - move firstword[_lc]() to _util.c
     - use two structs instead of a set of 2-element arrays in dnset
 
- -- Michael Tokarev <mjt@corpit.ru>  Sat, 17 Nov 2007 01:12:46 +0300
+  * bugfix: lowercase base zone names given on command line and in `combined'
+    dataset, or else they wont be recognized in queries
+
+  * added an lsb info to Debian initscript (Closes: #468886)
+
+ -- Michael Tokarev <mjt@corpit.ru>  Sat, 29 Mar 2008 17:38:49 +0300
 
 rbldnsd (0.996a) unstable; urgency=low
 
