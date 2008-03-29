@@ -52,6 +52,7 @@ Optional features (all enabled by default if system supports a feature):
   stats - enable/disable runtime statistics
   master-dump - enable/disable master-format (bind) dump support (-d option)
   zlib - zlib support
+  dso - dynamic extensions (using shared objects) -- disabled by default
 EOF
       exit 0
       ;;
@@ -282,7 +283,9 @@ else
   echo "#define NO_ZLIB" >>confdef.h
 fi
 
-if [ n = "$enable_dso" ]; then
+if [ -z "$enable_dso" ]; then
+  echo "#define NO_DSO		1	/* disabled by default */" >> confdef.h
+elif [ n = "$enable_dso" ]; then
   echo "#define NO_DSO		1	/* option disabled */" >>confdef.h
 elif ac_link_v "for dlopen() in -dl with -rdynamic" -ldl -rdynamic <<EOF
 #include <dlfcn.h>
