@@ -167,6 +167,8 @@ int ds_combined_newset(struct dataset *ds, char *line, struct dsctx *dsc) {
       dswarn(dsc, "invalid domain name `%.60s'", p);
       continue;
     }
+    else
+      dns_dntol(dn, dn);
     zone = newzone(&dsd->zlist, dn, dnlen, ds->ds_mp);
     dsl = mp_talloc(ds->ds_mp, struct dslist);
     if (!zone || !dsl) return -1;

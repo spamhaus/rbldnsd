@@ -133,6 +133,7 @@ struct zone *addzone(struct zone *zonelist, const char *spec) {
   dnlen = dns_ptodn(name, dn, sizeof(dn));
   if (!dnlen)
     error(0, "invalid domain name `%.80s'", name);
+  dns_dntol(dn, dn);
 
   p = estrdup(p+1);
   ds = newdataset(p);
