@@ -160,7 +160,7 @@ ac_prog_c_compiler() {
     fi
   fi
   if [ -z "$CFLAGS" ]; then
-    if ac_grep_cpp_v "whenever C compiler ($CC) is GNU CC" yEs <<EOF
+    if ac_grep_cpp_v "whether C compiler ($CC) is GNU CC" yEs <<EOF
 #ifdef __GNUC__
   yEs;
 #endif
@@ -175,7 +175,7 @@ EOF
   ccld="$cc"
   if [ -n "$LDFLAGS" ]; then ccld="$ccld $LDFLAGS"; fi
   if [ -n "$LIBS" ]; then ccld="$ccld $LIBS"; fi
-  if ac_yesno "whenever the C compiler ($ccld)
+  if ac_yesno "whether the C compiler ($ccld)
            can produce executables" \
      ac_compile_run <<EOF
 int main() { return 0; }
