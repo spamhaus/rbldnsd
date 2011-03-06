@@ -13,6 +13,7 @@
 typedef unsigned char ip6addr_t;
 
 #define IP6ADDR_FULL 16
+#define IP6ADDR_HALF 8
 
 /* parse string to ip6addr_t (if np specified, return
  * pointer to the next characted in the input buffer)...: */
