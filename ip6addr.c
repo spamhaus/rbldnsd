@@ -25,20 +25,20 @@ int ip6prefix(const char *s, ip6addr_t ap[IP6ADDR_FULL], char **np) {
    * addresses are aligned properly anyway */
   memset(ap, 0, IP6ADDR_FULL);
 
-  /* loop by semicolon-separated 2-byte groups */
+  /* loop by semicolon-separated 2-byte (4 hex digits) fields */
   for(;;) {
-    unsigned v = 0;		/* 2-byte (4 hex digit) group */
+    unsigned v = 0;		/* 2-byte (4 hex digit) field */
     const char *ss = s;		/* save `s' value */
     for(;;) {
       if (digit(*s)) v = (v << 4) | d2n(*s);
       else if (*s >= 'a' && *s <= 'f') v = (v << 4) | (*s - 'a' + 10);
       else if (*s >= 'A' && *s <= 'F') v = (v << 4) | (*s - 'A' + 10);
       else break;
-      if (v > 0xffff)		/* a group can't be > 0xffff */
+      if (v > 0xffff)		/* a field can't be > 0xffff */
 	break;
       ++s;
     }
-    if (ss == s || v > 0xffff)	/* if no group has been consumed */
+    if (ss == s || v > 0xffff)	/* if no field has been consumed */
       break;
     ap[bytes++] = v >> 8;
     ap[bytes++] = v & 0xff;
