@@ -15,7 +15,7 @@
  * should be even (2, 4, 6, 8, ...) and should be at least 2.
  * The routine does not support shortcuts like ffff::ffff.
  */
-int ip6prefix(const char *s, ip6addr_t ap[IP6ADDR_FULL], char **np) {
+int ip6prefix(const char *s, ip6oct_t ap[IP6ADDR_FULL], char **np) {
   unsigned bytes = 0;	  /* number of bytes we filled in ap so far */
   int ret = -1;
 
@@ -62,7 +62,7 @@ int ip6prefix(const char *s, ip6addr_t ap[IP6ADDR_FULL], char **np) {
  * in *ap (of size an bytes) and return number
  * of _bits_ (may be 0) or <0 on error.
  */
-int ip6cidr(const char *s, ip6addr_t ap[IP6ADDR_FULL], char **np) {
+int ip6cidr(const char *s, ip6oct_t ap[IP6ADDR_FULL], char **np) {
   int bits = ip6prefix(s, ap, (char**)&s);
 
   if (bits >= 0 && *s == '/') {	/* parse /bits CIDR range */
@@ -88,7 +88,7 @@ int ip6cidr(const char *s, ip6addr_t ap[IP6ADDR_FULL], char **np) {
   return bits;
 }
 
-int ip6mask(const ip6addr_t *ap, ip6addr_t *bp, unsigned n, unsigned bits) {
+int ip6mask(const ip6oct_t *ap, ip6oct_t *bp, unsigned n, unsigned bits) {
   unsigned i;
   int r = 0;
 
@@ -120,7 +120,7 @@ int ip6mask(const ip6addr_t *ap, ip6addr_t *bp, unsigned n, unsigned bits) {
   return r;
 }
 
-const char *ip6atos(const ip6addr_t *ap, unsigned an) {
+const char *ip6atos(const ip6oct_t *ap, unsigned an) {
   static char buf[(4+1)*8+1];
   unsigned i = 0;
   char *bp = buf;
@@ -143,7 +143,7 @@ const char *ip6atos(const ip6addr_t *ap, unsigned an) {
 
 int main(int argc, char **argv) {
   int i;
-  ip6addr_t a[IP6ADDR_FULL];
+  ip6oct_t a[IP6ADDR_FULL];
   int bits;
   char *np;
 
