@@ -1,5 +1,4 @@
 #!/usr/bin/make -f
-# $Id$
 # debian/rules for rbldnsd
 # GNU copyright 1997 to 1999 by Joey Hess.
 # GNU copyright 2003 by Michael Tokarev.

@@ -1,5 +1,3 @@
-$Id$
-
 By default (if no -u option is specified), rbldnsd runs as user rbldns.
 At a time the rbldnsd package is installed, such a user is created on
 the target system, with home directory /var/lib/rbldns (note the directory

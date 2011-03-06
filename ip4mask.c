@@ -1,5 +1,4 @@
-/* $Id$
- * ip4mask(), given number of significant bits in network
+/* ip4mask(), given number of significant bits in network
  * prefix, return IP4 network mask.
  */
 

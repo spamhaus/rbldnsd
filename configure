@@ -1,5 +1,4 @@
 #! /bin/sh
-# $Id$
 # autoconf-style configuration script
 #
 set -e

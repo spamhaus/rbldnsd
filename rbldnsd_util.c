@@ -1,5 +1,4 @@
-/* $Id$
- * Common utility routines for rbldnsd.
+/* Common utility routines for rbldnsd.
  */
 
 #include <stdio.h>

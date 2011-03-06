@@ -1,5 +1,4 @@
-/* $Id$
- * simple read (input) stream (header file)
+/* simple read (input) stream (header file)
  */
 
 #ifndef ISTREAM_BUFSIZE

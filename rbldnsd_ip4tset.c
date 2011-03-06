@@ -1,5 +1,4 @@
-/* $Id$
- * ip4tset dataset type: IP4 addresses (ranges), with A and TXT
+/* ip4tset dataset type: IP4 addresses (ranges), with A and TXT
  * values for every individual entry.
  */
 

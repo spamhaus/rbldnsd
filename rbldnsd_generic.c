@@ -1,5 +1,4 @@
-/* $Id$
- * generic dataset, simplified bind format.
+/* generic dataset, simplified bind format.
  */
 
 #include <stdio.h>

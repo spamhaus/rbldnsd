@@ -1,5 +1,4 @@
-/* $Id$
- * Simple and efficient (especially line-oriented) read (input)
+/* Simple and efficient (especially line-oriented) read (input)
  * stream implementation a-la stdio.
  */
 

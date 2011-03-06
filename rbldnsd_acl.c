@@ -1,5 +1,4 @@
-/* $Id$
- * ACL (Access Control Lists) implementation for rbldnsd.
+/* ACL (Access Control Lists) implementation for rbldnsd.
  */
 
 #include <stdio.h>

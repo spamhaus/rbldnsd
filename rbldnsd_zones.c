@@ -1,5 +1,4 @@
-/* $Id$
- * Nameserver zones: structures and routines
+/* Nameserver zones: structures and routines
  */
 
 #include <stdio.h>

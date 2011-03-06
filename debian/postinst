@@ -1,5 +1,4 @@
 #! /bin/sh
-# $Id$
 # postinst script for rbldnsd
 #
 # see: dh_installdeb(1)

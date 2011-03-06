@@ -1,5 +1,4 @@
-/* $Id$
- * dns_dntop() produces printable ascii representation (external form)
+/* dns_dntop() produces printable ascii representation (external form)
  * of a domain name
  */
 

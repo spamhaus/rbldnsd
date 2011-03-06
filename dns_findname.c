@@ -1,5 +1,4 @@
-/* $Id$
- * dns_findname() is an auxilary routine to find given name in a
+/* dns_findname() is an auxilary routine to find given name in a
  * given dns_nameval table.
  */
 

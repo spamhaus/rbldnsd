@@ -1,5 +1,4 @@
 #! /bin/sh
-# $Id$
 # rbldnsd	startup script.
 #
 ### BEGIN INIT INFO

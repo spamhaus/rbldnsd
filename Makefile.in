@@ -1,6 +1,5 @@
 #! /usr/bin/make -rf
 #
-# $Id$
 # Makefile for rbldnsd
 
 SHELL = /bin/sh

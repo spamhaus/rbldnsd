@@ -1,5 +1,4 @@
-/* $Id$
- * common #include file for dns library.
+/* common #include file for dns library.
  */
 
 #ifndef DNS_PORT

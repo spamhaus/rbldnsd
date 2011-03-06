@@ -1,5 +1,4 @@
-/* $Id$
- * combined dataset, one file is a collection of various datasets
+/* combined dataset, one file is a collection of various datasets
  * and subzones.  Special case.
  */
 

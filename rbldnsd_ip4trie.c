@@ -1,5 +1,4 @@
-/* $Id$
- * ip4trie dataset type: IP4 CIDR ranges with A and TXT values.
+/* ip4trie dataset type: IP4 CIDR ranges with A and TXT values.
  * Only one value per range allowed.
  */
 

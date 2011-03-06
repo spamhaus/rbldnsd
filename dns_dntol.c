@@ -1,5 +1,4 @@
-/* $Id$
- * dns_dntol() lowercases a domain name
+/* dns_dntol() lowercases a domain name
  */
 
 #include "dns.h"

@@ -1,5 +1,4 @@
-/* $Id$
- * Dataset type which consists of a set of (possible wildcarded)
+/* Dataset type which consists of a set of (possible wildcarded)
  * domain names together with (A,TXT) result for each.
  */
 

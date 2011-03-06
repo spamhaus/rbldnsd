@@ -1,5 +1,4 @@
 #! /usr/bin/awk -f
-# $Id$
 # A script to generate dns_nametab.c from dns.h
 # (various name tables like rtype etc)
 

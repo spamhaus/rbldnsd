@@ -1,5 +1,4 @@
-/* $Id$
- * common #include header for various helper routines to
+/* common #include header for various helper routines to
  * manipulate IP4 addreses
  */
 

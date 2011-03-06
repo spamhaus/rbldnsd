@@ -1,4 +1,3 @@
-# $Id$
 # RPM spec file for rbldnsd
 
 Summary: Small fast daemon to serve DNSBLs

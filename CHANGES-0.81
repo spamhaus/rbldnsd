@@ -1,5 +1,3 @@
-$Id$
-
 2003-04-03 0.81
 
  - IP4RANGES is now the default (but old behaviour may be selected

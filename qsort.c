@@ -1,5 +1,4 @@
-/* $Id$
- * Adopted from GNU glibc by Mjt.
+/* Adopted from GNU glibc by Mjt.
  * See stdlib/qsort.c in glibc */
 
 /* Copyright (C) 1991, 1992, 1996, 1997, 1999 Free Software Foundation, Inc.

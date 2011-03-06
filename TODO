@@ -1,5 +1,3 @@
-$Id$
-
 TODO list for rbldnsd, in no particular order.
 
  * implement TCP mode (in separate process, to reduce number of syscalls)

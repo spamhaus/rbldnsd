@@ -1,5 +1,4 @@
-/* $Id$
- * rbldnsd: main program
+/* rbldnsd: main program
  */
 
 #define _LARGEFILE64_SOURCE /* to define O_LARGEFILE if supported */

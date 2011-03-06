@@ -1,5 +1,4 @@
-/* $Id$
- * dns_dneq(): compare to domain names and return true if equal
+/* dns_dneq(): compare to domain names and return true if equal
  * (case-unsensitive)
  */
 
