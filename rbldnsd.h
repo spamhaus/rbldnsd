@@ -226,6 +226,38 @@ struct dslist {	/* dsl */
   struct dslist *dsl_next;
 };
 
+struct dschain { /* dsc */
+  struct dslist *dsc_dsl;
+  struct dschain *dsc_next;
+};
+
+/* zones/chains/lists/datasets are organized as follows:
+ *
+ * zone -> chain -> list -> dataset
+ *  |        |        |
+ *  |        |        v
+ *  |        |      list -> dataset
+ *  |        |       ...
+ *  |        v
+ *  |      chain
+ *  v       ...
+ * zone
+ * ...
+ *
+ * Ie, there's a list of zones (linked using z->z_next).
+ * Each zone points to a list of "chains" assotiated with it,
+ * linked using dsc->dsc_next.
+ * Each chain, in turn, is a list of datasets - struct dslist --
+ * linked using dsl->dsl_next.
+ *
+ * For a query, we check every chain, and create a union of all results.
+ * When checking a chain, stop at first element that returns something
+ * (not "dunno").
+ *
+ * The result is that elements in a chain are grouped using "and" condition,
+ * and different chains are grouped using "or" condition.
+ */
+
 struct zonesoa;
 struct zonens;
 
@@ -256,8 +288,8 @@ struct zone {	/* zone, list of zones */
   unsigned z_dnlen;			/* length of z_dn */
   unsigned z_dnlab;			/* number of dn labels */
   unsigned z_dstflags;			/* flags of all datasets */
-  struct dslist *z_dsl;			/* list of datasets */
-  struct dslist **z_dslp;		/* last z_dsl in list */
+  struct dschain *z_dsc;		/* list of chains */
+  struct dschain **z_dscp;		/* last z_dsc in list */
   struct dataset *z_dsacl;		/* zone ACL */
   /* SOA record */
   const struct dssoa *z_dssoa;		/* original SOA from a dataset */

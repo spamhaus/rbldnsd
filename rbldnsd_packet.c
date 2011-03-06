@@ -264,6 +264,7 @@ int replypacket(struct dnspacket *pkt, unsigned qlen, struct zone *zone) {
   struct dnsquery qry;			/* query structure */
   struct dnsqinfo qi;			/* query info structure */
   unsigned char *h = pkt->p_buf;	/* packet's header */
+  const struct dschain *dsc;
   const struct dslist *dsl;
   int found;
   extern int lazy; /*XXX hack*/
@@ -384,8 +385,12 @@ int replypacket(struct dnspacket *pkt, unsigned qlen, struct zone *zone) {
     found = 0;
 
   /* search the datasets */
-  for(dsl = zone->z_dsl; dsl; dsl = dsl->dsl_next)
-    found |= dsl->dsl_queryfn(dsl->dsl_ds, &qi, pkt);
+  for(dsc = zone->z_dsc; dsc; dsc = dsc->dsc_next) {
+    int cfound = 0;
+    for(dsl = dsc->dsc_dsl; dsl && !cfound; dsl = dsl->dsl_next)
+      cfound |= dsl->dsl_queryfn(dsl->dsl_ds, &qi, pkt);
+    //XXX    found |= cfound & ~NSQUERY_WL;
+  }
 
   if (found & NSQUERY_ADDPEER) {
 #ifdef NO_IPv6
@@ -605,7 +610,7 @@ struct zonens {		/* cached NS RRs */
 
 void init_zones_caches(struct zone *zonelist) {
   while(zonelist) {
-    if (!zonelist->z_dsl) {
+    if (!zonelist->z_dsc) {
       char name[DNS_MAXDOMAIN];
       dns_dntop(zonelist->z_dn, name, sizeof(name));
       error(0, "missing data for zone `%s'", name);
@@ -682,6 +687,7 @@ find_glue(struct zone *zone, const unsigned char *nsdn,
   unsigned lab;
   unsigned char dnbuf[DNS_MAXDN], *dp;
   unsigned char *dnlptr[DNS_MAXLABELS];
+  const struct dschain *dsc;
   const struct dslist *dsl;
   const struct zone *qzone;
 
@@ -701,8 +707,9 @@ find_glue(struct zone *zone, const unsigned char *nsdn,
   /* pefrorm fake query */
   qi.qi_tflag = NSQUERY_A/*|NSQUERY_AAAA*/;
   dp = pkt->p_cur;
-  for(dsl = qzone->z_dsl; dsl; dsl = dsl->dsl_next)
-    dsl->dsl_queryfn(dsl->dsl_ds, &qi, pkt);
+  for(dsc = qzone->z_dsc; dsc; dsc = dsc->dsc_next)
+    for(dsl = dsc->dsc_dsl; dsl; dsl = dsl->dsl_next)
+      dsl->dsl_queryfn(dsl->dsl_ds, &qi, pkt);
 
   if (dp == pkt->p_cur) {
     char name[DNS_MAXDOMAIN];

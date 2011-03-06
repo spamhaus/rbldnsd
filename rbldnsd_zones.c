@@ -87,7 +87,7 @@ struct zone *newzone(struct zone **zonelist,
       memcpy(zone->z_dn, dn, dnlen);
       zone->z_dnlen = dnlen;
       zone->z_dnlab = dns_dnlabels(dn);
-      zone->z_dslp = &zone->z_dsl;
+      zone->z_dscp = &zone->z_dsc;
       break;
     }
     else if (zone->z_dnlen == dnlen && memcmp(zone->z_dn, dn, dnlen) == 0)
@@ -517,6 +517,7 @@ struct dataset *nextdataset2reload(struct dataset *ds) {
 #ifndef NO_MASTER_DUMP
 void dumpzone(const struct zone *z, FILE *f) {
   const struct dslist *dsl;
+  const struct dschain *dsc;
   { /* zone header */
     char name[DNS_MAXDOMAIN+1];
     const unsigned char *const *nsdna = z->z_nsdna;
@@ -543,9 +544,10 @@ void dumpzone(const struct zone *z, FILE *f) {
       fprintf(f, "\t%u\tNS\t%s.\n", z->z_nsttl, name);
     }
   }
-  for (dsl = z->z_dsl; dsl; dsl = dsl->dsl_next) {
-    fprintf(f, "$TTL %u\n", dsl->dsl_ds->ds_ttl);
-    dsl->dsl_ds->ds_type->dst_dumpfn(dsl->dsl_ds, z->z_dn, f);
-  }
+  for (dsc = z->z_dsc; dsc; dsc = dsc->dsc_next)
+    for (dsl = dsc->dsc_dsl; dsl; dsl = dsl->dsl_next) {
+      fprintf(f, "$TTL %u\n", dsl->dsl_ds->ds_ttl);
+      dsl->dsl_ds->ds_type->dst_dumpfn(dsl->dsl_ds, z->z_dn, f);
+    }
 }
 #endif

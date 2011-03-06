@@ -905,21 +905,26 @@ static int do_reload(int do_fork) {
     const struct dsns *dsns = NULL;
     unsigned nsttl = 0;
     struct dslist *dsl;
+    struct dschain *dsc;
 
-    for(dsl = zone->z_dsl; dsl; dsl = dsl->dsl_next) {
-      const struct dataset *ds = dsl->dsl_ds;
-      if (!ds->ds_stamp) {
-        stamp = 0;
-        break;
+    for(dsc = zone->z_dsc; dsc; dsc = dsc->dsc_next) {
+      for(dsl = dsc->dsc_dsl; dsl; dsl = dsl->dsl_next) {
+	const struct dataset *ds = dsl->dsl_ds;
+	if (!ds->ds_stamp) {
+	  stamp = 0;
+	  break;
+	}
+	if (stamp < ds->ds_stamp)
+	  stamp = ds->ds_stamp;
+	if (ds->ds_expires && (!expires || expires > ds->ds_expires))
+	  expires = ds->ds_expires;
+	if (!dssoa)
+	  dssoa = ds->ds_dssoa;
+	if (!dsns)
+	  dsns = ds->ds_dsns, nsttl = ds->ds_nsttl;
       }
-      if (stamp < ds->ds_stamp)
-        stamp = ds->ds_stamp;
-      if (ds->ds_expires && (!expires || expires > ds->ds_expires))
-        expires = ds->ds_expires;
-      if (!dssoa)
-        dssoa = ds->ds_dssoa;
-      if (!dsns)
-        dsns = ds->ds_dsns, nsttl = ds->ds_nsttl;
+      if (!stamp)
+	break;
     }
 
     zone->z_expires = expires;
