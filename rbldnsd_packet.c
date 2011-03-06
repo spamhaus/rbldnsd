@@ -158,45 +158,11 @@ parsequery(struct dnspacket *pkt, unsigned qlen,
   return 1;
 }
 
-/* parse DN (as in 4.3.2.1.in-addr.arpa) to ip4addr_t */
-static int
-dntoip4addr(const unsigned char *q,
-            unsigned UNUSED qlen0, unsigned qlab,
-            ip4addr_t *ap) {
-  ip4addr_t a = 0, o;
-  if (qlab != 4) {
-
-#ifdef RECOGNIZE_IP4IN6
-    static const unsigned char *const ip6p =
-      "\001f\001f\001f\001f\0010\0010\0010\0010"
-      "\0010\0010\0010\0010\0010\0010\0010\0010"
-      "\0010\0010\0010\0010\0010\0010\0010\0010"
-      "\003ip6";
-
-     if ((qlab != 33 || qlen0 != 68 || memcmp(q + 16, ip6p, 28) != 0) &&
-         (qlab != 32 || qlen0 != 64 || memcmp(q + 16, ip6p, 24) != 0))
-       return 0;
-     for (o = 0; o < 32; o += 4) {
-       ++q;
-       if (*q >= '0' && *q <= '9')
-         a |= (unsigned)(*q++ - '0') << o;
-       else if (*q >= 'a' && *q <= 'f')
-         a |= (unsigned)(*q++ - 'a' + 10) << o;
-       else
-         return 0;
-     }
-     *ap = a;
-     return 1;
-
-#else /* RECOGNIZE_IP4IN6 */
-     return 0;
-#endif
-
-  }
-
 #define digit(c) ((c) >= '0' && (c) <= '9')
 #define d2n(c) ((unsigned)((c) - '0'))
 
+static int dntoip4addr(const unsigned char *q, ip4addr_t *ap) {
+  unsigned o, a = 0;
 #define oct(q,o)					\
     switch(*q) {					\
     case 1:						\
@@ -224,8 +190,57 @@ dntoip4addr(const unsigned char *q,
   *ap = a;
   return 1;
 #undef oct
-#undef digit
-#undef d2n
+}
+
+static int dntoip6addr(const unsigned char *q, ip6oct_t ap[IP6ADDR_FULL]) {
+  unsigned o1, o2, c;
+  for(c = IP6ADDR_FULL; c; ) {
+    if (*q++ != 1)
+      return 0;
+    if (digit(*q)) o2 = d2n(*q++);
+    else if (*q >= 'a' && *q <= 'f') o2 = *q++ - 'a' + 10;
+    else return 0;
+    if (*q++ != 1)
+      return 0;
+    if (digit(*q)) o1 = d2n(*q++);
+    else if (*q >= 'a' && *q <= 'f') o1 = *q++ - 'a' + 10;
+    else return 0;
+    ap[--c] = (o1 << 4) | o2;
+  }
+  return 1;
+}
+
+static const ip6oct_t ip6mapped_pfx[12] =
+  "\0\0\0\0\0\0\0\0"
+  "\377\377\377\377";
+
+/* parse DN (as in 4.3.2.1.in-addr.arpa) to ip4addr_t (4 octets 0..255).
+ * parse DN (as in 0.1.2.3.4.5...f.base.dn) to ip6 address (32 nibbles 0..f)
+ */
+static void dntoip(struct dnsqinfo *qi, int flags) {
+
+  const unsigned char *q = qi->qi_dn;
+  unsigned qlab = qi->qi_dnlab;
+
+  qi->qi_ip4valid = qlab == 4 && dntoip4addr(q, &qi->qi_ip4);
+  if (qi->qi_ip4valid) {
+    if (flags & DSTF_IP6REV) {
+      /* construct IP4MAPPED address */
+      memcpy(qi->qi_ip6, ip6mapped_pfx, sizeof(ip6mapped_pfx));
+      PACK32(qi->qi_ip6 + sizeof(ip6mapped_pfx), qi->qi_ip4);
+      qi->qi_ip6valid = 1;
+    }
+  }
+  else {
+    qi->qi_ip6valid =
+      qlab == 32 && qi->qi_dnlen0 == 64 && dntoip6addr(q, qi->qi_ip6);
+    if (flags & DSTF_IP4REV &&
+	memcmp(qi->qi_ip6, ip6mapped_pfx, sizeof(ip6mapped_pfx)) == 0) {
+      /* construct IP4 from IP4MAPPED */
+      qi->qi_ip4 = unpack32(qi->qi_ip6 + sizeof(ip6mapped_pfx));
+      qi->qi_ip4valid = 1;
+    }
+  }
 }
 
 const struct zone *
@@ -245,9 +260,9 @@ findqzone(const struct zone *zone,
   qi->qi_dnlptr = dnlptr;
   qi->qi_dnlab = dnlab - zone->z_dnlab;
   qi->qi_dnlen0 = dnlen - zone->z_dnlen;
-  if (zone->z_dstflags & DSTF_IP4REV) /* ip4 address */
-    qi->qi_ip4valid =
-      dntoip4addr(qi->qi_dn, qi->qi_dnlen0, qi->qi_dnlab, &qi->qi_ip4);
+
+  if (zone->z_dstflags & (DSTF_IP4REV|DSTF_IP6REV)) /* IP address */
+    dntoip(qi, zone->z_dstflags);
 
   return zone;
 }
