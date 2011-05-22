@@ -1,0 +1,6 @@
+*.o
+lib*.a
+*~
+dns_nametab.c
+Makefile
+config.*
