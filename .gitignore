@@ -4,3 +4,4 @@ lib*.a
 dns_nametab.c
 Makefile
 config.*
+rbldnsd
