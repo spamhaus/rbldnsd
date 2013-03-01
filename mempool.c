@@ -59,6 +59,10 @@ void *mp_alloc(struct mempool *mp, unsigned size, int align) {
     ++mp->mp_nallocs; mp->mp_datasz += size;
     avg = mp->mp_datasz / mp->mp_nallocs;
 
+    /* round size up to a multiple of alignto */
+    if (align)
+      size = (size + alignmask) & ~alignmask;
+
     for(c = mp->mp_chunk, best = NULL; c; c = c->next)
       if (c->size >= size && (!best || best->size > c->size)) {
         best = c;
