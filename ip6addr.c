@@ -13,10 +13,21 @@
  * 16, 32, 48, 64, ... _bits_ on output or <0 on error.
  * "an" is the max amount of bytes (not bits!) to store in *ap,
  * should be even (2, 4, 6, 8, ...) and should be at least 2.
- * The routine does not support shortcuts like ffff::ffff.
+ * The routine does support shortcuts like ffff::ffff.
  */
 int ip6prefix(const char *s, ip6oct_t ap[IP6ADDR_FULL], char **np) {
-  unsigned bytes = 0;	  /* number of bytes we filled in ap so far */
+  static signed char hex_table[] = { /* map ascii to hex nibble value */
+    -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
+    -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
+    -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
+     0,  1,  2,  3,  4,  5,  6,  7,  8,  9, -1, -1, -1, -1, -1, -1,
+    -1, 10, 11, 12, 13, 14, 15, -1, -1, -1, -1, -1, -1, -1, -1, -1,
+    -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
+    -1, 10, 11, 12, 13, 14, 15, -1, -1, -1, -1, -1, -1, -1, -1, -1,
+    -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
+  };
+  unsigned bytes = 0;     /* number of bytes we filled in ap so far */
+  int zstart = -1;        /* location of "::", if any */
   int ret = -1;
 
   /* memset is better be done here instead of zeroing the tail,
@@ -25,17 +36,23 @@ int ip6prefix(const char *s, ip6oct_t ap[IP6ADDR_FULL], char **np) {
    * addresses are aligned properly anyway */
   memset(ap, 0, IP6ADDR_FULL);
 
+  if (s[0] == ':' && s[1] == ':') {
+    zstart = 0;
+    s += 2;
+  }
+
   /* loop by semicolon-separated 2-byte (4 hex digits) fields */
   for(;;) {
     unsigned v = 0;		/* 2-byte (4 hex digit) field */
     const char *ss = s;		/* save `s' value */
-    for(;;) {
-      if (digit(*s)) v = (v << 4) | d2n(*s);
-      else if (*s >= 'a' && *s <= 'f') v = (v << 4) | (*s - 'a' + 10);
-      else if (*s >= 'A' && *s <= 'F') v = (v << 4) | (*s - 'A' + 10);
-      else break;
+
+    while ((*s & '\x80') == 0) {
+      int nibble = hex_table[(unsigned)*s];
+      if (nibble < 0)
+        break;                  /* not a hex digit */
+      v = (v << 4) + nibble;
       if (v > 0xffff)		/* a field can't be > 0xffff */
-	break;
+        break;
       ++s;
     }
     if (ss == s || v > 0xffff)	/* if no field has been consumed */
@@ -47,6 +64,22 @@ int ip6prefix(const char *s, ip6oct_t ap[IP6ADDR_FULL], char **np) {
       break;
     }
     ++s;
+    if (zstart < 0 && *s == ':') {
+      zstart = bytes;
+      ++s;
+    }
+  }
+
+  if (zstart >= 0) {
+    /* expand the "::" */
+    unsigned nzeros = IP6ADDR_FULL - bytes;
+    if (nzeros == 0)
+      ret = -1;                 /* illegal - no space for zeros */
+    else {
+      memmove(&ap[zstart + nzeros], &ap[zstart], bytes - zstart);
+      memset(&ap[zstart], 0, nzeros);
+      ret = 8 * IP6ADDR_FULL;
+    }
   }
 
   if (np)
@@ -72,10 +105,10 @@ int ip6cidr(const char *s, ip6oct_t ap[IP6ADDR_FULL], char **np) {
     else {
       bits = d2n(*s++);
       while(digit(*s))
-	if ((bits = bits * 10 + d2n(*s++)) > 128) {
-	  bits = -1;
-	  break;
-	}
+        if ((bits = bits * 10 + d2n(*s++)) > 128) {
+          bits = -1;
+          break;
+        }
     }
   }
   else if (bits == 16)
@@ -122,30 +155,70 @@ int ip6mask(const ip6oct_t *ap, ip6oct_t *bp, unsigned n, unsigned bits) {
 
 const char *ip6atos(const ip6oct_t *ap, unsigned an) {
   static char buf[(4+1)*8+1];
-  unsigned i = 0;
+  unsigned awords = an / 2;
   char *bp = buf;
-  if (an > IP6ADDR_FULL)
-    an = IP6ADDR_FULL;
-  while(i < an) {
-    unsigned v = ((unsigned)(ap[i++])) << 8;
-    v |= ap[i++];
-    bp += sprintf(bp, ":%x", v);
+  unsigned nzeros = 0, zstart = 0, i;
+
+  if (awords > IP6ADDR_FULL / 2)
+    awords = IP6ADDR_FULL / 2;
+
+  /* find longest string of repeated zero words */
+  for (i = 0; i + nzeros < IP6ADDR_FULL / 2; i++) {
+    unsigned nz;                 /* count zero words */
+    for (nz = 0; i + nz < awords; nz++)
+      if (ap[2 * (i + nz)] != 0 || ap[2 * (i + nz) + 1] != 0)
+        break;
+    if (i + nz == awords)
+      nz += IP6ADDR_FULL / 2 - awords;
+
+    if (nz > 1 && nz > nzeros) {
+      nzeros = nz;
+      zstart = i;
+    }
   }
-  while(i < IP6ADDR_FULL) {
-    *bp++ = ':'; *bp++ = '0';
-    i += 2;
+
+  for (i = 0; i < zstart; i++)
+    bp += sprintf(bp, ":%x", (((unsigned)ap[2*i]) << 8) + ap[2*i+1]);
+  if (nzeros) {
+    *bp++ = ':';
+    if (zstart == 0)
+      *bp++ = ':';                /* leading "::" */
+    if (zstart + nzeros == IP6ADDR_FULL / 2)
+      *bp++ = ':';                /* trailing "::" */
+  }
+  for (i += nzeros; i < awords; i++)
+    bp += sprintf(bp, ":%x", (((unsigned)ap[2*i]) << 8) + ap[2*i+1]);
+  for (; i < IP6ADDR_FULL / 2; i++) {
+    *bp++ = ':';
+    *bp++ = '0';
   }
   *bp = '\0';
   return buf + 1;
 }
 
 #ifdef TEST
+#include <stdlib.h>
+
+/* our own version of assert()
+ *
+ * (mostly so that checks still happen even when compiled with
+ * -DNDEBUG)
+ */
+#define CHECK(expr) ((expr) ? (void) 0 : report_failure(#expr, __LINE__))
+
+static void
+report_failure(const char *expr, unsigned line)
+{
+  printf("%s:%u: check `%s' failed\n", __FILE__, line, expr);
+  abort();
+}
 
 int main(int argc, char **argv) {
   int i;
   ip6oct_t a[IP6ADDR_FULL];
   int bits;
   char *np;
+
 
 #define ip6tos(a,bits) (bits < 0 ? "err" : ip6atos(a,sizeof(a)))
 
@@ -167,6 +240,16 @@ int main(int argc, char **argv) {
       printf("mask: %s (host=%d)\n", ip6atos(a, sizeof(a)), bits);
     }
   }
+
+  CHECK(ip6prefix("::1", a, NULL) == 128);
+  CHECK(strcmp(ip6atos(a, 128), "::1") == 0);
+
+  CHECK(ip6prefix("1::", a, NULL) == 128);
+  CHECK(strcmp(ip6atos(a, 128), "1::") == 0);
+
+  CHECK(ip6prefix("1::4:0:0:0:8", a, NULL) == 128);
+  CHECK(strcmp(ip6atos(a, 128), "1:0:0:4::8") == 0);
+
   return 0;
 }
 

@@ -1,7 +1,9 @@
 rbldnsd (0.996b+ipv6) unstable; urgency=low
 
+  * ip6addr.c: add support for compressed ("::") ip6 address notation
+
   * mempool.c: bug fix for a theoretically possible buffer overrun
-  
+
   * feature: ip6tset - new dataset supports listing of ip6 /64 subnets and
     the exclusion of /128 subnets; only supports a single A/TXT value for
     the entire dataset
