@@ -1,5 +1,8 @@
 rbldnsd (0.996b+ipv6) unstable; urgency=low
 
+  * configure: add test for __SIZEOF_POINTER__ - define if the compiler
+    does not already do so
+
   * configure: add test for byte sex - define WORDS_BIGENDIAN in config.h
     on big-endian architectures
 

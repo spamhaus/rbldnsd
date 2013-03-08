@@ -116,6 +116,22 @@ EOF
   fi
 fi
 
+if ac_compile_run_v "whether C compiler defines __SIZEOF_POINTER__" <<EOF
+#include <stdio.h>
+int main() {
+#ifdef __SIZEOF_POINTER__
+  return 0;
+#else
+  printf("#define __SIZEOF_POINTER__ %d\n", sizeof(int *));
+  return 1;
+#endif
+}
+EOF
+then :
+else
+  cat conftest.out >>confdef.h
+fi
+
 if ac_verbose "byte order" "big-endian" "little-endian" \
    ac_compile_run <<EOF
 int main() {
