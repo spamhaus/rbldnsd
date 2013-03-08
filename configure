@@ -116,6 +116,19 @@ EOF
   fi
 fi
 
+if ac_verbose "byte order" "big-endian" "little-endian" \
+   ac_compile_run <<EOF
+int main() {
+  long one = 1;
+  if (*(char *)&one)
+    return 1; /* little-endian */
+  return 0;
+}
+EOF
+then
+  echo "#define WORDS_BIGENDIAN 1" >>confdef.h
+fi
+
 has_inline=
 for c in inline __inline; do
   if ac_compile_v "for $c" <<EOF

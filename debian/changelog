@@ -1,5 +1,8 @@
 rbldnsd (0.996b+ipv6) unstable; urgency=low
 
+  * configure: add test for byte sex - define WORDS_BIGENDIAN in config.h
+    on big-endian architectures
+
   * ip6addr.c: add support for compressed ("::") ip6 address notation
 
   * mempool.c: bug fix for a theoretically possible buffer overrun
