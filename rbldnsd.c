@@ -120,6 +120,7 @@ const struct dstype *ds_types[] = {
   dstype(ip4set),
   dstype(ip4tset),
   dstype(ip4trie),
+  dstype(ip6tset),
   dstype(dnset),
 #ifdef DNHASH
   dstype(dnhash),

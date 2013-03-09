@@ -46,18 +46,19 @@ LIBDNS_GSRC = dns_nametab.c
 LIBDNS_HDRS = dns.h
 LIBDNS_OBJS = $(LIBDNS_SRCS:.c=.o) $(LIBDNS_GSRC:.c=.o)
 
-LIBIP4_SRCS = ip4parse.c ip4atos.c ip4mask.c
-LIBIP4_GSRC =
-LIBIP4_HDRS = ip4addr.h
-LIBIP4_OBJS = $(LIBIP4_SRCS:.c=.o)
+LIBIP_SRCS = ip4parse.c ip4atos.c ip4mask.c ip6addr.c
+LIBIP_GSRC =
+LIBIP_HDRS = ip4addr.h ip6addr.h
+LIBIP_OBJS = $(LIBIP_SRCS:.c=.o)
 
-LIB_SRCS = $(LIBDNS_SRCS) $(LIBIP4_SRCS) mempool.c istream.c
-LIB_HDRS = $(LIBDNS_HDRS) $(LIBIP4_HDRS) mempool.h istream.h
-LIB_OBJS = $(LIBDNS_OBJS) $(LIBIP4_OBJS) mempool.o istream.o
-LIB_GSRC = $(LIBDNS_GSRC) $(LIBIP4_GSRC)
+LIB_SRCS = $(LIBDNS_SRCS) $(LIBIP_SRCS) mempool.c istream.c
+LIB_HDRS = $(LIBDNS_HDRS) $(LIBIP_HDRS) mempool.h istream.h
+LIB_OBJS = $(LIBDNS_OBJS) $(LIBIP_OBJS) mempool.o istream.o
+LIB_GSRC = $(LIBDNS_GSRC) $(LIBIP_GSRC)
 
 RBLDNSD_SRCS = rbldnsd.c rbldnsd_zones.c rbldnsd_packet.c \
-  rbldnsd_ip4set.c rbldnsd_ip4tset.c rbldnsd_ip4trie.c rbldnsd_dnset.c \
+  rbldnsd_ip4set.c rbldnsd_ip4tset.c rbldnsd_ip4trie.c \
+  rbldnsd_ip6tset.c rbldnsd_dnset.c \
   rbldnsd_generic.c rbldnsd_combined.c rbldnsd_acl.c \
   rbldnsd_util.c
 RBLDNSD_HDRS = rbldnsd.h

@@ -6,6 +6,7 @@
 #include <stdio.h>
 #include "config.h"
 #include "ip4addr.h"
+#include "ip6addr.h"
 #include "dns.h"
 #include "mempool.h"
 
@@ -61,8 +62,10 @@ struct dnsqinfo {	/* qi */
   unsigned qi_tflag;			/* query RR type flag (NSQUERY_XX) */
   unsigned qi_dnlen0;			/* length of qi_dn - 1 */
   unsigned qi_dnlab;			/* number of labels in q_dn */
-  ip4addr_t qi_ip4;			/* parsed IP4 address */
   int qi_ip4valid;			/* true if qi_ip4 is valid */
+  int qi_ip6valid;			/* true if qi_ip6 is valid */
+  ip4addr_t qi_ip4;			/* parsed IP4 address */
+  ip6oct_t qi_ip6[IP6ADDR_FULL];	/* parsed IP6 address */
 };
 
 #define PACK32(b,n) ((b)[0]=(n)>>24,(b)[1]=(n)>>16,(b)[2]=(n)>>8,(b)[3]=(n))
@@ -140,6 +143,7 @@ struct dstype {	/* dst */
 
 /* dst_flags */
 #define DSTF_IP4REV	0x01	/* ip4 set */
+#define DSTF_IP6REV	0x02	/* ip6 set */
 #define DSTF_SPECIAL	0x08	/* special ds: non-recursive */
 
 #define declaredstype(t) extern const struct dstype dataset_##t##_type
@@ -160,6 +164,7 @@ struct dstype {	/* dst */
 declaredstype(ip4set);
 declaredstype(ip4tset);
 declaredstype(ip4trie);
+declaredstype(ip6tset);
 declaredstype(dnset);
 declaredstype(dnhash);
 declaredstype(generic);
