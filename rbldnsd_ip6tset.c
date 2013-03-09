@@ -223,33 +223,17 @@ static void
 ds_ip6tset_dump(const struct dataset *ds,
                const unsigned char UNUSED *unused_odn,
                FILE *f) {
-  char name[2*IP6ADDR_FULL*2+1];
   const struct dsdata *dsd = ds->ds_dsd;
 
   { const struct ip6half *a = dsd->a, *at = a + dsd->a_cnt;
     while(a < at) {
-      unsigned o;
-      char *np = name;
-      *np++ = '*';
-      for(o = IP6ADDR_HALF; o; ) {
-	--o;
-	np += sprintf(np, ".%x.%x", a->a[o] & 0xf, a->a[o] >> 4);
-      }
-      dump_a_txt(name, dsd->def_rr, ip6atos(a->a, IP6ADDR_HALF), ds, f);
-      ++a;
+      dump_ip6((a++)->a, 16, dsd->def_rr, ds, f);
     }
   }
 
   { const struct ip6full *e = dsd->e, *et = e + dsd->e_cnt;
     while(e < et) {
-      unsigned o;
-      char *np = name;
-      for(o = IP6ADDR_FULL; o; ) {
-	--o;
-	np += sprintf(np, ".%x.%x", e->a[o] & 0xf, e->a[o] >> 4);
-      }
-      dump_a_txt(name+1, NULL, NULL, ds, f);
-      ++e;
+      dump_ip6((e++)->a, 0, NULL, ds, f);
     }
   }
 

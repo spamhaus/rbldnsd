@@ -1,5 +1,7 @@
 rbldnsd (0.996b+ipv6) unstable; urgency=low
 
+  * rbldnsd_ip6tset.c: use new dump_ip6()
+
   * Makefile.in: add 'check' target to run btrie.c self-tests and new
     python-driven tests
 
