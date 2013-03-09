@@ -165,6 +165,7 @@ declaredstype(ip4set);
 declaredstype(ip4tset);
 declaredstype(ip4trie);
 declaredstype(ip6tset);
+declaredstype(ip6trie);
 declaredstype(dnset);
 declaredstype(dnhash);
 declaredstype(generic);
@@ -320,6 +321,10 @@ void dump_ip4range(ip4addr_t a, ip4addr_t b, const char *rr,
 		   const struct dataset *ds, FILE *f);
 void dump_ip4(ip4addr_t a, const char *rr, const struct dataset *ds, FILE *f);
 void dumpzone(const struct zone *z, FILE *f);
+void dump_ip6(const ip6oct_t *addr, unsigned wild_nibbles, const char *rr,
+              const struct dataset *ds, FILE *f);
+void dump_ip6range(const ip6oct_t *beg, const ip6oct_t *end, const char *rr,
+                   const struct dataset *ds, FILE *f);
 #endif
 #define TXTBUFSIZ 260
 int txtsubst(char txtbuf[TXTBUFSIZ], const char *template,

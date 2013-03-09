@@ -1,5 +1,14 @@
 rbldnsd (0.996b+ipv6) unstable; urgency=low
 
+  * feature: ip6trie - new dataset supports listing of arbitrary length
+    ip6 CIDRs, along with individual A/TXT values for each prefix
+
+  * rbldnsd_util.c(dump_ip6, dump_ip6range): new functions to support
+    zone dump of ip6 zones
+
+  * btrie.c: LC-TBM trie implementation; supports arbitrary length prefixes
+    in a memory- and cpu- efficient manner
+
   * configure: add test for __SIZEOF_POINTER__ - define if the compiler
     does not already do so
 

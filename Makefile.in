@@ -30,7 +30,7 @@ AWK = @AWK@
 #DEFS = -DNO_ZLIB
 #
 
-DEFS = 
+DEFS =
 LIBS = @LIBS@
 
 NAME = rbldnsd
@@ -51,14 +51,14 @@ LIBIP_GSRC =
 LIBIP_HDRS = ip4addr.h ip6addr.h
 LIBIP_OBJS = $(LIBIP_SRCS:.c=.o)
 
-LIB_SRCS = $(LIBDNS_SRCS) $(LIBIP_SRCS) mempool.c istream.c
-LIB_HDRS = $(LIBDNS_HDRS) $(LIBIP_HDRS) mempool.h istream.h
-LIB_OBJS = $(LIBDNS_OBJS) $(LIBIP_OBJS) mempool.o istream.o
+LIB_SRCS = $(LIBDNS_SRCS) $(LIBIP_SRCS) mempool.c istream.c btrie.c
+LIB_HDRS = $(LIBDNS_HDRS) $(LIBIP_HDRS) mempool.h istream.h btrie.h
+LIB_OBJS = $(LIBDNS_OBJS) $(LIBIP_OBJS) mempool.o istream.o btrie.o
 LIB_GSRC = $(LIBDNS_GSRC) $(LIBIP_GSRC)
 
 RBLDNSD_SRCS = rbldnsd.c rbldnsd_zones.c rbldnsd_packet.c \
   rbldnsd_ip4set.c rbldnsd_ip4tset.c rbldnsd_ip4trie.c \
-  rbldnsd_ip6tset.c rbldnsd_dnset.c \
+  rbldnsd_ip6tset.c rbldnsd_ip6trie.c rbldnsd_dnset.c \
   rbldnsd_generic.c rbldnsd_combined.c rbldnsd_acl.c \
   rbldnsd_util.c
 RBLDNSD_HDRS = rbldnsd.h
@@ -159,26 +159,34 @@ dns_findname.o: dns_findname.c dns.h
 ip4parse.o: ip4parse.c ip4addr.h config.h
 ip4atos.o: ip4atos.c ip4addr.h config.h
 ip4mask.o: ip4mask.c ip4addr.h config.h
+ip6addr.o: ip6addr.c ip6addr.h
 mempool.o: mempool.c mempool.h
 istream.o: istream.c config.h istream.h
-rbldnsd.o: rbldnsd.c rbldnsd.h config.h ip4addr.h dns.h mempool.h
-rbldnsd_zones.o: rbldnsd_zones.c rbldnsd.h config.h ip4addr.h dns.h \
-  mempool.h istream.h
-rbldnsd_packet.o: rbldnsd_packet.c rbldnsd.h config.h ip4addr.h dns.h \
-  mempool.h
-rbldnsd_ip4set.o: rbldnsd_ip4set.c rbldnsd.h config.h ip4addr.h dns.h \
-  mempool.h qsort.c
-rbldnsd_ip4tset.o: rbldnsd_ip4tset.c rbldnsd.h config.h ip4addr.h dns.h \
-  mempool.h qsort.c
-rbldnsd_ip4trie.o: rbldnsd_ip4trie.c rbldnsd.h config.h ip4addr.h dns.h \
-  mempool.h
-rbldnsd_dnset.o: rbldnsd_dnset.c rbldnsd.h config.h ip4addr.h dns.h \
-  mempool.h qsort.c
-rbldnsd_generic.o: rbldnsd_generic.c rbldnsd.h config.h ip4addr.h dns.h \
-  mempool.h qsort.c
-rbldnsd_combined.o: rbldnsd_combined.c rbldnsd.h config.h ip4addr.h dns.h \
-  mempool.h
-rbldnsd_acl.o: rbldnsd_acl.c rbldnsd.h config.h ip4addr.h dns.h mempool.h
-rbldnsd_util.o: rbldnsd_util.c rbldnsd.h config.h ip4addr.h dns.h \
-  mempool.h
+btrie.o: btrie.c btrie.h config.h mempool.h
+rbldnsd.o: rbldnsd.c rbldnsd.h config.h ip4addr.h ip6addr.h dns.h \
+ mempool.h
+rbldnsd_zones.o: rbldnsd_zones.c rbldnsd.h config.h ip4addr.h ip6addr.h \
+ dns.h mempool.h istream.h
+rbldnsd_packet.o: rbldnsd_packet.c rbldnsd.h config.h ip4addr.h ip6addr.h \
+ dns.h mempool.h
+rbldnsd_ip4set.o: rbldnsd_ip4set.c rbldnsd.h config.h ip4addr.h ip6addr.h \
+ dns.h mempool.h qsort.c
+rbldnsd_ip4tset.o: rbldnsd_ip4tset.c rbldnsd.h config.h ip4addr.h \
+ ip6addr.h dns.h mempool.h qsort.c
+rbldnsd_ip4trie.o: rbldnsd_ip4trie.c rbldnsd.h config.h ip4addr.h \
+ ip6addr.h dns.h mempool.h
+rbldnsd_ip6tset.o: rbldnsd_ip6tset.c rbldnsd.h config.h ip4addr.h \
+ ip6addr.h dns.h mempool.h qsort.c
+rbldnsd_ip6trie.o: rbldnsd_ip6trie.c rbldnsd.h config.h ip4addr.h \
+ ip6addr.h dns.h mempool.h btrie.h
+rbldnsd_dnset.o: rbldnsd_dnset.c rbldnsd.h config.h ip4addr.h ip6addr.h \
+ dns.h mempool.h qsort.c
+rbldnsd_generic.o: rbldnsd_generic.c rbldnsd.h config.h ip4addr.h \
+ ip6addr.h dns.h mempool.h qsort.c
+rbldnsd_combined.o: rbldnsd_combined.c rbldnsd.h config.h ip4addr.h \
+ ip6addr.h dns.h mempool.h
+rbldnsd_acl.o: rbldnsd_acl.c rbldnsd.h config.h ip4addr.h ip6addr.h dns.h \
+ mempool.h
+rbldnsd_util.o: rbldnsd_util.c rbldnsd.h config.h ip4addr.h ip6addr.h \
+ dns.h mempool.h
 dns_nametab.o: dns_nametab.c dns.h

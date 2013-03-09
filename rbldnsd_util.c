@@ -347,6 +347,94 @@ void dump_ip4range(ip4addr_t a, ip4addr_t b, const char *rr,
 
 }
 
+static inline unsigned
+ip6nibble(const ip6oct_t addr[IP6ADDR_FULL], unsigned i)
+{
+  ip6oct_t byte = addr[i / 2];
+  return (i % 2) ? (byte & 0xf) : (byte >> 4);
+}
+
+/* format DNS name for ip6 address (with some nibbles possibly wild-carded) */
+static const char *
+ip6name(const ip6oct_t *addr, unsigned wild_nibbles)
+{
+  static char hexdigits[] = "0123456789abcdef";
+  static char name[IP6ADDR_FULL * 4 + 2] = "*";
+  char *np = name + 1;
+  unsigned n = 32 - wild_nibbles;
+
+  /* don't write past end of buffer, even if passed invalid args */
+  if (n > 32) n = 32;
+  while (n-- > 0) {
+    *np++ = '.';
+    *np++ = hexdigits[ip6nibble(addr, n)];
+  }
+  *np = '\0';
+
+  return wild_nibbles ? name : name + 2;
+}
+
+/* dump an ip6 address, with some nibbles possible wild-carded */
+void
+dump_ip6(const ip6oct_t *addr, unsigned wild_nibbles, const char *rr,
+         const struct dataset *ds, FILE *f)
+{
+  const char *dns_name = ip6name(addr, wild_nibbles);
+  const char *ipsubst = NULL;
+
+  if (rr) {
+    /* careful: addr may point to a short array (e.g. IP6ADDR_HALF) */
+    ipsubst = ip6atos(addr, IP6ADDR_FULL - wild_nibbles / 2);
+  }
+  dump_a_txt(dns_name, rr, ipsubst, ds, f);
+}
+
+/* dump an ip6 address range.
+ *
+ * BEG is the first address in the range, END is one past the last
+ * address included in the range.  END = NULL means no end limit.
+ *
+ * NB: The semantics of END are different than for dump_ip4range!
+ */
+void
+dump_ip6range(const ip6oct_t *beg, const ip6oct_t *end, const char *rr,
+              const struct dataset *ds, FILE *f)
+{
+  ip6oct_t addr[IP6ADDR_FULL];
+
+  memcpy(addr, beg, IP6ADDR_FULL);
+  while (1) {
+    unsigned nwild, i;
+    unsigned maxwild = 32;
+    if (end) {
+      /* find first nibble of end which is greater than addr */
+      for (i = 0; i < 32; i++) {
+        if (ip6nibble(end, i) != ip6nibble(addr, i))
+          break;
+      }
+      if (i == 32 || ip6nibble(end, i) < ip6nibble(addr, i))
+        return;                   /* end <= addr */
+      /* we can only wildcard after this nibble */
+      maxwild = 31 - i;
+    }
+    /* can only wildcard nibbles where we're starting from zero */
+    for (nwild = 0; nwild < maxwild; nwild++)
+      if (ip6nibble(addr, 31 - nwild) != 0)
+        break;
+
+    dump_ip6(addr, nwild, rr, ds, f);
+
+    /* advance address to one past end of wildcarded range */
+    /* Increment right-most non-wildcarded nibble */
+    i = 15 -  nwild / 2;
+    addr[i] += (nwild % 2) ? 0x10 : 0x01;
+    while (addr[i] == 0) {      /* propagate carry */
+      if (i == 0) return;       /* wrapped */
+      addr[--i]++;
+    }
+  }
+}
+
 void
 dump_a_txt(const char *name, const char *rr,
            const char *subst, const struct dataset *ds, FILE *f) {

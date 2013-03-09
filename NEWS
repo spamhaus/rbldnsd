@@ -3,6 +3,9 @@ Newer news is at the top.
 
 Next Release
 
+ - feature: ip6trie - new dataset supports listing of arbitrary length
+   ip6 CIDRs, along with individual A/TXT values for each prefix
+
  - feature: ip6tset - new dataset supports listing of ip6 /64 subnets
    and the exclusion of /128 subnets; only supports a single A/TXT value
    for the entire dataset
