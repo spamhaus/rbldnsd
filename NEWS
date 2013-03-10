@@ -3,6 +3,8 @@ Newer news is at the top.
 
 Next Release
 
+ - feature: acl dataset - ip6 addresses are now supported in ACLs
+
  - optimization: ip4trie - using new trie implementation (developed for
    the ip6trie dataset) decreases memory consumption by roughly a factor
    of three

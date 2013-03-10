@@ -798,17 +798,18 @@ produces the following TXT records:
 .PP
 This is not a real dataset, while the syntax and usage is the same as
 with other datasets.  Instead of defining which records exists in a
-given zone and which does not,
+given zone and which do not, the
 .B acl
 dataset specifies which client hosts (peers) are allowed to query the
-given zone.  The dataset specifies a set of IPv4 address ranges
-(currently, IPv6 addresses are not supported) in a form of CIDRs
-(with the syntax exactly the same as understood by
+given zone.  The dataset specifies a set of IPv4 and/or IPv6 CIDR ranges
+(with the syntax exactly the same as understood by the
 .B ip4trie
-dataset), together with action specifiers.  When a query is made from
+and
+.B ip6trie
+datasets), together with action specifiers.  When a query is made from
 an IP address listed (not
 .I for
-the IP address), specified action changes rules used to construct the
+the IP address), the specified action changes rules used to construct the
 reply.  Possible actions and their meanings are:
 .IP :\fBignore\fR
 ignore all queries from this IP address altogether.

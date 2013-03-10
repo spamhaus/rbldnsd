@@ -4,6 +4,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+#include <syslog.h>
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
@@ -11,7 +12,10 @@
 #include "btrie.h"
 
 struct dsdata {
-  struct btrie *btrie;
+  struct btrie *ip4_trie;
+#ifndef NO_IPv6
+  struct btrie *ip6_trie;
+#endif
   const char *def_rr;
   const char *def_action;
 };
@@ -45,8 +49,12 @@ static void ds_acl_start(struct dataset *ds) {
 
   dsd->def_rr = def_rr;
   dsd->def_action = (char*)RR_IGNORE;
-  if (!dsd->btrie)
-    dsd->btrie = btrie_init(ds->ds_mp);
+  if (!dsd->ip4_trie) {
+    dsd->ip4_trie = btrie_init(ds->ds_mp);
+#ifndef NO_IPv6
+    dsd->ip6_trie = btrie_init(ds->ds_mp);
+#endif
+  }
 }
 
 static const char *keyword(const char *s) {
@@ -79,16 +87,25 @@ ds_acl_parse_val(char *s, const char **rr_p, struct dsdata *dsd,
   return r ? r : -1;
 }
 
+#define VALID_TAIL(c) ((c) == '\0' || ISSPACE(c) ||  ISCOMMENT(c) || (c) == ':')
+
 static int
 ds_acl_line(struct dataset *ds, char *s, struct dsctx *dsc) {
   struct dsdata *dsd = ds->ds_dsd;
-  ip4addr_t a;
-  btrie_oct_t addr_bytes[4];
+  char *tail;
+  ip4addr_t ip4addr;
+  ip6oct_t addr[IP6ADDR_FULL];
+  const char *ipstring;
+  struct btrie *trie;
   int bits;
   const char *rr;
   int rrl;
 
-  if (*s == ':' || *s == '=') {
+  /* "::" can not be a valid start to a default RR setting ("invalid A
+   * RR") but it can be a valid beginning to an ip6 address
+   * (e.g. "::1")
+   */
+  if ((*s == ':' && s[1] != ':') || *s == '=') {
     if ((rrl = ds_acl_parse_val(s, &rr, dsd, dsc)) < 0)
       return 1;
     else if (!rrl)
@@ -99,20 +116,37 @@ ds_acl_line(struct dataset *ds, char *s, struct dsctx *dsc) {
     return 1;
   }
 
-  if ((bits = ip4cidr(s, &a, &s)) <= 0 ||
-     (*s && !ISSPACE(*s) && !ISCOMMENT(*s) && *s != ':')) {
+  if ((bits = ip4cidr(s, &ip4addr, &tail)) > 0 && VALID_TAIL(tail[0])) {
+    if (accept_in_cidr)
+      ip4addr &= ip4mask(bits);
+    else if (ip4addr & ~ip4mask(bits)) {
+      dswarn(dsc, "invalid range (non-zero host part)");
+      return 1;
+    }
+    if (dsc->dsc_ip4maxrange && dsc->dsc_ip4maxrange <= ~ip4mask(bits)) {
+      dswarn(dsc, "too large range (%u) ignored (%u max)",
+             ~ip4mask(bits) + 1, dsc->dsc_ip4maxrange);
+      return 1;
+    }
+    trie = dsd->ip4_trie;
+    ip4unpack(addr, ip4addr);
+    ipstring = ip4atos(ip4addr);
+    s = tail;
+  }
+#ifndef NO_IPv6
+  else if ((bits = ip6cidr(s, addr, &tail)) >= 0 && VALID_TAIL(tail[0])) {
+    int non_zero_host = ip6mask(addr, addr, IP6ADDR_FULL, bits);
+    if (non_zero_host && !accept_in_cidr) {
+      dswarn(dsc, "invalid range (non-zero host part)");
+      return 1;
+    }
+    trie = dsd->ip6_trie;
+    ipstring = ip6atos(addr, IP6ADDR_FULL);
+    s = tail;
+  }
+#endif
+  else {
     dswarn(dsc, "invalid address");
-    return 1;
-  }
-  if (accept_in_cidr)
-    a &= ip4mask(bits);
-  else if (a & ~ip4mask(bits)) {
-    dswarn(dsc, "invalid range (non-zero host part)");
-    return 1;
-  }
-  if (dsc->dsc_ip4maxrange && dsc->dsc_ip4maxrange <= ~ip4mask(bits)) {
-    dswarn(dsc, "too large range (%u) ignored (%u max)",
-           ~ip4mask(bits) + 1, dsc->dsc_ip4maxrange);
     return 1;
   }
 
@@ -124,12 +158,11 @@ ds_acl_line(struct dataset *ds, char *s, struct dsctx *dsc) {
   else if (rrl && !(rr = mp_dmemdup(ds->ds_mp, rr, rrl)))
     return 0;
 
-  ip4unpack(addr_bytes, a);
-  switch(btrie_add_prefix(dsd->btrie, addr_bytes, bits, rr)) {
+  switch(btrie_add_prefix(trie, addr, bits, rr)) {
   case BTRIE_OKAY:
     return 1;
   case BTRIE_DUPLICATE_PREFIX:
-    dswarn(dsc, "duplicated entry for %s/%d", ip4atos(a), bits);
+    dswarn(dsc, "duplicated entry for %s/%d", ipstring, bits);
     return 1;
   case BTRIE_ALLOC_FAILED:
   default:
@@ -138,16 +171,37 @@ ds_acl_line(struct dataset *ds, char *s, struct dsctx *dsc) {
 }
 
 static void ds_acl_finish(struct dataset *ds, struct dsctx *dsc) {
-  dsloaded(dsc, "%s", btrie_stats(ds->ds_dsd->btrie));
+  dsloaded(dsc, "loaded");
+  dslog(LOG_INFO, dsc, "ip4 trie: %s", btrie_stats(ds->ds_dsd->ip4_trie));
+#ifndef NO_IPv6
+  dslog(LOG_INFO, dsc, "ip6 trie: %s", btrie_stats(ds->ds_dsd->ip6_trie));
+#endif
 }
 
 int ds_acl_query(const struct dataset *ds, struct dnspacket *pkt) {
-  const struct sockaddr_in *sin = (const struct sockaddr_in *)pkt->p_peer;
+  const struct sockaddr *sa = pkt->p_peer;
   const char *rr;
-  if (sin->sin_family != AF_INET || sizeof(*sin) > pkt->p_peerlen)
+
+  if (sa->sa_family == AF_INET) {
+    const struct sockaddr_in *sin = (const struct sockaddr_in *)pkt->p_peer;
+    if (pkt->p_peerlen < sizeof(*sin))
+      return 0;
+    rr = btrie_lookup(ds->ds_dsd->ip4_trie,
+                      (const btrie_oct_t *)&sin->sin_addr.s_addr, 32);
+  }
+#ifndef NO_IPv6
+  else if (sa->sa_family == AF_INET6) {
+    const struct sockaddr_in6 *sin6 = (const struct sockaddr_in6 *)pkt->p_peer;
+    if (pkt->p_peerlen < sizeof(*sin6))
+      return 0;
+    rr = btrie_lookup(ds->ds_dsd->ip6_trie,
+                      sin6->sin6_addr.s6_addr, 8 * IP6ADDR_FULL);
+  }
+#endif
+  else {
     return 0;
-  rr = btrie_lookup(ds->ds_dsd->btrie,
-                    (const btrie_oct_t *)&sin->sin_addr.s_addr, 32);
+  }
+
   switch((unsigned long)rr) {
   case 0: return 0;
   case RR_IGNORE:	return NSQUERY_IGNORE;

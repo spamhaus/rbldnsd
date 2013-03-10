@@ -1,5 +1,7 @@
 rbldnsd (0.996b+ipv6) unstable; urgency=low
 
+  * rbldnsd_acl.c: add support for ip6 addresses in ACLs
+
   * rbldnsd_util.c: delete the (now unused) ip4trie code
 
   * rbldnsd_acl.c: use new LC-TBM trie implementation
