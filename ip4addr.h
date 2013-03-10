@@ -47,4 +47,24 @@ extern const ip4addr_t ip4addr_cidr_netmasks[33];
 
 #define IP4A_LOOPBACK 0x7f000000
 
+
+/* ip4unpack(bytes, a)
+ *
+ * Unpack ip4addr_t to an array of (four) bytes
+ */
+#ifndef inline /* compiler supports 'inline' */
+static inline void
+ip4unpack(unsigned char bytes[4], ip4addr_t a) {
+  bytes[0] = (unsigned char)(a >> 24);
+  bytes[1] = (unsigned char)(a >> 16);
+  bytes[2] = (unsigned char)(a >> 8);
+  bytes[3] = (unsigned char)a;
+}
+#else /* inline macro defined - compiler may not support 'inline' */
+# define ip4unpack(bytes, a) ( bytes[0] = (unsigned char)(a >> 24),     \
+                               bytes[1] = (unsigned char)(a >> 16),     \
+                               bytes[2] = (unsigned char)(a >> 8),      \
+                               bytes[3] = (unsigned char)a )
+#endif
+
 #endif

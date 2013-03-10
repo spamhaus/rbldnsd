@@ -3,6 +3,10 @@ Newer news is at the top.
 
 Next Release
 
+ - optimization: ip4trie - using new trie implementation (developed for
+   the ip6trie dataset) decreases memory consumption by roughly a factor
+   of three
+
  - feature: ip6trie - new dataset supports listing of arbitrary length
    ip6 CIDRs, along with individual A/TXT values for each prefix
 

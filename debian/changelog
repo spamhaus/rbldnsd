@@ -1,5 +1,9 @@
 rbldnsd (0.996b+ipv6) unstable; urgency=low
 
+  * rbldnsd_ip4trie.c: use new LC-TBM trie implementation instead of
+    the previous ip4trie; this decreased the memory consumption of
+    this dataset by roughly a factor of three
+
   * rbldnsd_ip6tset.c: use new dump_ip6()
 
   * Makefile.in: add 'check' target to run btrie.c self-tests and new

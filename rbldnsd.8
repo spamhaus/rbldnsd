@@ -509,13 +509,17 @@ additional information for a specific IP address.
 
 .SS "ip4trie Dataset"
 .PP
-Set of IP4 CIDR ranges with corresponding (A, TXT) values.  Similar to
-ip4set, but uses different internal representation (implemented as a
-patricia trie), accepts CIDR ranges only (not a.b.c.d\-e.f.g.h), allows
-to specify only one value per CIDR range, and returns only one, most
-close matching, entry on queries.  Exclusions are supported too.  This
-dataset is not memory-efficient to store many single IP addresses, but
-it is ok to use it to store many possible wide CIDR ranges.
+Set of IP4 CIDR ranges with corresponding (A, TXT) values.  This
+dataset is similar to ip4set, but uses a different internal
+representation.  It accepts CIDR ranges only (not a.b.c.d\-e.f.g.h),
+and allows for the specification of A/TXT values on a per CIDR range
+basis.  (If multiple CIDR ranges match a query, the value for longest
+matching prefix is returned.)  Exclusions are supported too.
+.PP
+This dataset is not particularly memory-efficient for storing many
+single IP addresses \(em it uses about 50% more memory than the ip4set
+dataset in that case.  The ip4trie dataset is better adapted, however,
+for listing CIDR ranges (whose lengths are not a multiple of 8 bits.)
 
 .SS "ip4tset Dataset"
 .PP

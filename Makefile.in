@@ -204,7 +204,7 @@ rbldnsd_ip4set.o: rbldnsd_ip4set.c rbldnsd.h config.h ip4addr.h ip6addr.h \
 rbldnsd_ip4tset.o: rbldnsd_ip4tset.c rbldnsd.h config.h ip4addr.h \
  ip6addr.h dns.h mempool.h qsort.c
 rbldnsd_ip4trie.o: rbldnsd_ip4trie.c rbldnsd.h config.h ip4addr.h \
- ip6addr.h dns.h mempool.h
+ ip6addr.h dns.h mempool.h btrie.h
 rbldnsd_ip6tset.o: rbldnsd_ip6tset.c rbldnsd.h config.h ip4addr.h \
  ip6addr.h dns.h mempool.h qsort.c
 rbldnsd_ip6trie.o: rbldnsd_ip6trie.c rbldnsd.h config.h ip4addr.h \

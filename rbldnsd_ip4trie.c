@@ -6,14 +6,10 @@
 #include <string.h>
 #include <stdlib.h>
 #include "rbldnsd.h"
-
-/* for exclusions, we're using special pointer
- * to distinguish exclusions from glue nodes
- * which have node->data == NULL */
-#define excluded_rr ((const char*)1)
+#include "btrie.h"
 
 struct dsdata {
-  struct ip4trie trie;
+  struct btrie *btrie;
   const char *def_rr;	/* default RR */
 };
 
@@ -24,17 +20,21 @@ static void ds_ip4trie_reset(struct dsdata *dsd, int UNUSED unused_freeall) {
 }
 
 static void ds_ip4trie_start(struct dataset *ds) {
-  ds->ds_dsd->def_rr = def_rr;
+  struct dsdata *dsd = ds->ds_dsd;
+
+  dsd->def_rr = def_rr;
+  if (!dsd->btrie)
+    dsd->btrie = btrie_init(ds->ds_mp);
 }
 
 static int
 ds_ip4trie_line(struct dataset *ds, char *s, struct dsctx *dsc) {
   struct dsdata *dsd = ds->ds_dsd;
   ip4addr_t a;
+  btrie_oct_t addr_bytes[4];
   int bits;
   const char *rr;
   unsigned rrl;
-  struct ip4trie_node *node;
 
   int not;
 
@@ -69,7 +69,7 @@ ds_ip4trie_line(struct dataset *ds, char *s, struct dsctx *dsc) {
     return 1;
   }
   if (not)
-    rr = excluded_rr;
+    rr = NULL;
   else {
     SKIPSPACE(s);
     if (!*s || ISCOMMENT(*s))
@@ -80,38 +80,36 @@ ds_ip4trie_line(struct dataset *ds, char *s, struct dsctx *dsc) {
       return 0;
   }
 
-  node = ip4trie_addnode(&dsd->trie, a, bits, ds->ds_mp);
-  if (!node)
-    return 0;
-
-  if (node->ip4t_data) {
+  ip4unpack(addr_bytes, a);
+  switch(btrie_add_prefix(dsd->btrie, addr_bytes, bits, rr)) {
+  case BTRIE_OKAY:
+    return 1;
+  case BTRIE_DUPLICATE_PREFIX:
     dswarn(dsc, "duplicated entry for %s/%d", ip4atos(a), bits);
     return 1;
+  case BTRIE_ALLOC_FAILED:
+  default:
+    return 0;                   /* oom */
   }
-  node->ip4t_data = rr;
-  ++dsd->trie.ip4t_nents;
-
-  return 1;
 }
 
 static void ds_ip4trie_finish(struct dataset *ds, struct dsctx *dsc) {
-  struct dsdata *dsd = ds->ds_dsd;
-  dsloaded(dsc, "ent=%u nodes=%u mem=%lu",
-           dsd->trie.ip4t_nents, dsd->trie.ip4t_nnodes,
-           (unsigned long)dsd->trie.ip4t_nnodes * sizeof(struct ip4trie_node));
+  dsloaded(dsc, "%s", btrie_stats(ds->ds_dsd->btrie));
 }
 
 static int
 ds_ip4trie_query(const struct dataset *ds, const struct dnsqinfo *qi,
                  struct dnspacket *pkt) {
   const char *rr;
+  btrie_oct_t addr_bytes[4];
 
   if (!qi->qi_ip4valid) return 0;
   check_query_overwrites(qi);
 
-  rr = ip4trie_lookup(&ds->ds_dsd->trie, qi->qi_ip4);
+  ip4unpack(addr_bytes, qi->qi_ip4);
+  rr = btrie_lookup(ds->ds_dsd->btrie, addr_bytes, 32);
 
-  if (!rr || rr == excluded_rr)
+  if (!rr)
     return 0;
 
   addrr_a_txt(pkt, qi->qi_tflag, rr,
@@ -121,38 +119,92 @@ ds_ip4trie_query(const struct dataset *ds, const struct dnsqinfo *qi,
 
 #ifndef NO_MASTER_DUMP
 
-static ip4addr_t
-ds_ip4trie_dump_node(const struct ip4trie_node *n,
-                     const struct ip4trie_node *super, ip4addr_t a,
-                     const struct dataset *ds, FILE *f) {
-  if (n->ip4t_data && (!super || super->ip4t_data != n->ip4t_data)) {
-     if (super && super->ip4t_data != excluded_rr && a < n->ip4t_prefix)
-       dump_ip4range(a, n->ip4t_prefix - 1, super->ip4t_data, ds, f);
-     a = n->ip4t_prefix;
-     super = n;
+static inline int
+increment_bit(ip4addr_t *addr, int bit)
+{
+  ip4addr_t mask = (ip4addr_t)1 << (31 - bit);
+  if (*addr & mask) {
+    *addr &= ~mask;
+    return 1;
+  } else {
+    *addr |= mask;
+    return 0;
   }
-  if (n->ip4t_left)
-    if ((a = ds_ip4trie_dump_node(n->ip4t_left, super, a, ds, f)) == 0)
-      return 0;
-  if (n->ip4t_right)
-    if ((a = ds_ip4trie_dump_node(n->ip4t_right, super, a, ds, f)) == 0)
-      return 0;
-  if (super == n) {
-    ip4addr_t b = n->ip4t_prefix | ~ip4mask(n->ip4t_bits);
-    if (a <= b && n->ip4t_data != excluded_rr)
-      dump_ip4range(a, b, n->ip4t_data, ds, f);
-    return b == 0xffffffffu ? 0 : b + 1;
+}
+
+struct dump_context {
+  const struct dataset *ds;
+  FILE *f;
+
+  ip4addr_t prev_addr;
+  const char *prev_rr;
+
+  /* Keep stack of data inherited from parent prefixes */
+  const void *parent_data[33];
+  unsigned depth;
+};
+
+static void
+dump_cb(const btrie_oct_t *prefix, unsigned len, const void *data, int post,
+        void *user_data)
+{
+  struct dump_context *ctx = user_data;
+  ip4addr_t addr;
+
+  if (len > 32)
+    return;                     /* paranoia */
+  addr = (prefix[0] << 24) + (prefix[1] << 16) + (prefix[2] << 8) + prefix[3];
+  addr &= len ? -((ip4addr_t)1 << (32 - len)) : 0;
+
+  if (post == 0) {
+    /* pre order visit (before child nodes are visited) */
+    /* push the inherited data stack down to our level */
+    for (; ctx->depth < len; ctx->depth++)
+      ctx->parent_data[ctx->depth + 1] = ctx->parent_data[ctx->depth];
+    ctx->parent_data[len] = data;
   }
-  else
-    return a;
+  else {
+    /* post order - restore RR at end of prefix */
+    unsigned carry_bits;
+    /* increment address to one past the end of the current prefix */
+    for (carry_bits = 0; carry_bits < len; carry_bits++)
+      if (increment_bit(&addr, len - 1 - carry_bits) == 0)
+        break;                  /* no carry */
+    if (carry_bits == len)
+      return;                   /* wrapped - all done */
+    /* look up the stack one level for each bit of carry to get
+     * the inherited data value at the incremented address */
+    ctx->depth = len - 1 - carry_bits;
+    data = ctx->parent_data[ctx->depth];
+  }
+
+  if (data != ctx->prev_rr) {
+    if (addr != ctx->prev_addr) {
+      if (ctx->prev_rr)
+        dump_ip4range(ctx->prev_addr, addr - 1, ctx->prev_rr, ctx->ds, ctx->f);
+      ctx->prev_addr = addr;
+    }
+    /* else addr unchanged => zero-length range, ignore */
+    ctx->prev_rr = data;
+  }
+  /* else rr unchanged => merge current range with previous */
 }
 
 static void
 ds_ip4trie_dump(const struct dataset *ds,
                 const unsigned char UNUSED *unused_odn,
-                FILE *f) {
-  if (ds->ds_dsd->trie.ip4t_root)
-    ds_ip4trie_dump_node(ds->ds_dsd->trie.ip4t_root, NULL, 0, ds, f);
+                FILE *f)
+{
+  struct dump_context ctx;
+
+  memset(&ctx, 0, sizeof(ctx));
+  ctx.ds = ds;
+  ctx.f = f;
+  btrie_walk(ds->ds_dsd->btrie, dump_cb, &ctx);
+
+  /* flush final range */
+  if (ctx.prev_rr)
+    dump_ip4range(ctx.prev_addr, ip4mask(32), ctx.prev_rr, ds, f);
 }
 
 #endif
