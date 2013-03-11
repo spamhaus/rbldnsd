@@ -12,7 +12,7 @@ else
   exit 1
 fi
 
-options="ipv6 stats master_dump zlib dso"
+options="ipv6 stats master_dump zlib dso asserts"
 
 for opt in $options; do
   eval enable_$opt=
@@ -25,7 +25,7 @@ fi
 enable() {
   opt=`echo "$1" | sed 's/^--[^-]*-//'`
   case "$opt" in
-    ipv6|stats|master_dump|zlib|dso) ;;
+    ipv6|stats|master_dump|zlib|dso|asserts) ;;
     master-dump) opt=master_dump ;;
     *) echo "configure: unrecognized option \`$1'" >&2; exit 1;;
   esac
@@ -52,6 +52,7 @@ Optional features (all enabled by default if system supports a feature):
   master-dump - enable/disable master-format (bind) dump support (-d option)
   zlib - zlib support
   dso - dynamic extensions (using shared objects) -- disabled by default
+  asserts - enable/disable debugging assertions -- disabled by default
 EOF
       exit 0
       ;;
@@ -337,6 +338,9 @@ if [ n = "$enable_stats" ]; then
 fi
 if [ n = "$enable_master_dump" ]; then
   echo "#define NO_MASTER_DUMP	1	/* option disabled */" >>confdef.h
+fi
+if [ y != "$enable_asserts" ]; then
+  echo "#define NDEBUG		1	/* option disabled */" >>confdef.h
 fi
 
 ac_output Makefile

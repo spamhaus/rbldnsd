@@ -3,6 +3,10 @@ Newer news is at the top.
 
 Next Release
 
+ - feature: added --enable-asserts configure option to enable
+   compilation of debugging assertions; assertion checking is
+   disabled by default
+
  - featurette: zero-length "wildcard" IP4 CIDR prefixes are now
    allowed in ip4trie and acl datasets.
 
