@@ -11,6 +11,8 @@ except ImportError:
 
 from test_btrie import *
 from test_ip6trie import *
+from test_ip4trie import *
+from test_acl import *
 
 if __name__ == '__main__':
     unittest.main()

@@ -1,5 +1,8 @@
 rbldnsd (0.996b+ipv6) unstable; urgency=low
 
+  * tests/test_acl.py, tests/test_ip4trie.py: new, very basic, tests
+    for the acl and ip4trie datasets
+
   * rbldnsd_acl.c, rbldnsd_ip4trie.c: allow zero-length "wildcard" IP4
     CIDR prefixes
 
