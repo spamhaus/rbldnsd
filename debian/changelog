@@ -1,3 +1,11 @@
+rbldnsd (0.996b+ipv6) unstable; urgency=low
+
+  * feature: ip6tset - new dataset supports listing of ip6 /64 subnets and
+    the exclusion of /128 subnets; only supports a single A/TXT value for
+    the entire dataset
+
+ -- Jeff Dairiki <dairiki@dairiki.org>  Tue, 12 Mar 2013 07:19:10 -0700
+
 rbldnsd (0.996b) unstable; urgency=low
 
   * cleanup: #ifdefed dump_a_txt() properly so it will not be compiled

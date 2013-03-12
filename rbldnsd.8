@@ -527,6 +527,24 @@ similar, where each entry uses the same default A+TXT template.
 This dataset uses only half a memory for the same list of IP
 addresses compared to \fBip4set\fR.
 
+.SS "ip6tset Dataset"
+.PP
+"Trivial" ip6 dataset: a set of /64 IP6 CIDR ranges (one per line),
+all sharing a single A+TXT template.
+Exclusions of single IP6 (/128) addresses are also supported.
+This dataset type is quite memory-efficient but has obvious
+limitations.
+.PP
+This dataset wants the /64s listed as four ip6 words, for example:
+.nf
+  2001:20fe:23:41ed
+  abac:adab:ad00:42f
+.fi
+Exclusions are denoted with a leading exclamation mark, e.g.:
+.nf
+  !abac:adab:ad00:42f:face:0f:a:beef
+.fi
+
 .SS "dnset Dataset"
 .PP
 Set of (possible wildcarded) domain names with associated A and TXT values.
