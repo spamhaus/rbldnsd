@@ -9,6 +9,17 @@ import unittest
 
 from rbldnsd import Rbldnsd, ZoneFile
 
+__all__ = [
+    'Test_coalesce_lc_node',
+    'Test_shorten_lc_node',
+    'Test_convert_lc_node_1',
+    'Test_convert_lc_node',
+    'Test_insert_lc_node',
+    'Test_init_tbm_node',
+    'Test_add_to_trie',
+    'Test_search_trie',
+    ]
+
 def deduce_pointer_size(makefile='./Makefile'):
     """ Deduce the pointer size (in the current compilation environment)
     """

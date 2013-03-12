@@ -4,6 +4,10 @@ import unittest
 
 from rbldnsd import Rbldnsd, ZoneFile
 
+__all__ = [
+    'TestIp6TrieDataset',
+    ]
+
 def ip6trie(zone_data):
     """ Run rbldnsd with an ip6trie dataset
     """

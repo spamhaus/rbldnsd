@@ -11,6 +11,7 @@ AR = @AR@
 ARFLAGS = @ARFLAGS@
 RANLIB = @RANLIB@
 AWK = @AWK@
+PYTHON = python
 
 # Disable statistic counters
 #DEFS = -DNO_STATS
@@ -75,6 +76,8 @@ GSRC = $(LIB_GSRC)
 HDRS = $(LIB_HDRS) $(RBLDNSD_HDRS)
 DISTFILES = $(SRCS) $(HDRS) $(MISC)
 
+SELF_TESTS = btrie.test
+
 all: $(NAME)
 
 $(NAME): $(RBLDNSD_OBJS)
@@ -104,8 +107,10 @@ rbldnsd.o: rbldnsd.c debian/changelog
 
 clean:
 	-rm -f $(RBLDNSD_OBJS) $(LIB_OBJS) lib$(NAME).a $(GSRC) config.log
+	-rm -f $(SELF_TESTS)
+
 distclean: clean
-	-rm -f $(NAME) config.h Makefile config.status
+	-rm -f $(NAME) config.h Makefile config.status tests/*.py[co]
 
 spec:
 	@sed "s/^Version:.*/Version: $(VERSION)/" $(NAME).spec \
@@ -131,7 +136,8 @@ depend dep deps: $(SRCS) $(GSRC)
 	@echo Generating deps for:
 	@echo \ $(SRCS) $(GSRC)
 	@sed '/^# depend/q' Makefile.in > Makefile.tmp
-	@$(CC) $(CFLAGS) -MM $(SRCS) $(GSRC) >> Makefile.tmp
+	@$(CC) $(CFLAGS) -MM $(SRCS) $(GSRC) | \
+	  sed 's/^\(btrie\).o:/\1.o \1.test:/' >> Makefile.tmp
 	@set -e; \
 	if cmp Makefile.tmp Makefile.in ; then \
 	  echo Makefile.in unchanged; \
@@ -146,6 +152,30 @@ config.h Makefile: configure configure.lib Makefile.in debian/changelog
 	@echo
 	@echo Please rerun make >&2
 	@exit 1
+
+# tests
+.PHONY: check check-python-tests check-selftests
+
+
+check: check-selftests check-python-tests
+
+check-selftests: $(SELF_TESTS)
+	@set -e; for t in $(SELF_TESTS); do \
+	  echo =============================================================; \
+	  echo Running $$t; \
+	  ./$$t; \
+	done
+
+check-python-tests: $(NAME)
+	@echo =============================================================
+	@echo Running tests/all_tests.py
+	@$(PYTHON) tests/all_tests.py
+
+.SUFFIXES: .test
+
+.c.test:
+	$(CC) $(CFLAGS) $(DEFS) -DTEST -o $@ $<
+
 
 # depend
 dns_ptodn.o: dns_ptodn.c dns.h
@@ -162,7 +192,7 @@ ip4mask.o: ip4mask.c ip4addr.h config.h
 ip6addr.o: ip6addr.c ip6addr.h
 mempool.o: mempool.c mempool.h
 istream.o: istream.c config.h istream.h
-btrie.o: btrie.c btrie.h config.h mempool.h
+btrie.o btrie.test: btrie.c btrie.h config.h mempool.h
 rbldnsd.o: rbldnsd.c rbldnsd.h config.h ip4addr.h ip6addr.h dns.h \
  mempool.h
 rbldnsd_zones.o: rbldnsd_zones.c rbldnsd.h config.h ip4addr.h ip6addr.h \

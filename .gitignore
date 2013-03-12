@@ -5,3 +5,5 @@ dns_nametab.c
 Makefile
 config.*
 rbldnsd
+/btrie.test
+/tests/*.py[co]
