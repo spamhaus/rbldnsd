@@ -116,7 +116,7 @@ ds_acl_line(struct dataset *ds, char *s, struct dsctx *dsc) {
     return 1;
   }
 
-  if ((bits = ip4cidr(s, &ip4addr, &tail)) > 0 && VALID_TAIL(tail[0])) {
+  if ((bits = ip4cidr(s, &ip4addr, &tail)) >= 0 && VALID_TAIL(tail[0])) {
     if (accept_in_cidr)
       ip4addr &= ip4mask(bits);
     else if (ip4addr & ~ip4mask(bits)) {

@@ -3,6 +3,9 @@ Newer news is at the top.
 
 Next Release
 
+ - featurette: zero-length "wildcard" IP4 CIDR prefixes are now
+   allowed in ip4trie and acl datasets.
+
  - feature: acl dataset - ip6 addresses are now supported in ACLs
 
  - optimization: ip4trie - using new trie implementation (developed for

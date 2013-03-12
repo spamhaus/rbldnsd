@@ -1,5 +1,8 @@
 rbldnsd (0.996b+ipv6) unstable; urgency=low
 
+  * rbldnsd_acl.c, rbldnsd_ip4trie.c: allow zero-length "wildcard" IP4
+    CIDR prefixes
+
   * rbldnsd_acl.c: add support for ip6 addresses in ACLs
 
   * rbldnsd_util.c: delete the (now unused) ip4trie code
