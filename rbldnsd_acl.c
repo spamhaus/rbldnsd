@@ -8,9 +8,10 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include "rbldnsd.h"
+#include "btrie.h"
 
 struct dsdata {
-  struct ip4trie trie;
+  struct btrie *btrie;
   const char *def_rr;
   const char *def_action;
 };
@@ -40,8 +41,12 @@ static void ds_acl_reset(struct dsdata *dsd, int UNUSED unused_freeall) {
 }
 
 static void ds_acl_start(struct dataset *ds) {
-  ds->ds_dsd->def_rr = def_rr;
-  ds->ds_dsd->def_action = (char*)RR_IGNORE;
+  struct dsdata *dsd = ds->ds_dsd;
+
+  dsd->def_rr = def_rr;
+  dsd->def_action = (char*)RR_IGNORE;
+  if (!dsd->btrie)
+    dsd->btrie = btrie_init(ds->ds_mp);
 }
 
 static const char *keyword(const char *s) {
@@ -78,10 +83,10 @@ static int
 ds_acl_line(struct dataset *ds, char *s, struct dsctx *dsc) {
   struct dsdata *dsd = ds->ds_dsd;
   ip4addr_t a;
+  btrie_oct_t addr_bytes[4];
   int bits;
   const char *rr;
   int rrl;
-  struct ip4trie_node *node;
 
   if (*s == ':' || *s == '=') {
     if ((rrl = ds_acl_parse_val(s, &rr, dsd, dsc)) < 0)
@@ -119,25 +124,21 @@ ds_acl_line(struct dataset *ds, char *s, struct dsctx *dsc) {
   else if (rrl && !(rr = mp_dmemdup(ds->ds_mp, rr, rrl)))
     return 0;
 
-  node = ip4trie_addnode(&dsd->trie, a, bits, ds->ds_mp);
-  if (!node)
-     return 0;
-
-  if (node->ip4t_data) {
+  ip4unpack(addr_bytes, a);
+  switch(btrie_add_prefix(dsd->btrie, addr_bytes, bits, rr)) {
+  case BTRIE_OKAY:
+    return 1;
+  case BTRIE_DUPLICATE_PREFIX:
     dswarn(dsc, "duplicated entry for %s/%d", ip4atos(a), bits);
     return 1;
+  case BTRIE_ALLOC_FAILED:
+  default:
+    return 0;
   }
-  node->ip4t_data = rr;
-  ++dsd->trie.ip4t_nents;
-
-  return 1;
 }
 
 static void ds_acl_finish(struct dataset *ds, struct dsctx *dsc) {
-  struct dsdata *dsd = ds->ds_dsd;
-  dsloaded(dsc, "ent=%u nodes=%u mem=%lu",
-           dsd->trie.ip4t_nents, dsd->trie.ip4t_nnodes,
-           (unsigned long)dsd->trie.ip4t_nnodes * sizeof(struct ip4trie_node));
+  dsloaded(dsc, "%s", btrie_stats(ds->ds_dsd->btrie));
 }
 
 int ds_acl_query(const struct dataset *ds, struct dnspacket *pkt) {
@@ -145,7 +146,8 @@ int ds_acl_query(const struct dataset *ds, struct dnspacket *pkt) {
   const char *rr;
   if (sin->sin_family != AF_INET || sizeof(*sin) > pkt->p_peerlen)
     return 0;
-  rr = ip4trie_lookup(&ds->ds_dsd->trie, ntohl(sin->sin_addr.s_addr));
+  rr = btrie_lookup(ds->ds_dsd->btrie,
+                    (const btrie_oct_t *)&sin->sin_addr.s_addr, 32);
   switch((unsigned long)rr) {
   case 0: return 0;
   case RR_IGNORE:	return NSQUERY_IGNORE;

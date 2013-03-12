@@ -216,7 +216,7 @@ rbldnsd_generic.o: rbldnsd_generic.c rbldnsd.h config.h ip4addr.h \
 rbldnsd_combined.o: rbldnsd_combined.c rbldnsd.h config.h ip4addr.h \
  ip6addr.h dns.h mempool.h
 rbldnsd_acl.o: rbldnsd_acl.c rbldnsd.h config.h ip4addr.h ip6addr.h dns.h \
- mempool.h
+ mempool.h btrie.h
 rbldnsd_util.o: rbldnsd_util.c rbldnsd.h config.h ip4addr.h ip6addr.h \
  dns.h mempool.h
 dns_nametab.o: dns_nametab.c dns.h

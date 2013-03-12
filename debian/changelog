@@ -1,5 +1,9 @@
 rbldnsd (0.996b+ipv6) unstable; urgency=low
 
+  * rbldnsd_util.c: delete the (now unused) ip4trie code
+
+  * rbldnsd_acl.c: use new LC-TBM trie implementation
+
   * rbldnsd_ip4trie.c: use new LC-TBM trie implementation instead of
     the previous ip4trie; this decreased the memory consumption of
     this dataset by roughly a factor of three
