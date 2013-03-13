@@ -301,7 +301,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <setjmp.h>
-#include <assert.h>             /* FIXME: ? */
+#include <assert.h>
 
 #include "btrie.h"
 #include "mempool.h"
@@ -344,11 +344,12 @@
 
 typedef union node_u node_t;
 
-/* The tbm_node and lc_node structs must be packed so that the
- * n.is_lc of the lc_node struct coincides with bit zero (the
- * most significant bit) of tbm_node's int_bm.  (This bit is
- * how we differentiate between the two node types.  It is
- * always clear for a tbm_node and always set for an lc_node.)
+/* The tbm_node and lc_node structs must be packed so that the the
+ * high bit (LC_FLAGS_IS_LC) of lc_flags in the the lc_node struct
+ * coincides with bit zero (the most significant bit) of tbm_node's
+ * int_bm.  (This bit is how we differentiate between the two node
+ * types.  It is always clear for a tbm_node and always set for an
+ * lc_node.)
  */
 
 struct tbm_node {
@@ -366,20 +367,18 @@ struct tbm_node {
 };
 
 struct lc_node {
+  /* lc_flags contains the LC prefix length and a couple of bit flags
+   * (apparently char-sized bit fields are a gcc extension)
+   */
+# define LC_FLAGS_IS_LC       0x80
+# define LC_FLAGS_IS_TERMINAL 0x40
+# define LC_FLAGS_LEN_MASK    0x3f
 #ifdef WORDS_BIGENDIAN
-  struct {
-    btrie_oct_t    is_lc:1;         /* always set for LC node */
-    btrie_oct_t    is_terminal:1;
-    btrie_oct_t    len:6;
-  } n;
+  btrie_oct_t      lc_flags;
   btrie_oct_t      prefix[LC_BYTES_PER_NODE];
 #else
   btrie_oct_t      prefix[LC_BYTES_PER_NODE];
-  struct {
-    btrie_oct_t    len:6;
-    btrie_oct_t    is_terminal:1;
-    btrie_oct_t    is_lc:1;         /* always set for LC node */
-  } n;
+  btrie_oct_t      lc_flags;
 #endif
   union {
     node_t *child;            /* pointer to child (if !is_terminal) */
@@ -671,7 +670,6 @@ common_prefix(const btrie_oct_t *pfx1, const btrie_oct_t *pfx2, unsigned len)
   };
   unsigned nb;
 
-  /* XXX: binary search instead of linear search through bytes? */
   for (nb = 0; nb < len / 8; nb++) {
     unsigned diff = *pfx1++ ^ *pfx2++;
     if (diff != 0)
@@ -697,7 +695,7 @@ is_empty_node(const node_t *node)
 static inline int
 is_lc_node(const node_t *node)
 {
-  return node->lc_node.n.is_lc;
+  return (node->lc_node.lc_flags & LC_FLAGS_IS_LC) != 0;
 }
 
 static inline int
@@ -844,6 +842,35 @@ tbm_insert_ext_path(struct btrie *btrie, struct tbm_node *node, unsigned pfx)
 
 
 
+static inline int
+lc_is_terminal(const struct lc_node *node)
+{
+  return (node->lc_flags & LC_FLAGS_IS_TERMINAL) != 0;
+}
+
+static inline unsigned
+lc_len(const struct lc_node *node)
+{
+  return node->lc_flags & LC_FLAGS_LEN_MASK;
+}
+
+static inline void
+lc_init_flags(struct lc_node *node, int is_terminal, unsigned len)
+{
+  assert((len & ~LC_FLAGS_LEN_MASK) == 0);
+  node->lc_flags = LC_FLAGS_IS_LC | len;
+  if (is_terminal)
+    node->lc_flags |= LC_FLAGS_IS_TERMINAL;
+}
+
+static inline void
+lc_add_to_len(struct lc_node *node, int increment)
+{
+  unsigned new_len = lc_len(node) + increment;
+  assert((new_len & ~LC_FLAGS_LEN_MASK) == 0);
+  node->lc_flags = (node->lc_flags & ~LC_FLAGS_LEN_MASK) | new_len;
+}
+
 static inline unsigned
 lc_shift(unsigned pos)
 {
@@ -859,7 +886,7 @@ lc_base(unsigned pos)
 static inline unsigned
 lc_bits(const struct lc_node *node, unsigned pos)
 {
-  return pos % 8 + node->n.len;
+  return pos % 8 + lc_len(node);
 }
 
 static inline unsigned
@@ -873,6 +900,8 @@ lc_leading_bits(const struct lc_node *node, unsigned pos, unsigned nbits)
 {
   return extract_bits(node->prefix, pos % 8, nbits);
 }
+
+
 
 
 /* Initialize a new terminal LC node
@@ -889,19 +918,15 @@ init_terminal_node(struct btrie *btrie, node_t *dst, unsigned pos,
 
   while (nbytes - lc_shift(pos) > LC_BYTES_PER_NODE) {
     memcpy(node->prefix, prefix + lc_shift(pos), LC_BYTES_PER_NODE);
-    node->n.len = 8 * LC_BYTES_PER_NODE - pos % 8;
-    node->n.is_lc = 1;
-    node->n.is_terminal = 0;
+    lc_init_flags(node, 0, 8 * LC_BYTES_PER_NODE - pos % 8);
     node->ptr.child = alloc_nodes(btrie, 1, 0);
-    pos += node->n.len;
+    pos += lc_len(node);
     node = &node->ptr.child->lc_node;
     btrie->n_lc_nodes++;
   }
 
   memcpy(node->prefix, prefix + lc_shift(pos), nbytes - lc_shift(pos));
-  node->n.len = len - pos;
-  node->n.is_lc = 1;
-  node->n.is_terminal = 1;
+  lc_init_flags(node, 1, len - pos);
   node->ptr.data = data;
   btrie->n_lc_nodes++;
 }
@@ -913,19 +938,18 @@ init_terminal_node(struct btrie *btrie, node_t *dst, unsigned pos,
 static void
 coalesce_lc_node(struct btrie *btrie, struct lc_node *node, unsigned pos)
 {
-  while (! node->n.is_terminal
+  while (! lc_is_terminal(node)
          && lc_bits(node, pos) < 8 * LC_BYTES_PER_NODE
          && is_lc_node(node->ptr.child)) {
     struct lc_node *child = &node->ptr.child->lc_node;
     unsigned spare_bits = 8 * LC_BYTES_PER_NODE - lc_bits(node, pos);
-    unsigned end = pos + node->n.len;
+    unsigned end = pos + lc_len(node);
     unsigned shift = lc_shift(end) - lc_shift(pos);
-    if (child->n.len <= spare_bits) {
+    if (lc_len(child) <= spare_bits) {
       /* node plus child will fit in single node - merge */
       memcpy(node->prefix + shift, child->prefix,
              lc_bytes(child, end));
-      node->n.len += child->n.len;
-      node->n.is_terminal = child->n.is_terminal;
+      lc_init_flags(node, lc_is_terminal(child), lc_len(node) + lc_len(child));
       node->ptr = child->ptr;
       free_nodes(btrie, (node_t *)child, 1, 0);
       btrie->n_lc_nodes--;
@@ -935,15 +959,14 @@ coalesce_lc_node(struct btrie *btrie, struct lc_node *node, unsigned pos)
       unsigned cshift = lc_shift(end + spare_bits) - lc_shift(end);
 
       memcpy(node->prefix + shift, child->prefix, LC_BYTES_PER_NODE - shift);
-      node->n.len += spare_bits;
-
+      lc_add_to_len(node, spare_bits);
       if (cshift)
         memmove(child->prefix, child->prefix + cshift,
                 lc_bytes(child, end) - cshift);
-      assert(child->n.len > spare_bits);
-      child->n.len -= spare_bits;
+      assert(lc_len(child) > spare_bits);
+      lc_add_to_len(child, -spare_bits);
 
-      pos += node->n.len;
+      pos += lc_len(node);
       node = child;
     }
   }
@@ -961,10 +984,10 @@ shorten_lc_node(struct btrie *btrie, node_t *dst, unsigned pos,
                 struct lc_node *src, unsigned orig_pos)
 {
   assert(orig_pos < pos);
-  assert(src->n.len >= pos - orig_pos);
+  assert(lc_len(src) >= pos - orig_pos);
   assert(dst != (node_t *)src);
 
-  if (src->n.len == pos - orig_pos && !src->n.is_terminal) {
+  if (lc_len(src) == pos - orig_pos && !lc_is_terminal(src)) {
     /* just steal the child */
     node_t *child = src->ptr.child;
     *dst = *child;
@@ -977,13 +1000,13 @@ shorten_lc_node(struct btrie *btrie, node_t *dst, unsigned pos,
     if (shift) {
       memmove(node->prefix, src->prefix + shift,
               lc_bytes(src, orig_pos) - shift);
-      node->n = src->n;
+      node->lc_flags = src->lc_flags;
       node->ptr = src->ptr;
     }
     else {
       *node = *src;
     }
-    node->n.len -= pos - orig_pos;
+    lc_add_to_len(node, -(pos - orig_pos));
     coalesce_lc_node(btrie, node, pos);
   }
 }
@@ -997,11 +1020,10 @@ split_lc_node(struct btrie *btrie, struct lc_node *node, unsigned pos, unsigned 
 {
   node_t *child = alloc_nodes(btrie, 1, 0);
 
-  assert(node->n.len >= len);
+  assert(lc_len(node) >= len);
   shorten_lc_node(btrie, child, pos + len, node, pos);
 
-  node->n.is_terminal = 0;
-  node->n.len = len;
+  lc_init_flags(node, 0, len);
   node->ptr.child = child;
   btrie->n_lc_nodes++;
 }
@@ -1014,8 +1036,8 @@ convert_lc_node_1(struct btrie *btrie, struct lc_node *node, unsigned pos)
   node_t *child = node->ptr.child;
   node_t *left, *right;
 
-  assert(node->n.len == 1);
-  assert(!node->n.is_terminal);
+  assert(lc_len(node) == 1);
+  assert(!lc_is_terminal(node));
 
   if (extract_bit(node->prefix, pos % 8))
     left = NULL, right = child;
@@ -1030,7 +1052,7 @@ convert_lc_node_1(struct btrie *btrie, struct lc_node *node, unsigned pos)
 static void
 convert_lc_node(struct btrie *btrie, struct lc_node *node, unsigned pos)
 {
-  unsigned len = node->n.len;
+  unsigned len = lc_len(node);
 
   if (len >= TBM_STRIDE) {
     unsigned pfx = lc_leading_bits(node, pos, TBM_STRIDE);
@@ -1044,7 +1066,7 @@ convert_lc_node(struct btrie *btrie, struct lc_node *node, unsigned pos)
     btrie->n_lc_nodes--;
     btrie->n_tbm_nodes++;
   }
-  else if (node->n.is_terminal) {
+  else if (lc_is_terminal(node)) {
     /* convert short terminal LC to TBM (with internal data) */
     unsigned pfx = lc_leading_bits(node, pos, len);
     const void *data = node->ptr.data;
@@ -1078,15 +1100,13 @@ insert_lc_node(struct btrie *btrie, node_t *dst, unsigned pos,
     /* optimization: LC tail has room for the extra bit (without shifting) */
     assert((tail->lc_node.prefix[0] & mask) == bit);
     *node = tail->lc_node;
-    node->n.len += 1;
+    lc_add_to_len(node, 1);
     return;
   }
 
   /* add new leading LC node of len 1 */
-  node->prefix[0] = pbyte | bit; /* XXX: mask out high bits of pbyte? */
-  node->n.len = 1;
-  node->n.is_lc = 1;
-  node->n.is_terminal = 0;
+  node->prefix[0] = pbyte | bit;
+  lc_init_flags(node, 0, 1);
   node->ptr.child = alloc_nodes(btrie, 1, 0);
   node->ptr.child[0] = *tail;
   btrie->n_lc_nodes++;
@@ -1132,9 +1152,9 @@ init_tbm_node(struct btrie *btrie, node_t *dst, unsigned pos,
   tbm_bitmap_t int_bm = 0;
   unsigned i, d, pfx_base;
 
-  if (left && is_lc_node(left) && left->lc_node.n.len < TBM_STRIDE)
+  if (left && is_lc_node(left) && lc_len(&left->lc_node) < TBM_STRIDE)
     convert_lc_node(btrie, &left->lc_node, pos + 1);
-  if (right && is_lc_node(right) && right->lc_node.n.len < TBM_STRIDE)
+  if (right && is_lc_node(right) && lc_len(&right->lc_node) < TBM_STRIDE)
     convert_lc_node(btrie, &right->lc_node, pos + 1);
 
   /* set internal data for root prefix */
@@ -1193,11 +1213,8 @@ init_tbm_node(struct btrie *btrie, node_t *dst, unsigned pos,
 
           ext_bm |= bit(pfx);
           if (left_ext == NULL && right_ext == NULL) {
-            /* FIXME: abstract */
             /* only have data - set ext_path to zero-length terminal LC node */
-            ext_path->lc_node.n.is_lc = 1;
-            ext_path->lc_node.n.is_terminal = 1;
-            ext_path->lc_node.n.len = 0;
+            lc_init_flags(&ext_path->lc_node, 1, 0);
             ext_path->lc_node.prefix[0] = npbyte;
             ext_path->lc_node.ptr.data = *data_p;
             btrie->n_lc_nodes++;
@@ -1246,23 +1263,23 @@ add_to_trie(struct btrie *btrie, node_t *node, unsigned pos,
   for (;;) {
     if (is_lc_node(node)) {
       struct lc_node *lc_node = &node->lc_node;
-      unsigned end = pos + lc_node->n.len;
+      unsigned end = pos + lc_len(lc_node);
       unsigned cbits = common_prefix(prefix + lc_shift(pos), lc_node->prefix,
                                      (len < end ? len : end) - lc_base(pos));
       unsigned clen = lc_base(pos) + cbits; /* position of first mismatch */
 
-      if (clen == end && !lc_node->n.is_terminal) {
+      if (clen == end && !lc_is_terminal(lc_node)) {
         /* matched entire prefix of LC node, proceed to child */
-        assert(lc_node->n.len > 0);
+        assert(lc_len(lc_node) > 0);
         node = lc_node->ptr.child;
         pos = end;
       }
-      else if (clen == end && len == end && lc_node->n.is_terminal) {
+      else if (clen == end && len == end && lc_is_terminal(lc_node)) {
         /* exact match for terminal node - already have data for prefix */
         return BTRIE_DUPLICATE_PREFIX;
       }
       else {
-        assert(clen < end || (lc_node->n.is_terminal && len > end));
+        assert(clen < end || (lc_is_terminal(lc_node) && len > end));
         /* Need to insert new TBM node at clen */
         if (clen > pos) {
           split_lc_node(btrie, lc_node, pos, clen - pos);
@@ -1320,14 +1337,14 @@ search_trie(const node_t *node, unsigned pos,
   while (node) {
     if (is_lc_node(node)) {
       const struct lc_node *lc_node = &node->lc_node;
-      unsigned end = pos + lc_node->n.len;
+      unsigned end = pos + lc_len(lc_node);
       if (len < end)
         break;
       if (!prefixes_equal(prefix + lc_shift(pos), lc_node->prefix,
                           end - lc_base(pos)))
         break;
 
-      if (lc_node->n.is_terminal)
+      if (lc_is_terminal(lc_node))
         return lc_node->ptr.data; /* found terminal node */
 
       pos = end;
@@ -1442,7 +1459,7 @@ node_stats(const node_t *node, size_t depth, struct stats *stats)
 #ifndef NDEBUG
     stats->n_lc_nodes++;
 #endif
-    if (!node->lc_node.n.is_terminal)
+    if (!lc_is_terminal(&node->lc_node))
       node_stats(node->lc_node.ptr.child, depth + 1, stats);
 #ifndef NDEBUG
     else
@@ -1488,10 +1505,10 @@ const char *
 btrie_stats(const struct btrie *btrie)
 {
 #ifdef BTRIE_EXTENDED_STATS
-# define STATS_FMT ("ents=%zu tbm=%zu lc=%zu mem=%.0fk free=%zu waste=%zu" \
-                    " depth=%.1f/%zu")
+# define STATS_FMT ("ents=%lu tbm=%lu lc=%lu mem=%.0fk free=%lu waste=%lu" \
+                    " depth=%.1f/%lu")
 #else
-# define STATS_FMT "ents=%zu tbm=%zu lc=%zu mem=%.0fk free=%zu waste=%zu"
+# define STATS_FMT "ents=%lu tbm=%lu lc=%lu mem=%.0fk free=%lu waste=%lu"
 #endif
   static char buf[128];
   size_t n_nodes = btrie->n_lc_nodes + btrie->n_tbm_nodes;
@@ -1529,11 +1546,14 @@ btrie_stats(const struct btrie *btrie)
 #endif
 
   snprintf(buf, sizeof(buf), STATS_FMT,
-           btrie->n_entries, btrie->n_tbm_nodes, btrie->n_lc_nodes,
+           (long unsigned)btrie->n_entries,
+           (long unsigned)btrie->n_tbm_nodes,
+           (long unsigned)btrie->n_lc_nodes,
            (double)btrie->alloc_total / 1024,
-           alloc_free, btrie->alloc_waste
+           (long unsigned)alloc_free,
+           (long unsigned)btrie->alloc_waste
 #ifdef BTRIE_EXTENDED_STATS
-           , average_depth, stats.max_depth
+           , average_depth, (long unsigned)stats.max_depth
 #endif
            );
 
@@ -1604,7 +1624,7 @@ walk_lc_node(const struct lc_node *node, unsigned pos,
              struct walk_context *ctx)
 {
   btrie_oct_t *prefix = ctx->prefix;
-  unsigned end = pos + node->n.len;
+  unsigned end = pos + lc_len(node);
   btrie_oct_t save_prefix = prefix[lc_shift(pos)];
 
   if (end > BTRIE_MAX_PREFIX) {
@@ -1617,7 +1637,7 @@ walk_lc_node(const struct lc_node *node, unsigned pos,
   if (end % 8)
     prefix[end / 8] &= high_bits(end % 8);
 
-  if (node->n.is_terminal) {
+  if (lc_is_terminal(node)) {
     ctx->callback(prefix, end, node->ptr.data, 0, ctx->user_data);
     ctx->callback(prefix, end, node->ptr.data, 1, ctx->user_data);
   }
@@ -1724,7 +1744,7 @@ test_struct_node_packing()
    */
   memset(&node, 0, sizeof(node));
   CHECK(node.tbm_node.int_bm == 0);
-  node.lc_node.n.is_lc = 1;
+  lc_init_flags(&node.lc_node, 0, 0);
   CHECK(node.tbm_node.int_bm == bit(0));
 
   PASS("test_struct_node_packing");
@@ -1932,17 +1952,17 @@ static const btrie_oct_t numbered_bytes[] = {
 static void
 check_non_terminal_lc_node(struct lc_node *node, unsigned len)
 {
-  CHECK(node->n.is_lc);
-  CHECK(!node->n.is_terminal);
-  CHECK(node->n.len == len);
+  CHECK(is_lc_node((node_t *)node));
+  CHECK(!lc_is_terminal(node));
+  CHECK(lc_len(node) == len);
 }
 
 static void
 check_terminal_lc_node(struct lc_node *node, unsigned len, const void *data)
 {
-  CHECK(node->n.is_lc);
-  CHECK(node->n.is_terminal);
-  CHECK(node->n.len == len);
+  CHECK(is_lc_node((node_t *)node));
+  CHECK(lc_is_terminal(node));
+  CHECK(lc_len(node) == len);
   CHECK(node->ptr.data == data);
 }
 
@@ -2000,7 +2020,7 @@ test_coalesce_lc_node()
   init_terminal_node(btrie, &node, 0,
                      numbered_bytes, 8 * (LC_BYTES_PER_NODE + 1), data);
   check_non_terminal_lc_node(head, LC_BYTES_PER_NODE * 8);
-  node.lc_node.n.len -= 8;
+  lc_add_to_len(head, -8);
   coalesce_lc_node(btrie, head, 8);
   check_terminal_lc_node(head, LC_BYTES_PER_NODE * 8, data);
   CHECK(head->prefix[LC_BYTES_PER_NODE - 1]
@@ -2010,7 +2030,7 @@ test_coalesce_lc_node()
   init_terminal_node(btrie, &node, 0,
                      numbered_bytes, 8 * (2 * LC_BYTES_PER_NODE), data);
   check_non_terminal_lc_node(head, LC_BYTES_PER_NODE * 8);
-  node.lc_node.n.len -= 15;
+  lc_add_to_len(head, -15);
   coalesce_lc_node(btrie, head, 15);
   check_non_terminal_lc_node(head, LC_BYTES_PER_NODE * 8 - 7);
   CHECK(memcmp(head->prefix, numbered_bytes, LC_BYTES_PER_NODE - 1) == 0);
@@ -2056,9 +2076,7 @@ test_shorten_lc_node()
     struct lc_node head;
     node_t tail, shorter;
 
-    head.n.is_lc = 1;
-    head.n.is_terminal = 0;
-    head.n.len = 7;
+    lc_init_flags(&head, 0, 7);
     head.ptr.child = &tail;
     init_empty_node(btrie, &tail);
 
@@ -2098,9 +2116,7 @@ test_convert_lc_node_1()
   struct lc_node head;
 
   /* test tail is left */
-  head.n.is_lc = 1;
-  head.n.is_terminal = 0;
-  head.n.len = 1;
+  lc_init_flags(&head, 0, 1);
   head.prefix[0] = 0;
   head.ptr.child = alloc_nodes(btrie, 1, 0);
   init_terminal_node(btrie, head.ptr.child, 1, numbered_bytes, 1, data);
@@ -2114,9 +2130,7 @@ test_convert_lc_node_1()
   }
 
   /* test tail is right */
-  head.n.is_lc = 1;
-  head.n.is_terminal = 0;
-  head.n.len = 1;
+  lc_init_flags(&head, 0, 1);
   head.prefix[0] = 1;
   head.ptr.child = alloc_nodes(btrie, 1, 0);
   init_terminal_node(btrie, head.ptr.child, 8, numbered_bytes, 10, data);
@@ -2147,7 +2161,7 @@ test_convert_lc_node()
   CHECK(node.tbm_node.int_bm == 0);
   check_terminal_lc_node(&tbm_ext_path(&node.tbm_node, 0)->lc_node, 0, data);
 
-  /* if (node->n.is-terminal) */
+  /* if (lc_is_terminal(node)) */
   init_terminal_node(btrie, &node, 0, numbered_bytes, 0, data);
   convert_lc_node(btrie, &node.lc_node, 0);
   CHECK(is_tbm_node(&node));
@@ -2156,9 +2170,7 @@ test_convert_lc_node()
   CHECK(*tbm_data_p(&node.tbm_node, 0, 0) == data);
 
   /* else */
-  node.lc_node.n.is_lc = 1;
-  node.lc_node.n.is_terminal = 0;
-  node.lc_node.n.len = TBM_STRIDE - 1;
+  lc_init_flags(&node.lc_node, 0, TBM_STRIDE - 1);
   node.lc_node.prefix[0] = 0;
   node.lc_node.ptr.child = alloc_nodes(btrie, 1, 0);
   init_empty_node(btrie, node.lc_node.ptr.child);
@@ -2547,8 +2559,6 @@ dump_tbm_node(const struct tbm_node *node, unsigned pos,
   unsigned pfx = 0, plen = 0;
 
   dump_prefix(prefix, pos, indent, " [tbm]\n");
-  //printf(" int_bm=0x%08x\n", node->int_bm);
-  //printf(" ext_bm=0x%08x\n", node->ext_bm);
 
   for (;;) {
     if (plen < TBM_STRIDE) {
@@ -2581,12 +2591,12 @@ static void
 dump_lc_node(const struct lc_node *node, unsigned pos,
              btrie_oct_t *prefix, int indent)
 {
-  unsigned end = pos + node->n.len;
+  unsigned end = pos + lc_len(node);
   btrie_oct_t save_prefix = prefix[lc_shift(pos)];
 
   memcpy(&prefix[lc_shift(pos)], node->prefix, lc_bytes(node, pos));
 
-  if (node->n.is_terminal) {
+  if (lc_is_terminal(node)) {
     dump_prefix(prefix, end, indent, "");
     printf(" (%s)\n", (const char *)node->ptr.data);
   }

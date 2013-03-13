@@ -64,7 +64,7 @@ struct btrie * btrie_init(struct mempool *mp);
 enum btrie_result {
   BTRIE_OKAY = 0,
   BTRIE_ALLOC_FAILED = -1,
-  BTRIE_DUPLICATE_PREFIX = 1,
+  BTRIE_DUPLICATE_PREFIX = 1
 };
 
 enum btrie_result btrie_add_prefix(struct btrie *btrie,
