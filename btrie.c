@@ -1493,7 +1493,7 @@ btrie_stats(const struct btrie *btrie)
 #else
 # define STATS_FMT "ents=%zu tbm=%zu lc=%zu mem=%.0fk free=%zu waste=%zu"
 #endif
-  static char buf[strlen(STATS_FMT) + 64];
+  static char buf[128];
   size_t n_nodes = btrie->n_lc_nodes + btrie->n_tbm_nodes;
   size_t alloc_free = (btrie->alloc_total
                        + sizeof(node_t) /* do not double-count the root node */
