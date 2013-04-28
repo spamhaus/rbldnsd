@@ -1504,12 +1504,6 @@ count_free(const struct btrie *btrie)
 const char *
 btrie_stats(const struct btrie *btrie)
 {
-#ifdef BTRIE_EXTENDED_STATS
-# define STATS_FMT ("ents=%lu tbm=%lu lc=%lu mem=%.0fk free=%lu waste=%lu" \
-                    " depth=%.1f/%lu")
-#else
-# define STATS_FMT "ents=%lu tbm=%lu lc=%lu mem=%.0fk free=%lu waste=%lu"
-#endif
   static char buf[128];
   size_t n_nodes = btrie->n_lc_nodes + btrie->n_tbm_nodes;
   size_t alloc_free = (btrie->alloc_total
@@ -1545,7 +1539,12 @@ btrie_stats(const struct btrie *btrie)
   dump_alloc_hist(btrie);
 #endif
 
-  snprintf(buf, sizeof(buf), STATS_FMT,
+  snprintf(buf, sizeof(buf),
+           "ents=%lu tbm=%lu lc=%lu mem=%.0fk free=%lu waste=%lu"
+#ifdef BTRIE_EXTENDED_STATS
+           " depth=%.1f/%lu"
+#endif
+           ,
            (long unsigned)btrie->n_entries,
            (long unsigned)btrie->n_tbm_nodes,
            (long unsigned)btrie->n_lc_nodes,
