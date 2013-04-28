@@ -301,6 +301,10 @@
 #include <stdlib.h>
 #include <string.h>
 #include <setjmp.h>
+#if defined(TEST) && defined(NDEBUG)
+# warning undefining NDEBUG for TEST build
+# undef NDEBUG
+#endif
 #include <assert.h>
 
 #include "btrie.h"
@@ -1698,19 +1702,6 @@ mp_alloc(UNUSED struct mempool *mp, unsigned sz, UNUSED int align)
 }
 
 
-/* Define our own version of assert(), mostly so that the tests still
- * get checked even under -DNDEBUG.
- */
-#if defined __STDC_VERSION__ && __STDC_VERSION__ >= 199901L
-# define CHECK(expr) ( (expr)                                           \
-                       ? (void)0                                        \
-                       : report_failure(#expr, __LINE__, __func__) )
-#else
-# define CHECK(expr) ( (expr)                                           \
-                       ? (void)0                                        \
-                       : report_failure(#expr, __LINE__, NULL) )
-#endif
-
 #if 0
 # define PASS(name) puts("OK " name)
 #else
@@ -1720,31 +1711,21 @@ mp_alloc(UNUSED struct mempool *mp, unsigned sz, UNUSED int align)
 const char * pgm_name = "???";
 
 static void
-report_failure(const char *expr, unsigned line, const char *func)
-{
-  printf("\n%s: %s:%u: ", pgm_name, __FILE__, line);
-  if (func)
-    printf("%s: ", func);
-  printf("check `%s' failed\n", expr);
-  abort();
-}
-
-static void
 test_struct_node_packing()
 {
   node_t node;
 
-  CHECK(sizeof(struct tbm_node) == 2 * sizeof(void *));
-  CHECK(sizeof(struct lc_node) == 2 * sizeof(void *));
-  CHECK(sizeof(node_t) == 2 * sizeof(void *));
+  assert(sizeof(struct tbm_node) == 2 * sizeof(void *));
+  assert(sizeof(struct lc_node) == 2 * sizeof(void *));
+  assert(sizeof(node_t) == 2 * sizeof(void *));
 
   /* The lc_node bit must be an alias for bit zero of int_bm, since
    * that is the only unused bit in the TBM node structure.
    */
   memset(&node, 0, sizeof(node));
-  CHECK(node.tbm_node.int_bm == 0);
+  assert(node.tbm_node.int_bm == 0);
   lc_init_flags(&node.lc_node, 0, 0);
-  CHECK(node.tbm_node.int_bm == bit(0));
+  assert(node.tbm_node.int_bm == bit(0));
 
   PASS("test_struct_node_packing");
 }
@@ -1755,9 +1736,9 @@ test_bit()
   tbm_bitmap_t ones = ~(tbm_bitmap_t)0;
   tbm_bitmap_t high_bit = ones ^ (ones >> 1);
 
-  CHECK(bit(0) == high_bit);
-  CHECK(bit(1) == high_bit >> 1);
-  CHECK(bit(8 * sizeof(tbm_bitmap_t) - 1) == 1);
+  assert(bit(0) == high_bit);
+  assert(bit(1) == high_bit >> 1);
+  assert(bit(8 * sizeof(tbm_bitmap_t) - 1) == 1);
   PASS("test_bit");
 }
 
@@ -1767,21 +1748,21 @@ test_count_bits()
   unsigned max_bits = sizeof(tbm_bitmap_t) * 8;
   tbm_bitmap_t ones = ~(tbm_bitmap_t)0;
 
-  CHECK(count_bits(0) == 0);
-  CHECK(count_bits(1) == 1);
-  CHECK(count_bits(2) == 1);
-  CHECK(count_bits(3) == 2);
-  CHECK(count_bits(ones) == max_bits);
-  CHECK(count_bits(~1) == max_bits - 1);
+  assert(count_bits(0) == 0);
+  assert(count_bits(1) == 1);
+  assert(count_bits(2) == 1);
+  assert(count_bits(3) == 2);
+  assert(count_bits(ones) == max_bits);
+  assert(count_bits(~1) == max_bits - 1);
 
   /* count_bits(0x5555....) */
-  CHECK(count_bits(ones / 3) == max_bits / 2);
+  assert(count_bits(ones / 3) == max_bits / 2);
   /* count_bits(0x3333...) */
-  CHECK(count_bits(ones / 5) == max_bits / 2);
+  assert(count_bits(ones / 5) == max_bits / 2);
   /* count_bits(0x0f0f...) */
-  CHECK(count_bits(ones / 17) == max_bits / 2);
+  assert(count_bits(ones / 17) == max_bits / 2);
   /* count_bits(0x1010...) */
-  CHECK(count_bits(ones / 255) == max_bits / 8);
+  assert(count_bits(ones / 255) == max_bits / 8);
 
   PASS("test_count_bits");
 }
@@ -1794,8 +1775,8 @@ test_count_bits_before()
   unsigned i;
 
   for (i = 0; i < max_bits; i++) {
-    CHECK(count_bits_before(0, i) == 0);
-    CHECK(count_bits_before(ones, i) == i);
+    assert(count_bits_before(0, i) == 0);
+    assert(count_bits_before(ones, i) == i);
   }
 
   PASS("test_count_bits_before");
@@ -1809,8 +1790,8 @@ test_count_bits_from()
   unsigned i;
 
   for (i = 0; i < max_bits; i++) {
-    CHECK(count_bits_from(0, i) == 0);
-    CHECK(count_bits_from(ones, i) == max_bits - i);
+    assert(count_bits_from(0, i) == 0);
+    assert(count_bits_from(ones, i) == max_bits - i);
   }
 
   PASS("test_count_bits_from");
@@ -1823,25 +1804,25 @@ test_extract_bits()
   unsigned i;
 
   for (i = 0; i < 32; i++)
-    CHECK(extract_bits(prefix, i, 0) == 0);
+    assert(extract_bits(prefix, i, 0) == 0);
 
   for (i = 0; i < 8; i++)
-    CHECK(extract_bits(prefix, i, 1) == 1);
+    assert(extract_bits(prefix, i, 1) == 1);
   for (i = 8; i < 16; i++)
-    CHECK(extract_bits(prefix, i, 1) == i % 2);
+    assert(extract_bits(prefix, i, 1) == i % 2);
   for (i = 16; i < 24; i++)
-    CHECK(extract_bits(prefix, i, 1) == (i + 1) % 2);
+    assert(extract_bits(prefix, i, 1) == (i + 1) % 2);
   for (i = 24; i < 32; i++)
-    CHECK(extract_bits(prefix, i, 1) == 0);
+    assert(extract_bits(prefix, i, 1) == 0);
 
 
-  CHECK(extract_bits(prefix, 2, 6) == 0x3f);
-  CHECK(extract_bits(prefix, 3, 6) == 0x3e);
-  CHECK(extract_bits(prefix, 4, 6) == 0x3d);
-  CHECK(extract_bits(prefix, 5, 6) == 0x3a);
-  CHECK(extract_bits(prefix, 6, 6) == 0x35);
-  CHECK(extract_bits(prefix, 7, 6) == 0x2a);
-  CHECK(extract_bits(prefix, 8, 6) == 0x15);
+  assert(extract_bits(prefix, 2, 6) == 0x3f);
+  assert(extract_bits(prefix, 3, 6) == 0x3e);
+  assert(extract_bits(prefix, 4, 6) == 0x3d);
+  assert(extract_bits(prefix, 5, 6) == 0x3a);
+  assert(extract_bits(prefix, 6, 6) == 0x35);
+  assert(extract_bits(prefix, 7, 6) == 0x2a);
+  assert(extract_bits(prefix, 8, 6) == 0x15);
 
   PASS("test_extract_bits");
 }
@@ -1849,15 +1830,15 @@ test_extract_bits()
 static void
 test_high_bits()
 {
-  CHECK(high_bits(0) == 0x00);
-  CHECK(high_bits(1) == 0x80);
-  CHECK(high_bits(2) == 0xc0);
-  CHECK(high_bits(3) == 0xe0);
-  CHECK(high_bits(4) == 0xf0);
-  CHECK(high_bits(5) == 0xf8);
-  CHECK(high_bits(6) == 0xfc);
-  CHECK(high_bits(7) == 0xfe);
-  CHECK(high_bits(8) == 0xff);
+  assert(high_bits(0) == 0x00);
+  assert(high_bits(1) == 0x80);
+  assert(high_bits(2) == 0xc0);
+  assert(high_bits(3) == 0xe0);
+  assert(high_bits(4) == 0xf0);
+  assert(high_bits(5) == 0xf8);
+  assert(high_bits(6) == 0xfc);
+  assert(high_bits(7) == 0xfe);
+  assert(high_bits(8) == 0xff);
   PASS("test_high_bits");
 }
 
@@ -1871,12 +1852,12 @@ test_prefixes_equal()
   memset(prefix2, 0xaa, LC_BYTES_PER_NODE);
 
   for (i = 0; i < 8 * LC_BYTES_PER_NODE; i++) {
-    CHECK(prefixes_equal(prefix1, prefix2, i));
+    assert(prefixes_equal(prefix1, prefix2, i));
     prefix1[i / 8] ^= 1 << (7 - i % 8);
-    CHECK(!prefixes_equal(prefix1, prefix2, 8 * LC_BYTES_PER_NODE));
-    CHECK(prefixes_equal(prefix1, prefix2, i));
+    assert(!prefixes_equal(prefix1, prefix2, 8 * LC_BYTES_PER_NODE));
+    assert(prefixes_equal(prefix1, prefix2, i));
     if (i + 1 < 8 * LC_BYTES_PER_NODE)
-      CHECK(!prefixes_equal(prefix1, prefix2, i + 1));
+      assert(!prefixes_equal(prefix1, prefix2, i + 1));
     prefix1[i / 8] ^= 1 << (7 - i % 8);
   }
   PASS("test_prefixes_equal");
@@ -1892,11 +1873,11 @@ test_common_prefix()
   memset(prefix2, 0x55, LC_BYTES_PER_NODE);
 
   for (i = 0; i < 8 * LC_BYTES_PER_NODE; i++) {
-    CHECK(common_prefix(prefix1, prefix2, i) == i);
+    assert(common_prefix(prefix1, prefix2, i) == i);
     prefix1[i / 8] ^= 1 << (7 - i % 8);
-    CHECK(common_prefix(prefix1, prefix2, 8 * LC_BYTES_PER_NODE) == i);
+    assert(common_prefix(prefix1, prefix2, 8 * LC_BYTES_PER_NODE) == i);
     if (i + 1 < 8 * LC_BYTES_PER_NODE)
-      CHECK(common_prefix(prefix1, prefix2, i+1) == i);
+      assert(common_prefix(prefix1, prefix2, i+1) == i);
     prefix1[i / 8] ^= 1 << (7 - i % 8);
   }
   PASS("test_common_prefix");
@@ -1906,13 +1887,13 @@ test_common_prefix()
 static void
 test_base_index()
 {
-  CHECK(base_index(0,0) == 1);
-  CHECK(base_index(0,1) == 2);
-  CHECK(base_index(1,1) == 3);
-  CHECK(base_index(0,2) == 4);
-  CHECK(base_index(1,2) == 5);
-  CHECK(base_index(2,2) == 6);
-  CHECK(base_index(3,2) == 7);
+  assert(base_index(0,0) == 1);
+  assert(base_index(0,1) == 2);
+  assert(base_index(1,1) == 3);
+  assert(base_index(0,2) == 4);
+  assert(base_index(1,2) == 5);
+  assert(base_index(2,2) == 6);
+  assert(base_index(3,2) == 7);
   PASS("test_base_index");
 }
 
@@ -1927,10 +1908,10 @@ test_has_internal_data()
       for (bi = base_index(pfx, plen); bi; bi >>= 1) {
         node.int_bm = bit(bi);
         ancestor_mask |= bit(bi);
-        CHECK(has_internal_data(&node, pfx, plen));
+        assert(has_internal_data(&node, pfx, plen));
       }
       node.int_bm = ~ancestor_mask;
-      CHECK(!has_internal_data(&node, pfx, plen));
+      assert(!has_internal_data(&node, pfx, plen));
     }
   }
   PASS("test_has_internal_data");
@@ -1951,18 +1932,18 @@ static const btrie_oct_t numbered_bytes[] = {
 static void
 check_non_terminal_lc_node(struct lc_node *node, unsigned len)
 {
-  CHECK(is_lc_node((node_t *)node));
-  CHECK(!lc_is_terminal(node));
-  CHECK(lc_len(node) == len);
+  assert(is_lc_node((node_t *)node));
+  assert(!lc_is_terminal(node));
+  assert(lc_len(node) == len);
 }
 
 static void
 check_terminal_lc_node(struct lc_node *node, unsigned len, const void *data)
 {
-  CHECK(is_lc_node((node_t *)node));
-  CHECK(lc_is_terminal(node));
-  CHECK(lc_len(node) == len);
-  CHECK(node->ptr.data == data);
+  assert(is_lc_node((node_t *)node));
+  assert(lc_is_terminal(node));
+  assert(lc_len(node) == len);
+  assert(node->ptr.data == data);
 }
 
 static void
@@ -1976,32 +1957,32 @@ test_init_terminal_node()
   init_terminal_node(btrie, &node, 0,
                      numbered_bytes, 8 * LC_BYTES_PER_NODE, data);
   check_terminal_lc_node(head, 8 * LC_BYTES_PER_NODE, data);
-  CHECK(memcmp(head->prefix, numbered_bytes, LC_BYTES_PER_NODE) == 0);
+  assert(memcmp(head->prefix, numbered_bytes, LC_BYTES_PER_NODE) == 0);
 
   init_terminal_node(btrie, &node, 7,
                      numbered_bytes, 8 * LC_BYTES_PER_NODE, data);
   check_terminal_lc_node(head, 8 * LC_BYTES_PER_NODE - 7, data);
-  CHECK(memcmp(head->prefix, numbered_bytes, LC_BYTES_PER_NODE) == 0);
+  assert(memcmp(head->prefix, numbered_bytes, LC_BYTES_PER_NODE) == 0);
 
   init_terminal_node(btrie, &node, 0,
                      numbered_bytes, 2 * 8 * LC_BYTES_PER_NODE, data);
   check_non_terminal_lc_node(head, 8 * LC_BYTES_PER_NODE);
-  CHECK(memcmp(head->prefix, numbered_bytes, LC_BYTES_PER_NODE) == 0);
+  assert(memcmp(head->prefix, numbered_bytes, LC_BYTES_PER_NODE) == 0);
   {
     struct lc_node *child = &head->ptr.child->lc_node;
     check_terminal_lc_node(child, 8 * LC_BYTES_PER_NODE, data);
-    CHECK(memcmp(child->prefix, &numbered_bytes[LC_BYTES_PER_NODE],
+    assert(memcmp(child->prefix, &numbered_bytes[LC_BYTES_PER_NODE],
                   LC_BYTES_PER_NODE) == 0);
   }
 
   init_terminal_node(btrie, &node, 15,
                      numbered_bytes, 8 * LC_BYTES_PER_NODE + 15, data);
   check_non_terminal_lc_node(head, 8 * LC_BYTES_PER_NODE - 7);
-  CHECK(memcmp(head->prefix, &numbered_bytes[1], LC_BYTES_PER_NODE) == 0);
+  assert(memcmp(head->prefix, &numbered_bytes[1], LC_BYTES_PER_NODE) == 0);
   {
     struct lc_node *child = &head->ptr.child->lc_node;
     check_terminal_lc_node(child, 7, data);
-    CHECK(child->prefix[0] == numbered_bytes[LC_BYTES_PER_NODE + 1]);
+    assert(child->prefix[0] == numbered_bytes[LC_BYTES_PER_NODE + 1]);
   }
 
   PASS("test_init_terminal_node");
@@ -2022,7 +2003,7 @@ test_coalesce_lc_node()
   lc_add_to_len(head, -8);
   coalesce_lc_node(btrie, head, 8);
   check_terminal_lc_node(head, LC_BYTES_PER_NODE * 8, data);
-  CHECK(head->prefix[LC_BYTES_PER_NODE - 1]
+  assert(head->prefix[LC_BYTES_PER_NODE - 1]
          == numbered_bytes[LC_BYTES_PER_NODE]);
 
   /* test bit stealing */
@@ -2032,13 +2013,13 @@ test_coalesce_lc_node()
   lc_add_to_len(head, -15);
   coalesce_lc_node(btrie, head, 15);
   check_non_terminal_lc_node(head, LC_BYTES_PER_NODE * 8 - 7);
-  CHECK(memcmp(head->prefix, numbered_bytes, LC_BYTES_PER_NODE - 1) == 0);
-  CHECK(head->prefix[LC_BYTES_PER_NODE - 1]
+  assert(memcmp(head->prefix, numbered_bytes, LC_BYTES_PER_NODE - 1) == 0);
+  assert(head->prefix[LC_BYTES_PER_NODE - 1]
          == numbered_bytes[LC_BYTES_PER_NODE]);
   {
     struct lc_node *child = &head->ptr.child->lc_node;
     check_terminal_lc_node(child, 8 * (LC_BYTES_PER_NODE - 1), data);
-    CHECK(memcmp(child->prefix, &numbered_bytes[LC_BYTES_PER_NODE + 1],
+    assert(memcmp(child->prefix, &numbered_bytes[LC_BYTES_PER_NODE + 1],
                   LC_BYTES_PER_NODE - 1) == 0);
   }
 
@@ -2058,7 +2039,7 @@ test_shorten_lc_node()
   memset(shorter.lc_node.prefix, 0xff, LC_BYTES_PER_NODE);
   shorten_lc_node(btrie, &shorter, 7, &node.lc_node, 0);
   check_terminal_lc_node(&shorter.lc_node, LC_BYTES_PER_NODE * 8 - 7, data);
-  CHECK(memcmp(shorter.lc_node.prefix, numbered_bytes, LC_BYTES_PER_NODE)
+  assert(memcmp(shorter.lc_node.prefix, numbered_bytes, LC_BYTES_PER_NODE)
          == 0);
 
   /* test shorten with shift */
@@ -2067,7 +2048,7 @@ test_shorten_lc_node()
   memset(shorter.lc_node.prefix, 0xff, LC_BYTES_PER_NODE);
   shorten_lc_node(btrie, &shorter, 9, &node.lc_node, 7);
   check_terminal_lc_node(&shorter.lc_node, LC_BYTES_PER_NODE * 8 - 9, data);
-  CHECK(memcmp(shorter.lc_node.prefix, &numbered_bytes[1],
+  assert(memcmp(shorter.lc_node.prefix, &numbered_bytes[1],
                 LC_BYTES_PER_NODE - 1) == 0);
 
   {
@@ -2080,7 +2061,7 @@ test_shorten_lc_node()
     init_empty_node(btrie, &tail);
 
     shorten_lc_node(btrie, &shorter, 7, &head, 0);
-    CHECK(is_empty_node(&shorter));
+    assert(is_empty_node(&shorter));
   }
 
   PASS("test_shorten_lc_node");
@@ -2122,10 +2103,10 @@ test_convert_lc_node_1()
   convert_lc_node_1(btrie, &head, 0);
   {
     node_t *result = (node_t *)&head;
-    CHECK(is_tbm_node(result));
-    CHECK(result->tbm_node.ext_bm == 0);
-    CHECK(result->tbm_node.int_bm == bit(base_index(0, 1)));
-    CHECK(*tbm_data_p(&result->tbm_node, 0, 1) == data);
+    assert(is_tbm_node(result));
+    assert(result->tbm_node.ext_bm == 0);
+    assert(result->tbm_node.int_bm == bit(base_index(0, 1)));
+    assert(*tbm_data_p(&result->tbm_node, 0, 1) == data);
   }
 
   /* test tail is right */
@@ -2136,10 +2117,10 @@ test_convert_lc_node_1()
   convert_lc_node_1(btrie, &head, 7);
   {
     node_t *result = (node_t *)&head;
-    CHECK(is_tbm_node(result));
-    CHECK(result->tbm_node.ext_bm == 0);
-    CHECK(result->tbm_node.int_bm == bit(base_index(4, 3)));
-    CHECK(*tbm_data_p(&result->tbm_node, 4, 3) == data);
+    assert(is_tbm_node(result));
+    assert(result->tbm_node.ext_bm == 0);
+    assert(result->tbm_node.int_bm == bit(base_index(4, 3)));
+    assert(*tbm_data_p(&result->tbm_node, 4, 3) == data);
   }
 
   PASS("test_convert_lc_node_1");
@@ -2155,18 +2136,18 @@ test_convert_lc_node()
   /* if (len >= TBM_STRIDE) */
   init_terminal_node(btrie, &node, 7, numbered_bytes, TBM_STRIDE + 7, data);
   convert_lc_node(btrie, &node.lc_node, 7);
-  CHECK(is_tbm_node(&node));
-  CHECK(node.tbm_node.ext_bm == bit(0));
-  CHECK(node.tbm_node.int_bm == 0);
+  assert(is_tbm_node(&node));
+  assert(node.tbm_node.ext_bm == bit(0));
+  assert(node.tbm_node.int_bm == 0);
   check_terminal_lc_node(&tbm_ext_path(&node.tbm_node, 0)->lc_node, 0, data);
 
   /* if (lc_is_terminal(node)) */
   init_terminal_node(btrie, &node, 0, numbered_bytes, 0, data);
   convert_lc_node(btrie, &node.lc_node, 0);
-  CHECK(is_tbm_node(&node));
-  CHECK(node.tbm_node.ext_bm == 0);
-  CHECK(node.tbm_node.int_bm == bit(base_index(0, 0)));
-  CHECK(*tbm_data_p(&node.tbm_node, 0, 0) == data);
+  assert(is_tbm_node(&node));
+  assert(node.tbm_node.ext_bm == 0);
+  assert(node.tbm_node.int_bm == bit(base_index(0, 0)));
+  assert(*tbm_data_p(&node.tbm_node, 0, 0) == data);
 
   /* else */
   lc_init_flags(&node.lc_node, 0, TBM_STRIDE - 1);
@@ -2176,10 +2157,10 @@ test_convert_lc_node()
   tbm_insert_data(btrie, &node.lc_node.ptr.child->tbm_node, 0, 0, data);
 
   convert_lc_node(btrie, &node.lc_node, 0);
-  CHECK(is_tbm_node(&node));
-  CHECK(node.tbm_node.ext_bm == 0);
-  CHECK(node.tbm_node.int_bm == bit(base_index(0, TBM_STRIDE - 1)));
-  CHECK(*tbm_data_p(&node.tbm_node, 0, TBM_STRIDE - 1) == data);
+  assert(is_tbm_node(&node));
+  assert(node.tbm_node.ext_bm == 0);
+  assert(node.tbm_node.int_bm == bit(base_index(0, TBM_STRIDE - 1)));
+  assert(*tbm_data_p(&node.tbm_node, 0, TBM_STRIDE - 1) == data);
 
   PASS("test_convert_lc_node");
 }
@@ -2195,27 +2176,27 @@ test_insert_lc_node()
   init_terminal_node(btrie, &tail, 9, numbered_bytes, 17, data);
   insert_lc_node(btrie, &node, 8, 0, 0, &tail);
   check_terminal_lc_node(&node.lc_node, 9, data);
-  CHECK(memcmp(node.lc_node.prefix, &numbered_bytes[1], 2) == 0);
+  assert(memcmp(node.lc_node.prefix, &numbered_bytes[1], 2) == 0);
 
   /* test optimized case, last_bit == 1 */
   init_terminal_node(btrie, &tail, 7, &numbered_bytes[0x12], 15, data);
   insert_lc_node(btrie, &node, 6, 0x10, 1, &tail);
   check_terminal_lc_node(&node.lc_node, 9, data);
-  CHECK(node.lc_node.prefix[0] == 0x12);
-  CHECK(node.lc_node.prefix[1] == 0x13);
+  assert(node.lc_node.prefix[0] == 0x12);
+  assert(node.lc_node.prefix[1] == 0x13);
 
   /* test with shift */
   init_terminal_node(btrie, &tail, 0, numbered_bytes, 8, data);
   insert_lc_node(btrie, &node, 7, 0x40, 1, &tail);
   check_terminal_lc_node(&node.lc_node, 9, data);
-  CHECK(node.lc_node.prefix[0] == 0x41);
-  CHECK(node.lc_node.prefix[1] == numbered_bytes[0]);
+  assert(node.lc_node.prefix[0] == 0x41);
+  assert(node.lc_node.prefix[1] == numbered_bytes[0]);
 
   /* test with TBM node */
   init_empty_node(btrie, &tail);
   insert_lc_node(btrie, &node, 6, 0x40, 0, &tail);
   check_non_terminal_lc_node(&node.lc_node, 1);
-  CHECK(is_tbm_node(node.lc_node.ptr.child));
+  assert(is_tbm_node(node.lc_node.ptr.child));
 
   PASS("test_insert_lc_node");
 }
@@ -2223,11 +2204,11 @@ test_insert_lc_node()
 static void
 test_next_pbyte()
 {
-  CHECK(next_pbyte(0xff, 0, 1) == 0x80 >> (TBM_STRIDE - 1));
-  CHECK(next_pbyte(0xff, 1, 1) == (0x80 | (0x80 >> TBM_STRIDE)));
-  CHECK(next_pbyte(0xff, 2, 1) == (0xc0 | (0x80 >> (TBM_STRIDE + 1))));
-  CHECK(next_pbyte(0xff, 8 - TBM_STRIDE, 1) == 0);
-  CHECK(next_pbyte(0xff, 9 - TBM_STRIDE, 1) == 0x80);
+  assert(next_pbyte(0xff, 0, 1) == 0x80 >> (TBM_STRIDE - 1));
+  assert(next_pbyte(0xff, 1, 1) == (0x80 | (0x80 >> TBM_STRIDE)));
+  assert(next_pbyte(0xff, 2, 1) == (0xc0 | (0x80 >> (TBM_STRIDE + 1))));
+  assert(next_pbyte(0xff, 8 - TBM_STRIDE, 1) == 0);
+  assert(next_pbyte(0xff, 9 - TBM_STRIDE, 1) == 0x80);
 
   PASS("test_next_pbyte");
 }
@@ -2242,10 +2223,10 @@ test_init_tbm_node()
 
   /* test root data */
   init_tbm_node(btrie, &node, 0, 0, &data, NULL, NULL);
-  CHECK(is_tbm_node(&node));
-  CHECK(node.tbm_node.ext_bm == 0);
-  CHECK(node.tbm_node.int_bm == bit(base_index(0, 0)));
-  CHECK(*tbm_data_p(&node.tbm_node, 0, 0) == data);
+  assert(is_tbm_node(&node));
+  assert(node.tbm_node.ext_bm == 0);
+  assert(node.tbm_node.int_bm == bit(base_index(0, 0)));
+  assert(*tbm_data_p(&node.tbm_node, 0, 0) == data);
 
   for (lr = 0; lr < 2; lr++) {
     node_t child;
@@ -2257,19 +2238,19 @@ test_init_tbm_node()
     /* test with long LC node child */
     init_terminal_node(btrie, &child, 1, numbered_bytes, TBM_STRIDE + 1, data);
     init_tbm_node(btrie, &node, 0, 0, NULL, left, right);
-    CHECK(is_tbm_node(&node));
-    CHECK(node.tbm_node.ext_bm == bit(base));
-    CHECK(node.tbm_node.int_bm == 0);
+    assert(is_tbm_node(&node));
+    assert(node.tbm_node.ext_bm == bit(base));
+    assert(node.tbm_node.int_bm == 0);
     check_terminal_lc_node(&tbm_ext_path(&node.tbm_node, base)->lc_node,
                             1, data);
 
     /* test with short LC node children */
     init_terminal_node(btrie, &child, 1, numbered_bytes, TBM_STRIDE - 1, data);
     init_tbm_node(btrie, &node, 0, 0, NULL, left, right);
-    CHECK(is_tbm_node(&node));
-    CHECK(node.tbm_node.ext_bm == 0);
-    CHECK(node.tbm_node.int_bm == bit(base_index(base >> 1, TBM_STRIDE-1)));
-    CHECK(*tbm_data_p(&node.tbm_node, base >> 1, TBM_STRIDE-1) == data);
+    assert(is_tbm_node(&node));
+    assert(node.tbm_node.ext_bm == 0);
+    assert(node.tbm_node.int_bm == bit(base_index(base >> 1, TBM_STRIDE-1)));
+    assert(*tbm_data_p(&node.tbm_node, base >> 1, TBM_STRIDE-1) == data);
 
     /* construct TBM node with all eight combinations of having data,
      * left_ext and/or right_ext in its extending paths */
@@ -2297,33 +2278,33 @@ test_init_tbm_node()
       unsigned base = lr ? (1U << (TBM_STRIDE - 1)) : 0;
       node_t *ext_path = tbm_ext_path(&node.tbm_node, base + pfx);
       if (pfx == 0)
-        CHECK(ext_path == NULL);
+        assert(ext_path == NULL);
       else if (pfx == 1)
         check_terminal_lc_node(&ext_path->lc_node, 0, data);
       else if (pfx == 2) {
         check_terminal_lc_node(&ext_path->lc_node, 2, data);
-        CHECK(ext_path->lc_node.prefix[0] == 0);
+        assert(ext_path->lc_node.prefix[0] == 0);
       }
       else if (pfx == 4) {
         check_terminal_lc_node(&ext_path->lc_node, 3, data);
-        CHECK(ext_path->lc_node.prefix[0] == (0x80 >> TBM_STRIDE));
+        assert(ext_path->lc_node.prefix[0] == (0x80 >> TBM_STRIDE));
       }
       else {
         tbm_bitmap_t int_bm = 0;
-        CHECK(is_tbm_node(ext_path));
+        assert(is_tbm_node(ext_path));
         if (pfx & 1) {
           int_bm |= bit(base_index(0, 0));
-          CHECK(*tbm_data_p(&ext_path->tbm_node, 0, 0) == data);
+          assert(*tbm_data_p(&ext_path->tbm_node, 0, 0) == data);
         }
         if (pfx & 2) {
           int_bm |= bit(base_index(0, 2));
-          CHECK(*tbm_data_p(&ext_path->tbm_node, 0, 2) == data);
+          assert(*tbm_data_p(&ext_path->tbm_node, 0, 2) == data);
         }
         if (pfx & 4) {
           int_bm |= bit(base_index(4, 3));
-          CHECK(*tbm_data_p(&ext_path->tbm_node, 4, 3) == data);
+          assert(*tbm_data_p(&ext_path->tbm_node, 4, 3) == data);
         }
-        CHECK(ext_path->tbm_node.int_bm == int_bm);
+        assert(ext_path->tbm_node.int_bm == int_bm);
       }
     }
   }
@@ -2344,7 +2325,7 @@ test_add_to_trie()
   init_empty_node(btrie, &root);
   result = add_to_trie(btrie, &root, 0,
                        numbered_bytes, 8 * 2 * LC_BYTES_PER_NODE, data);
-  CHECK(result == BTRIE_OKAY);
+  assert(result == BTRIE_OKAY);
   check_non_terminal_lc_node(&root.lc_node, 8 * LC_BYTES_PER_NODE);
   check_terminal_lc_node(&root.lc_node.ptr.child->lc_node,
                           8 * LC_BYTES_PER_NODE, data);
@@ -2352,21 +2333,21 @@ test_add_to_trie()
   /* test can follow LC node to tail, and then detect duplicate prefix */
   result = add_to_trie(btrie, &root, 0,
                        numbered_bytes, 8 * 2 * LC_BYTES_PER_NODE, data);
-  CHECK(result == BTRIE_DUPLICATE_PREFIX);
+  assert(result == BTRIE_DUPLICATE_PREFIX);
 
   /* test can insert new TBM node within existing LC node */
   result = add_to_trie(btrie, &root, 0,
                        &numbered_bytes[1], 16, data);
-  CHECK(result == BTRIE_OKAY);
+  assert(result == BTRIE_OKAY);
   check_non_terminal_lc_node(&root.lc_node, 7);
-  CHECK(is_tbm_node(root.lc_node.ptr.child));
+  assert(is_tbm_node(root.lc_node.ptr.child));
 
   /* test can convert terminal LC node to TBM node */
   init_terminal_node(btrie, &root, 0, numbered_bytes, 12, data);
   result = add_to_trie(btrie, &root, 0, numbered_bytes, 24, data);
-  CHECK(result == BTRIE_OKAY);
+  assert(result == BTRIE_OKAY);
   check_non_terminal_lc_node(&root.lc_node, 12);
-  CHECK(is_tbm_node(root.lc_node.ptr.child));
+  assert(is_tbm_node(root.lc_node.ptr.child));
 
   /* test can insert internal prefix data in TBM node */
   for (plen = 0; plen < TBM_STRIDE; plen++) {
@@ -2377,14 +2358,14 @@ test_add_to_trie()
                          TBM_STRIDE,
                          numbered_bytes, 8, data);
       result = add_to_trie(btrie, &root, 0, &prefix0, plen, data);
-      CHECK(result == BTRIE_OKAY);
-      CHECK(is_tbm_node(&root));
-      CHECK(root.tbm_node.ext_bm == bit(0));
-      CHECK(root.tbm_node.int_bm == bit(base_index(pfx, plen)));
-      CHECK(*tbm_data_p(&root.tbm_node, pfx, plen) == data);
+      assert(result == BTRIE_OKAY);
+      assert(is_tbm_node(&root));
+      assert(root.tbm_node.ext_bm == bit(0));
+      assert(root.tbm_node.int_bm == bit(base_index(pfx, plen)));
+      assert(*tbm_data_p(&root.tbm_node, pfx, plen) == data);
 
       result = add_to_trie(btrie, &root, 0, &prefix0, plen, data);
-      CHECK(result == BTRIE_DUPLICATE_PREFIX);
+      assert(result == BTRIE_DUPLICATE_PREFIX);
     }
   }
 
@@ -2394,15 +2375,15 @@ test_add_to_trie()
     init_empty_node(btrie, &root);
     tbm_insert_data(btrie, &root.tbm_node, 0, 0, data);
     result = add_to_trie(btrie, &root, 0, &prefix0, 8, data);
-    CHECK(result == BTRIE_OKAY);
-    CHECK(is_tbm_node(&root));
-    CHECK(root.tbm_node.ext_bm == bit(pfx));
-    CHECK(root.tbm_node.int_bm == bit(base_index(0, 0)));
+    assert(result == BTRIE_OKAY);
+    assert(is_tbm_node(&root));
+    assert(root.tbm_node.ext_bm == bit(pfx));
+    assert(root.tbm_node.int_bm == bit(base_index(0, 0)));
     check_terminal_lc_node(&tbm_ext_path(&root.tbm_node, pfx)->lc_node,
                             8 - TBM_STRIDE, data);
 
     result = add_to_trie(btrie, &root, 0, &prefix0, 8, data);
-    CHECK(result == BTRIE_DUPLICATE_PREFIX);
+    assert(result == BTRIE_DUPLICATE_PREFIX);
   }
 
   /* test can follow extending path */
@@ -2411,9 +2392,9 @@ test_add_to_trie()
                      tbm_insert_ext_path(btrie, &root.tbm_node, 0), TBM_STRIDE,
                      numbered_bytes, 8, data);
   result = add_to_trie(btrie, &root, 0, numbered_bytes, 7, data);
-  CHECK(result == BTRIE_OKAY);
-  CHECK(root.tbm_node.ext_bm == bit(0));
-  CHECK(root.tbm_node.int_bm == 0);
+  assert(result == BTRIE_OKAY);
+  assert(root.tbm_node.ext_bm == bit(0));
+  assert(root.tbm_node.int_bm == 0);
   check_non_terminal_lc_node(&root.tbm_node.ptr.children[0].lc_node,
                               7 - TBM_STRIDE);
 
@@ -2435,13 +2416,13 @@ test_search_trie()
   add_to_trie(btrie, &root, 0,
               numbered_bytes, 8 * 2 * LC_BYTES_PER_NODE, data);
 
-  CHECK(search_trie(&root, 0, numbered_bytes, 8 * 2 * LC_BYTES_PER_NODE)
+  assert(search_trie(&root, 0, numbered_bytes, 8 * 2 * LC_BYTES_PER_NODE)
          == data);
-  CHECK(search_trie(&root, 0, numbered_bytes, 8 * 2 * LC_BYTES_PER_NODE + 1)
+  assert(search_trie(&root, 0, numbered_bytes, 8 * 2 * LC_BYTES_PER_NODE + 1)
          == data);
-  CHECK(search_trie(&root, 0, numbered_bytes, 8 * 2 * LC_BYTES_PER_NODE - 1)
+  assert(search_trie(&root, 0, numbered_bytes, 8 * 2 * LC_BYTES_PER_NODE - 1)
          == NULL);
-  CHECK(search_trie(&root, 0, &numbered_bytes[1], 8 * 2 * LC_BYTES_PER_NODE)
+  assert(search_trie(&root, 0, &numbered_bytes[1], 8 * 2 * LC_BYTES_PER_NODE)
          == NULL);
 
   /* test can follow extending path to an exact match */
@@ -2451,17 +2432,17 @@ test_search_trie()
     tbm_insert_data(btrie, &root.tbm_node, 0, 1, data01);
     tbm_insert_data(btrie, &root.tbm_node, 1, 1, data11);
     add_to_trie(btrie, &root, 0, &prefix0, 8, data);
-    CHECK(search_trie(&root, 0, &prefix0, 8) == data);
+    assert(search_trie(&root, 0, &prefix0, 8) == data);
     /* test that last matching TBM internal prefix gets picked up */
     if (prefix0 & 0x80)
-      CHECK(search_trie(&root, 0, &prefix0, 7) == data11);
+      assert(search_trie(&root, 0, &prefix0, 7) == data11);
     else
-      CHECK(search_trie(&root, 0, &prefix0, 7) == data01);
+      assert(search_trie(&root, 0, &prefix0, 7) == data01);
     prefix0 ^= 1 << (8 - TBM_STRIDE);
     if (prefix0 & 0x80)
-      CHECK(search_trie(&root, 0, &prefix0, 8) == data11);
+      assert(search_trie(&root, 0, &prefix0, 8) == data11);
     else
-      CHECK(search_trie(&root, 0, &prefix0, 8) == data01);
+      assert(search_trie(&root, 0, &prefix0, 8) == data01);
   }
 
   /* test finding of TBM internal prefixes */
@@ -2469,14 +2450,14 @@ test_search_trie()
   tbm_insert_data(btrie, &root.tbm_node, 0, 1, data01);
   tbm_insert_data(btrie, &root.tbm_node, 1, 1, data11);
 
-  CHECK(search_trie(&root, 0, numbered_bytes, 0) == NULL);
+  assert(search_trie(&root, 0, numbered_bytes, 0) == NULL);
   for (plen = 1; plen < TBM_STRIDE; plen++) {
     for (pfx = 0; pfx < (1U << TBM_STRIDE); pfx++) {
       btrie_oct_t prefix0 = pfx << (8 - plen);
       if (prefix0 & 0x80)
-        CHECK(search_trie(&root, 0, &prefix0, plen) == data11);
+        assert(search_trie(&root, 0, &prefix0, plen) == data11);
       else
-        CHECK(search_trie(&root, 0, &prefix0, plen) == data01);
+        assert(search_trie(&root, 0, &prefix0, plen) == data01);
     }
   }
 
