@@ -29,6 +29,8 @@ PYTHON = python
 #DEFS = -DNO_MASTER_DUMP
 # To disable usage of zlib (also LIBS - for zlib, -lz is needed)
 #DEFS = -DNO_ZLIB
+# To disable asserts
+#DEFS = -DNDEBUG
 #
 
 DEFS =
