@@ -69,7 +69,7 @@ MISC = configure configure.lib \
   $(NAME).8 qsort.c Makefile.in dns_maketab.awk $(NAME).spec \
   NEWS TODO CHANGES-0.81 README.user \
   rbldnsd.py
-TESTS = $(shell test*.py)
+TESTS = tests.py $(wildcard test_*.py)
 DEBFILES  = debian/changelog debian/copyright debian/rules debian/control \
   debian/postinst debian/$(NAME).default debian/$(NAME).init
 
