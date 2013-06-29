@@ -1,20 +1,11 @@
 This file describes user-visible changes in rbldnsd.
 Newer news is at the top.
 
-Next Release
+0.997 (29 Jun 2013)
 
- - feature: added --enable-asserts configure option to enable
-   compilation of debugging assertions; assertion checking is
-   disabled by default
-
- - featurette: zero-length "wildcard" IP4 CIDR prefixes are now
-   allowed in ip4trie and acl datasets.
-
- - feature: acl dataset - ip6 addresses are now supported in ACLs
-
- - optimization: ip4trie - using new trie implementation (developed for
-   the ip6trie dataset) decreases memory consumption by roughly a factor
-   of three
+ - main feature of this version is ipv6 support.  Many thanks to
+   Geoffrey T. Dairiki for the implementation of btrie (btrie.c) which
+   is far superior to old ip4trie code and handles both v4 and v6
 
  - feature: ip6trie - new dataset supports listing of arbitrary length
    ip6 CIDRs, along with individual A/TXT values for each prefix
@@ -22,6 +13,19 @@ Next Release
  - feature: ip6tset - new dataset supports listing of ip6 /64 subnets
    and the exclusion of /128 subnets; only supports a single A/TXT value
    for the entire dataset
+
+ - optimization: ip4trie - using new trie implementation (developed for
+   the ip6trie dataset) decreases memory consumption by roughly a factor
+   of three
+
+ - feature: acl dataset - ip6 addresses are now supported in ACLs
+
+ - feature: added --enable-asserts configure option to enable
+   compilation of debugging assertions; assertion checking is
+   disabled by default
+
+ - featurette: zero-length "wildcard" IP4 CIDR prefixes are now
+   allowed in ip4trie and acl datasets.
 
 0.996b (29 Mar 2008)
 

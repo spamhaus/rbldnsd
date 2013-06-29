@@ -1,4 +1,4 @@
-rbldnsd (0.996b+ipv6) unstable; urgency=low
+rbldnsd (0.997) unstable; urgency=low
 
   [ Jeff Dairiki ]
 
@@ -51,7 +51,7 @@ rbldnsd (0.996b+ipv6) unstable; urgency=low
     the exclusion of /128 subnets; only supports a single A/TXT value for
     the entire dataset
 
- -- Jeff Dairiki <dairiki@dairiki.org>  Tue, 12 Mar 2013 07:19:10 -0700
+ -- Michael Tokarev <mjt@corpit.ru>  Sat, 29 Jun 2013 12:02:54 +0400
 
 rbldnsd (0.996b) unstable; urgency=low
 
