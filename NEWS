@@ -1,6 +1,8 @@
 This file describes user-visible changes in rbldnsd.
 Newer news is at the top.
 
+0.997+ (unreleased)
+
 0.997 (29 Jun 2013)
 
  - main feature of this version is ipv6 support.  Many thanks to
