@@ -12,6 +12,7 @@ ARFLAGS = @ARFLAGS@
 RANLIB = @RANLIB@
 AWK = @AWK@
 PYTHON = python
+GNUTAR = tar
 
 # Disable statistic counters
 #DEFS = -DNO_STATS
@@ -37,7 +38,6 @@ DEFS =
 LIBS = @LIBS@
 
 NAME = rbldnsd
-DPREFIX = $(NAME)-$(VERSION)
 
 # taken from debian/changelog, by ./configure
 VERSION = @VERSION@
@@ -103,7 +103,7 @@ dns_nametab.c: dns.h dns_maketab.awk
 	$(AWK) -f dns_maketab.awk dns.h > $@.tmp
 	mv -f $@.tmp $@
 
-rbldnsd.o: rbldnsd.c debian/changelog
+rbldnsd.o: rbldnsd.c NEWS
 	@echo
 	@echo \ $(NAME) VERSION="\"$(VERSION) ($(VERSION_DATE))\""
 	@echo
@@ -127,14 +127,10 @@ spec:
 	  mv -f $(NAME).spec.tmp $(NAME).spec ; \
 	fi
 
-dist: $(DPREFIX).tar.gz
-$(DPREFIX).tar.gz: $(DISTFILES) $(DEBFILES)
-	rm -rf $(DPREFIX)
-	mkdir $(DPREFIX) $(DPREFIX)/debian
-	ln $(DISTFILES) $(DPREFIX)
-	ln $(DEBFILES) $(DPREFIX)/debian
-	tar cfz $@ $(DPREFIX)
-	rm -rf $(DPREFIX)
+dist: $(NAME)-$(VERSION).tar.gz
+$(NAME)-$(VERSION).tar.gz: $(DISTFILES)
+	$(GNUTAR) -czf $@ --transform='s|^|$(NAME)-$(VERSION)/|' \
+		$(DISTFILES) $(DEBFILES)
 
 depend dep deps: $(SRCS) $(GSRC)
 	@echo Generating deps for:
@@ -151,7 +147,7 @@ depend dep deps: $(SRCS) $(GSRC)
 	  mv -f Makefile.tmp Makefile.in ; \
 	fi
 
-config.h Makefile: configure configure.lib Makefile.in debian/changelog
+config.h Makefile: configure configure.lib Makefile.in NEWS
 	./configure
 	@echo
 	@echo Please rerun make >&2

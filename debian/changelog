@@ -1,3 +1,10 @@
+rbldnsd (0.997+) UNRELEASED; urgency=low
+
+  * change the way how `make dist' behaves 
+    (no need for a temporary subdir anymore)
+
+ -- Michael Tokarev <mjt@tls.msk.ru>  Sat, 29 Jun 2013 15:09:14 +0400
+
 rbldnsd (0.997) unstable; urgency=low
 
   [ Jeff Dairiki ]
