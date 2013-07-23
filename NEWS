@@ -1,7 +1,10 @@
 This file describes user-visible changes in rbldnsd.
 Newer news is at the top.
 
-0.997+ (unreleased)
+0.997a (23 Jul 2013)
+
+ - minor fixes/changes in packaging, no code changes.
+   In particular, fixes a build failure on *BSD introduced in 0.997
 
 0.997 (29 Jun 2013)
 
