@@ -70,7 +70,7 @@ cat >confdef.h <<EOF
 
 EOF
 
-set -- $(sed -n -e '/[^0-9].* (.*)$/ { s/\(.*\) (\(.*\))$/\1 \2/p; q }' NEWS)
+set -- $(sed -n -e '/[^0-9].* (.*)$/ { s/\(.*\) (\(.*\))$/\1 \2/p; q; }' NEWS)
 VERSION=$1; shift
 VERSION_DATE="$*"
 
