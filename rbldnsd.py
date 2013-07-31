@@ -2,6 +2,7 @@
 
 
 """
+import errno
 from itertools import count
 import subprocess
 from tempfile import NamedTemporaryFile, TemporaryFile
@@ -12,6 +13,14 @@ try:
     import DNS
 except ImportError:
     raise RuntimeError("The pydns library is not installed")
+try:
+    from DNS import SocketError as DNS_SocketError
+except ImportError:
+    class DNS_SocketError(Exception):
+        """ Dummy, never raised.
+
+        (Older versions of pydns before 2.3.6 do not raise SocketError.)
+        """
 
 DUMMY_ZONE_HEADER = """
 $SOA 0 example.org. hostmaster.example.com. 0 1h 1h 2d 1h
@@ -123,12 +132,17 @@ class Rbldnsd(object):
                 break
             except QueryRefused:
                 break
+            except DNS_SocketError as ex:
+                # pydns >= 2.3.6
+                wrapped_error = ex.args[0]
+                if wrapped_error.errno != errno.ECONNREFUSED:
+                    raise
             except DNS.DNSError as ex:
+                # pydns < 2.3.6
                 if str(ex) != 'no working nameservers found':
                     raise
-                elif retry > 10:
-                    raise DaemonError(
-                        "rbldnsd does not seem to be responding")
+            if retry > 10:
+                raise DaemonError("rbldnsd does not seem to be responding")
             time.sleep(0.1)
 
     def _stop_daemon(self):
