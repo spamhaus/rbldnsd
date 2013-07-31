@@ -113,7 +113,6 @@ class Rbldnsd(object):
                                                  stderr=self.stderr)
 
         # wait for rbldnsd to start responding
-        time.sleep(0.1)
         for retry in count():
             if daemon.poll() is not None:
                 raise DaemonError(
@@ -127,9 +126,10 @@ class Rbldnsd(object):
             except DNS.DNSError as ex:
                 if str(ex) != 'no working nameservers found':
                     raise
-                elif retries > 10:
+                elif retry > 10:
                     raise DaemonError(
                         "rbldnsd does not seem to be responding")
+            time.sleep(0.1)
 
     def _stop_daemon(self):
         daemon = self._daemon
