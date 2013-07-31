@@ -150,6 +150,22 @@ class Rbldnsd(object):
             raise DaemonError("rbldnsd exited with code %d"
                               % daemon.returncode)
 
+    @property
+    def no_ipv6(self):
+        """ Was rbldnsd compiled with -DNO_IPv6?
+        """
+        # If rbldnsd was compiled with -DNO_IPv6, the (therefore
+        # unsupported) '-6' command-line switch will not be described
+        # in the help message
+        cmd = [self.daemon_bin, '-h']
+        proc = subprocess.Popen(cmd, stdout=subprocess.PIPE)
+        help_message = proc.stdout.readlines()
+        if proc.wait() != 0:
+            raise subprocess.CalledProcessError(proc.returncode, cmd)
+        return not any(line.lstrip().startswith('-6 ')
+                       for line in help_message)
+
+
 class TestRbldnsd(unittest.TestCase):
     def test(self):
         rbldnsd = Rbldnsd()
