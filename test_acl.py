@@ -27,14 +27,19 @@ except ImportError:
         else:
             return lambda f: f
 
-try:
-    # check for ipv6 support in python, kernel, libc
-    socket.socket(socket.AF_INET6, socket.SOCK_DGRAM).close()
-except (socket.error, AttributeError):
-    no_ipv6 = True
-else:
-    # check for ipv6 support in rbldnsd
-    no_ipv6 = Rbldnsd().no_ipv6
+def _have_ipv6():
+    # Check for IPv6 support
+    if not getattr(socket, 'has_ipv6', False):
+        return False                    # no python support for ipv6
+    elif Rbldnsd().no_ipv6:
+        return False                    # rbldnsd compiled with -DNO_IPv6
+    try:
+        socket.socket(socket.AF_INET6, socket.SOCK_DGRAM).close()
+    except socket.error:
+        return False                    # no kernel (or libc) support for ipv6?
+    return True
+
+no_ipv6 = not _have_ipv6()
 
 def daemon(acl, addr='localhost'):
     """ Create an Rbldnsd instance with given ACL
