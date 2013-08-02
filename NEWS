@@ -8,6 +8,12 @@ Next release
 
  - fix tests for API change in pydns >= 2.3.6
 
+ - It is no longer an error to request binding to a particular
+   address/port more than once. (The subsequent requests are simply
+   ignored.) (This avoids confusion on certain systems/configurations
+   where gethostbyname("localhost") can return 127.0.0.1 multiple
+   times.)
+
 0.997a (23 Jul 2013)
 
  - minor fixes/changes in packaging, no code changes.
