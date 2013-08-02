@@ -1,6 +1,13 @@
 This file describes user-visible changes in rbldnsd.
 Newer news is at the top.
 
+Next release
+
+ - fix tests for systems without ipv6 support, or when ipv6 is
+   disabled in rbldnsd at compile-time
+
+ - fix tests for API change in pydns >= 2.3.6
+
 0.997a (23 Jul 2013)
 
  - minor fixes/changes in packaging, no code changes.
