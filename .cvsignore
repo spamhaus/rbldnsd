@@ -1,9 +1,0 @@
-rbldnsd
-rbldnsd[-_]*.tar.gz
-rbldnsd[-_]*.tar.gz.sig
-dns_nametab.c
-config.log
-config.h
-Makefile
-config.status
-rbldnsd.8.html
