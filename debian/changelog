@@ -1,4 +1,4 @@
-rbldnsd (0.997a) unstable; urgency=low
+rbldnsd (0.997a-1) unstable; urgency=low
 
   * change the way how `make dist' behaves 
     (no need for a temporary subdir anymore)
