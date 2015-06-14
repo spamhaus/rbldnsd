@@ -212,7 +212,7 @@ static int dntoip6addr(const unsigned char *q, ip6oct_t ap[IP6ADDR_FULL]) {
 
 static const ip6oct_t ip6mapped_pfx[12] =
   "\0\0\0\0\0\0\0\0"
-  "\377\377\377\377";
+  "\0\0\377\377";
 
 /* parse DN (as in 4.3.2.1.in-addr.arpa) to ip4addr_t (4 octets 0..255).
  * parse DN (as in 0.1.2.3.4.5...f.base.dn) to ip6 address (32 nibbles 0..f)
