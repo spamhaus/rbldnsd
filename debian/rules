@@ -17,11 +17,13 @@ config.h Makefile: configure Makefile.in
 	dh_testdir
 	CFLAGS="$(CFLAGS)" DEFS="$(DEFS)" ./configure --enable-zlib
 
-build: debian/build-stamp
+build build-arch: debian/build-stamp
 debian/build-stamp: config.h
 	dh_testdir
 	$(MAKE)
 	touch $@
+
+build-indep:
 
 clean:
 	dh_testdir
@@ -57,4 +59,4 @@ binary-arch: build install
 
 binary: binary-arch
 
-.PHONY: build clean binary-indep binary-arch binary install
+.PHONY: build-indep build-arch build clean binary-indep binary-arch binary install

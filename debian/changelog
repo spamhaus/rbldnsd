@@ -3,6 +3,7 @@ rbldnsd (0.997a-2) UNRELEASED; urgency=low
   * configure.lib-fix-building-with-as-needed.patch (Closes: #641556)
     (cherry-picked).   Thanks to Matthias Klose <doko@ubuntu.com> for
     reporting this and providing the fix.
+  * add build-{arch,indep} targets to d/rules
 
  -- Michael Tokarev <mjt@tls.msk.ru>  Sun, 20 Oct 2013 21:00:39 +0400
 
