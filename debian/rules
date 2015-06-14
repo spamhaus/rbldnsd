@@ -11,11 +11,12 @@ CFLAGS = -pipe -Wall -W -g
 ifeq (,$(findstring noopt,$(DEB_BUILD_OPTIONS)))
   CFLAGS += -O2
 endif
+-include /usr/share/dpkg/buildflags.mk
 
 config: config.h Makefile
 config.h Makefile: configure Makefile.in
 	dh_testdir
-	CFLAGS="$(CFLAGS)" DEFS="$(DEFS)" ./configure --enable-zlib
+	CFLAGS="$(CFLAGS) $(CPPFLAGS)" LDFLAGS="$(LDFLAGS)" DEFS="$(DEFS)" ./configure --enable-zlib
 
 build build-arch: debian/build-stamp
 debian/build-stamp: config.h
