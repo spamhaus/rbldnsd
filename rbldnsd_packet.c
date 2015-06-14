@@ -223,22 +223,23 @@ static void dntoip(struct dnsqinfo *qi, int flags) {
   unsigned qlab = qi->qi_dnlab;
 
   qi->qi_ip4valid = qlab == 4 && dntoip4addr(q, &qi->qi_ip4);
-  if (qi->qi_ip4valid) {
-    if (flags & DSTF_IP6REV) {
-      /* construct IP4MAPPED address */
-      memcpy(qi->qi_ip6, ip6mapped_pfx, sizeof(ip6mapped_pfx));
-      PACK32(qi->qi_ip6 + sizeof(ip6mapped_pfx), qi->qi_ip4);
-      qi->qi_ip6valid = 1;
-    }
-  }
+  if (qi->qi_ip4valid)
+    qi->qi_ip6valid = 0;
   else {
     qi->qi_ip6valid =
       qlab == 32 && qi->qi_dnlen0 == 64 && dntoip6addr(q, qi->qi_ip6);
-    if (flags & DSTF_IP4REV &&
-	memcmp(qi->qi_ip6, ip6mapped_pfx, sizeof(ip6mapped_pfx)) == 0) {
-      /* construct IP4 from IP4MAPPED */
-      qi->qi_ip4 = unpack32(qi->qi_ip6 + sizeof(ip6mapped_pfx));
-      qi->qi_ip4valid = 1;
+    if (qi->qi_ip6valid && (flags & DSTF_IP4REV)) {
+      if (qi->qi_ip6[0] == 0x20 && qi->qi_ip6[1] == 0x02) {
+        /* construct IP4 from 2002:V4ADDR::/48 6to4 address, RFC3056 */
+        qi->qi_ip4 = unpack32(qi->qi_ip6 + 2);
+        qi->qi_ip4valid = 1;
+      }
+      else if (memcmp(qi->qi_ip6, ip6mapped_pfx, sizeof(ip6mapped_pfx)) == 0) {
+        /* construct IP4 from IP4MAPPED, ::ffff:V4ADDR */
+        qi->qi_ip4 = unpack32(qi->qi_ip6 + 12);
+        qi->qi_ip4valid = 1;
+        qi->qi_ip6valid = 0; /* don't bother looking v6 */
+      }
     }
   }
 }
