@@ -5,6 +5,9 @@ Newer news is at the top.
  - bugfix: correctly handle V4MAPPED (v4 in v6) addresses, the
    original v6 prefix was wrong.  Thanks to Alex Lasoriti for
    finding the issue
+ - bugfix: sometimes IP4-based datasets gave false positives when
+   an IP6 dataset were present, and it was also possible to have
+   false positive in IP6 datasets.  Both has been fixed.
 
 0.997a (23 Jul 2013)
 
