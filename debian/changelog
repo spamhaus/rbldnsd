@@ -1,4 +1,4 @@
-rbldnsd (0.997a-2) UNRELEASED; urgency=low
+rbldnsd (0.998-1) UNRELEASED; urgency=low
 
   * configure.lib-fix-building-with-as-needed.patch (Closes: #641556)
     (cherry-picked).   Thanks to Matthias Klose <doko@ubuntu.com> for

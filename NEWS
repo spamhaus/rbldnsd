@@ -1,7 +1,7 @@
 This file describes user-visible changes in rbldnsd.
 Newer news is at the top.
 
-0.997b (?? ??? ????)
+0.998 (05 Dec 2015)
  - bugfix: correctly handle V4MAPPED (v4 in v6) addresses, the
    original v6 prefix was wrong.  Thanks to Alex Lasoriti for
    finding the issue

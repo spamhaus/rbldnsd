@@ -1,6 +1,6 @@
 .\" rbldnsd manpage
 .\"
-.TH rbldnsd 8 "Jun 2013"
+.TH rbldnsd 8 "Dec 2015"
 .SH NAME
 rbldnsd \- DNS daemon suitable for running DNS\-based blocklists
 .SH SYNOPSIS
@@ -285,7 +285,7 @@ records.  It is equivalent to BIND9 "minimal\-answers" configuration
 setting.  While with \fB\-A\fR specified, \fBrbldnsd\fR will always
 fill in AUTH section, increasing size of replies dramatically but
 allowing (caching) resolver clients to react faster to changes in
-nameserver lists.  Currently (as of 0.996 version), non\-lazy
+nameserver lists.  Currently (as of 0.998 version), non\-lazy
 (as with \fB\-A\fR) mode is the default, but it will change in
 future release.
 
@@ -1149,7 +1149,7 @@ will log a warning when such truncation occurs.
 
 .SH VERSION
 
-This manpage corresponds to \fBrbldnsd\fR version \fB0.997\fR.
+This manpage corresponds to \fBrbldnsd\fR version \fB0.998\fR.
 
 .SH AUTHOR
 
