@@ -1,6 +1,6 @@
 This is rbldnsd.
 
-The current source tree is mantained by Spamhaus Technology Ltd., London (UK)
+The current source tree is mantained by The Spamhaus Project Ltd., London (UK)
 The original source was written originally by Michael Tokarev <mjt+rbldnsd@corpit.ru>
 
 
@@ -12,7 +12,7 @@ The original, unmantained source and debian packages can always be found at:
   http://www.corpit.ru/mjt/rbldnsd.html
 
 
-Copyright (C) 2016 Spamhaus Technology Ltd.
+Copyright (C) 2016 The Spamhaus Project Ltd.
 Copyright (C) 2002 Michael Tokarev
 
   This program is free software; you can redistribute it and/or modify
