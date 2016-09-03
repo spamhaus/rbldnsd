@@ -6,7 +6,7 @@ set -e
 name=rbldnsd
 
 
-if [ -f rbldnsd.h -a -f rbldnsd_util.c -a -f debian/changelog ] ; then :
+if [ -f rbldnsd.h -a -f rbldnsd_util.c ] ; then :
 else
   echo "configure: error: sources not found at `pwd`" >&2
   exit 1
