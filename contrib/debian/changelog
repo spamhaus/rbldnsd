@@ -1,0 +1,916 @@
+rbldnsd (0.998-1) UNRELEASED; urgency=low
+
+  * configure.lib-fix-building-with-as-needed.patch (Closes: #641556)
+    (cherry-picked).   Thanks to Matthias Klose <doko@ubuntu.com> for
+    reporting this and providing the fix.
+  * add build-{arch,indep} targets to d/rules
+  * use dpkg-buildflags for LDFLAGS CPPFLAGS CFLAGS
+  * add Vcs headers to d/control
+
+ -- Michael Tokarev <mjt@tls.msk.ru>  Sun, 20 Oct 2013 21:00:39 +0400
+
+rbldnsd (0.997a-1) unstable; urgency=low
+
+  * change the way how `make dist' behaves 
+    (no need for a temporary subdir anymore)
+  * fixed sed expression to determine version number, needed for *BSD
+
+ -- Michael Tokarev <mjt@tls.msk.ru>  Tue, 23 Jul 2013 20:32:28 +0400
+
+rbldnsd (0.997) unstable; urgency=low
+
+  [ Jeff Dairiki ]
+
+  * configure: add --enable-asserts option to enable compilation of
+    assertions; assertion checking is disabled by default
+
+  * tests/test_acl.py, tests/test_ip4trie.py: new, very basic, tests
+    for the acl and ip4trie datasets
+
+  * rbldnsd_acl.c, rbldnsd_ip4trie.c: allow zero-length "wildcard" IP4
+    CIDR prefixes
+
+  * rbldnsd_acl.c: add support for ip6 addresses in ACLs
+
+  * rbldnsd_util.c: delete the (now unused) ip4trie code
+
+  * rbldnsd_acl.c: use new LC-TBM trie implementation
+
+  * rbldnsd_ip4trie.c: use new LC-TBM trie implementation instead of
+    the previous ip4trie; this decreased the memory consumption of
+    this dataset by roughly a factor of three
+
+  * rbldnsd_ip6tset.c: use new dump_ip6()
+
+  * Makefile.in: add 'check' target to run btrie.c self-tests and new
+    python-driven tests
+
+  * feature: ip6trie - new dataset supports listing of arbitrary length
+    ip6 CIDRs, along with individual A/TXT values for each prefix
+
+  * rbldnsd_util.c(dump_ip6, dump_ip6range): new functions to support
+    zone dump of ip6 zones
+
+  * btrie.c: LC-TBM trie implementation; supports arbitrary length prefixes
+    in a memory- and cpu- efficient manner
+
+  * configure: add test for __SIZEOF_POINTER__ - define if the compiler
+    does not already do so
+
+  * configure: add test for byte sex - define WORDS_BIGENDIAN in config.h
+    on big-endian architectures
+
+  * ip6addr.c: add support for compressed ("::") ip6 address notation
+
+  * mempool.c: bug fix for a theoretically possible buffer overrun
+
+  [ Michael Tokarev ]
+
+  * feature: ip6tset - new dataset supports listing of ip6 /64 subnets and
+    the exclusion of /128 subnets; only supports a single A/TXT value for
+    the entire dataset
+
+ -- Michael Tokarev <mjt@corpit.ru>  Sat, 29 Jun 2013 12:02:54 +0400
+
+rbldnsd (0.996b) unstable; urgency=low
+
+  * cleanup: #ifdefed dump_a_txt() properly so it will not be compiled
+    if --disable-master-dump was specified.
+
+  * implement "base template" ($=) feature.
+
+  * feature: (experimental) support for dynamically-loaded extensions (DSOs)
+    (disabled by default, use --enable-dso configure option)
+
+  * portability and readability fixes from Victor Duchovni
+
+  * added configure test for inline and __inline keywords, and only
+    use #warning keyword if __GNUC__ is defined (more portability fixes
+    from Victor Duchovni)
+
+  * misc type conversions here and there, and change alignment in
+    mempool.c to be sizeof(void*) instead of sizeof(int), to help
+    64bit platforms.  Thanks to Mike Quintero for an excellent
+    bugreport.
+
+  * bugfix: combined dataset - improper return of query() routine in some
+    cases
+
+  * internal code reorg:
+    - move firstword[_lc]() to _util.c
+    - use two structs instead of a set of 2-element arrays in dnset
+
+  * bugfix: lowercase base zone names given on command line and in `combined'
+    dataset, or else they wont be recognized in queries
+
+  * added an lsb info to Debian initscript (Closes: #468886)
+
+ -- Michael Tokarev <mjt@corpit.ru>  Sat, 29 Mar 2008 17:38:49 +0300
+
+rbldnsd (0.996a) unstable; urgency=low
+
+  * the "34-Birthday Release"
+
+  * use setitimer() instead of alarm() on systems which supports it
+    (configure & rbldnsd.c).  This works around some broken linux
+    kernel behaviour where we sometimes lose a signal (SIGALRM in this
+    case) and rbldnsd stops checking for updates.
+
+  * cosmetic code cleanups:
+   - use void* instead of char* in mempool.[ch] where appropriate.
+   - wrong type in check_expires(): unsigned instead of time_t.
+   - wrong type (signedness) for domain name in ds_dnset_dump()
+   - use appropriate char/uchar for domain names in ds_generic_dump()
+   - istream signedness (warning) fixes
+
+  * debian:
+   - Build-Depends on debhelper>>4, and set DH_COMPAT to 4
+   - Build-Depends on zlib1g-dev, and pass --enable-zlib to ./configure
+   - bump Standards-Version to 3.7.2
+   - add Depends: on adduser (Closes: #398560)
+
+  * bugfix: fix dataset "un-expiration" time. Previously, once a dataset
+    has expired, it never "un-expires" again even if new expire time is
+    in future.  Due to missing reset of ds->ds_expire field.
+
+  * bugfix: fix configure breakages:
+   - portability: for f; do => for f in "$@"; do
+   - fix broken GNU C (mis)detection
+
+  * don't treat -a as experimental and mention it will be the default.
+    Add -A option.
+
+ -- Michael Tokarev <mjt@corpit.ru>  Thu, 27 Jul 2006 13:36:30 +0400
+
+rbldnsd (0.996) unstable; urgency=low
+
+  * 0.996 release
+
+  * portability fix in istream.c:
+    EPROTO=>ENOEXEC if EPROTO isn't defined
+
+ -- Michael Tokarev <mjt@corpit.ru>  Sun, 19 Feb 2006 16:41:16 +0300
+
+rbldnsd (0.995.99) unstable; urgency=low
+
+  * add a 'pass' entry processing into ACL "dataset"
+
+  * (internal) reorganize ds_special() (no user-visible changes)
+
+  * (internal) reorganized zone reloading code to eliminate
+    start_loading()+longjump() hack
+
+  * data expiration support, in form
+    $TIMESTAMP created expires
+
+ -- Michael Tokarev <mjt@corpit.ru>  Sun, 29 Jan 2006 00:43:51 +0000
+
+rbldnsd (0.995.98) unstable; urgency=low
+
+  * deal with realloc(smaller_size) returning NULL
+
+  * add next-reload-size hint to dnset too
+
+  * (cosmetic code) unify several structure member names across
+    different *sets
+
+  * up MAX_NS from 20 to 32, per request from Spamhaus
+
+  * fix a nasty typo in vssprintf() (bufsiz => bufsz).  DO #undefine
+    constants which aren't needed anymore!
+
+  * rearrange code a bit: move readslines() from rbldnsd_util.c to
+    rbldnsd_zones.c, make some functions static and remove declarations
+    from rbldnsd.h.  No code changes.
+
+  * cosmetic again: NOSTATS, NOSTDINT_H etc => NO_STATS, NO_STDINT_H etc.
+    Note if you had automated building procedure you have to change
+    your #defines.
+
+  * new configure script, using shell functions in configure.lib - much
+    more manageable.
+
+  * configure script now accepts some --disable- and --enable- options
+    (--disable-ipv6)
+
+  * istream.[ch] - helper module, light buffering input somewhat similar
+    to stdio, much faster, supports line oriented input, and is stackable
+    (one istream can read from another or something else).  Reading speed
+    improved significantly.
+
+  * support of automatic on-the-fly de-compression of gzip-compressed
+    data files (with a help of zlib).
+
+ -- Michael Tokarev <mjt@corpit.ru>  Tue, 20 Dec 2005 00:15:56 +0300
+
+rbldnsd (0.995) unstable; urgency=low
+
+  * released 0.995
+
+  * ensure we do not return more than 255 answers (which can happen when
+    EDNS0 size extensions are enabled), as the code isn't prepared to handle
+    2-byte numanswers field in DNS packet header.
+
+ -- Michael Tokarev <mjt@corpit.ru>  Thu, 28 Apr 2005 23:57:32 +0400
+
+rbldnsd (0.994.94) unstable; urgency=low
+
+  * fixed EDNS0 (it now really works)
+
+  * fixed NS+glue records - if there's no room for glue but auth section
+    can be added, add auth w/o glue
+
+  * remove p_..cnt #defines (to be p_..cnt2), as they're confusing
+
+ -- Michael Tokarev <mjt@corpit.ru>  Thu, 28 Apr 2005 15:24:10 +0400
+
+rbldnsd (0.994.93) unstable; urgency=low
+
+  * glue records for NSes, finally.
+
+  * when queried for NS or ANY to the base zone, return NS recs in
+    both answer and authority sections.
+
+  * in acl "dataset", default action is now "ignore", not "always-listed"
+
+ -- Michael Tokarev <mjt@corpit.ru>  Wed, 27 Apr 2005 19:04:56 +0400
+
+rbldnsd (0.994.92) unstable; urgency=low
+
+  * finally: EDNS0 support.  Patch was here for a long time, now applied.
+
+  * ACL (initial, experimental) support, with quite some changes all over
+    to make it possible/easier:
+    - add peer address info pointers to struct dnspacket
+      (and made both struct packet and peer sockaddr to be static
+       in rbldnsd.c); remove peer address parameters from
+       logreply().
+    - add DSTF_SPECIAL flag, to indicate this dataset type can't be nested;
+      modify rbldnsd_combined.c accordingly
+    - remove (unused) DSTF_ZERODN flag
+    - define two new helper macros, dstype(name) and isdstype(dst,name),
+      to refer to types of datasets, and use the macros in the code
+    - add ACL-specific RR info into struct dnspacket
+    - dataset query types now return bitflags, not true/false:
+      NSQUERY_FOUND (1) - found a matching record
+      NSQUERY_ADDPEER (2) - for "always listed" acl, we should add
+       the "always listed" ACL RR into the reply packet.
+      return NSQUERY_FOUND instead of generic `1' in all dataset->queryfns.
+    - extend qi_tflag to also include ACL-specific flags:
+      NSQUERY_IGNORE, NSQUERY_REFUSE, NSQUERY_EMPTY, NSQUERY_ALWAYS
+    - add check_query_overwrites() macro to test the above flags and
+      return NSQUERY_ADDPEER or other bits in dataset->queryfn routines,
+      and use this macro in all non-metadata datasets
+    - when constructing reply, collect flags from queryfns, not boolean.
+    - add g_dsacl and zone->z_dsacl pointers (global and zone-specific
+      datasets)
+    - modify rbldnsd_zones.c:addzone() to recognize ACLs and to disallow
+      empty base zone domain name.
+    - disallow $NS and $SOA for ACL-type datasets in ds_special()
+    - new dataset file: rbldnsd_acl.c.  Add acl dataset into global
+      dataset type list.
+    - actually call ACL-specific routine -- ds_acl_query() -- when
+      constructing reply to a query
+    - when at the end of constructing answer section of the reply
+      we notice "always-listed" ACL has been triggered, add
+      ACL-specific A+TXT records into the reply
+
+ -- Michael Tokarev <mjt@corpit.ru>  Sat, 16 Apr 2005 17:43:43 +0400
+
+rbldnsd (0.994b) unstable; urgency=low
+
+  * use of uninitialized pointer in ip4set and ip4trie
+    datasets when input data file (A+TXT template for a given
+    entry) is invalid, instead of rejecting the line.  This can
+    lead to "random" crashes.
+
+ -- Michael Tokarev <mjt@corpit.ru>  Thu, 10 Mar 2005 01:57:14 +0300
+
+rbldnsd (0.994a) unstable; urgency=low
+
+  * fixed wrong NXDOMAIN return for a query for base subzone in
+    combined dataset (should be NODATA at least, not NXDOMAIN)
+
+ -- Michael Tokarev <mjt@corpit.ru>  Thu, 10 Mar 2005 01:43:22 +0300
+
+rbldnsd (0.994) unstable; urgency=low
+
+  * released 0.994
+
+ -- Michael Tokarev <mjt@corpit.ru>  Sat, 18 Dec 2004 17:07:24 +0300
+
+rbldnsd (0.993.9) unstable; urgency=low
+
+  * fixed wrong return in ds_ip4trie_dump_octets(), which
+    prevented some ranges from being expanded properly when
+    creating master-format dump (-d) file.
+  * generalized and moved ds_ip4trie_dump_range() (renamed to
+    dump_ip4range()) to rbldnsd_utils.c to made it generally
+    useful (to be used in rbldnsd_ip4set.c too), and made it
+    void (cf the wrong return above)
+  * made txtsubst() public, and move it and dump_a_txt() into
+    rbldnsd_utils.c where the stuff belongs to, out from
+    rbldnsd_packets.c which is too large and has nothing to
+    do with that stuff.
+  * new helper dump_ip4(), analogous to dump_ip4range()
+  * use dump_ip4() in ip4tset
+  * rewrite ds_ip4set_dump(), to handle that problrmatic case
+    with entries 127/8 and 127.0.0.2: should also emit
+    *.0.127 and *.0.0.127
+  * recognize NO_MASTER_DUMP #define (disable -d option)
+  * fix memleak when loading $n substitutions (mp_strdup vs estrdup)
+
+ -- Michael Tokarev <mjt@corpit.ru>  Mon, 13 Dec 2004 04:40:27 +0300
+
+rbldnsd (0.993.1) unstable; urgency=low
+
+  * don't remove rbldns user in debian/postrm (Closes: bug#258012).
+  * create /var/lib/rbldns root-owned, to stop encouraging usage of
+    rbldns userid to store datafiles.
+  * add README.user explaining rbldns userid and /var/lib/rbldns dir usage
+  * #include <sys/time.h> in rbldnsd.c to get struct timeval definition
+    (needed e.g. on older glibc)
+
+ -- Michael Tokarev <mjt@corpit.ru>  Thu, 29 Jul 2004 17:46:51 +0400
+
+rbldnsd (0.993) unstable; urgency=low
+
+  * 0.993 release, finally
+
+  * cleaned up debian/rules a bit per recommendations by Santiago Vila
+
+  * fixed a bug when rbldnsd was using 0.0.0.0 as A value instead
+    of a real IP address (when construct like ":127.0.0.2" is specified),
+    introduced in 0.992
+
+  * manpage: described various :A:TXT cases; reformatted to use
+    .SS instead of .IP in some cases.
+  * remove a note about ip4trie and -d option: ip4trie is dumpable
+    now.
+
+ -- Michael Tokarev <mjt@corpit.ru>  Thu,  1 Jul 2004 20:23:01 +0400
+
+rbldnsd (0.993p2) unstable; urgency=low
+
+  * warn when $DATASET specifies no subzones
+
+  * recognize # in $DATASET line only after a space,
+    so that one may have names with embedded #s.
+
+  * allow names for subdatasets in combined dataset,
+    for better logging.  Specify :name after type
+    in $DATASET line, like
+      $DATASET ip4set:http proxies @
+      $DATASET ip4set:relays relays @
+
+ -- Michael Tokarev <mjt@corpit.ru>  Thu,  1 Jul 2004 15:27:30 +0400
+
+rbldnsd (0.993p1) unstable; urgency=low
+
+  * implement and enforce $MAXRANGE4 special
+
+  * refine logging a bit, make it less verbose
+
+  * (internal) reorganize loading process a bit to
+    have dsctx parameter (load context) to be passed
+    as an argument, instead of global ds_loading.
+
+    (internal) moved ip4parse_*() into the only places
+    where that stuff was used.
+
+    (internal) minor cleanups in combined dataset
+
+  * ignore incomplete last lines (lines w/o end-of-line
+    terminator) in data files
+
+  * check for data file changes during reloads (while
+    reading data), and abort loading if a change is
+    detected
+
+  * another parsing error in ip4parse.c (ip4addr() and
+    ip4prefix(), unlike claimed, was able to return 0)
+
+  * more cleanups and clarifications in ip4parse.c.
+    Do not treat bare numbers as /8s anymore.
+    Do not allow ranges like 1.2-2 or 1.2-1.2.3 -
+    number of octets on both sides should match
+    (with the exception of 1.2.3.4-5 - last part
+    may have only one octet)
+
+  * really require complete IPv4 addresses (not
+    prefixes) in ip4tset.
+
+  * fixed query logging (-l) with background reloading
+    (missing fflush() before fork() and exit())
+
+  * use writev/readv to transfer stats in 2-process reload
+    (may be a bit faster)
+
+  * cleanup NOSTATS #defines/usage a bit
+
+  * bugfix: wrong MX pref in dump (-d) in generic dataset.
+    Fix by Andreas Pommer, apommer at cosy.sbg.ac.at
+
+  * bugfix: wrong subzone in $ORIGIN when dumping combined dataset.
+    Fix by Andreas Pommer, apommer at cosy.sbg.ac.at
+
+  * bugfix: incorect (opposite) evaluation of maxttl.
+    Fix by Bradley Baetz  bradley.baetz at optusnet.com.au
+
+  * some hooks, to build custom versions (rbldnsd_hooks.[ch])
+
+ -- Michael Tokarev <mjt@corpit.ru>  Thu, 10 Jun 2004 02:46:57 +0400
+
+rbldnsd (0.992) unstable; urgency=low
+
+  * add an ability to specify A value but inherit default
+    TXT value:
+    entry :addr:  - specific A, no TXT
+    entry :addr   - specific A, default TXT
+
+  * remove redundrant CNAMEs from master-file dump in ip4set
+
+  * fix syslog statistics logging mess introduced in pre4
+
+ -- Michael Tokarev <mjt@corpit.ru>  Sun,  7 Mar 2004 01:35:46 +0300
+
+rbldnsd (0.992pre4) unstable; urgency=low
+
+  * reviewed statistics again:
+    - use different structure (smaller and simpler anyway)
+    - moved all stats updating to rbldnsd_packet.c
+    - different syslogging (simpler)
+    - different statslogging (more details)
+
+  * extended -t (TTL) option: -t defttl:minttl:maxttl.
+
+  * remove some more mess from memstats logging
+
+  * changed rbldnsd.init to not rely on readlink and be less strict
+
+  * rework 2-process reload, add workarounds for lost signals
+
+ -- Michael Tokarev <mjt@corpit.ru>  Wed,  3 Mar 2004 17:43:38 +0300
+
+rbldnsd (0.992pre3) unstable; urgency=low
+
+  * added ip4tset ("trivial" set of IPv4 addresses) -
+    faster and smaller but limited version of ip4set
+
+  * continue processing queries during reloads (-f option)
+
+ -- Michael Tokarev <mjt@corpit.ru>  Mon,  1 Mar 2004 19:36:15 +0300
+
+rbldnsd (0.992pre2) unstable; urgency=low
+
+  * cleaned up statistics printing
+
+  * removed -s option (log memory usage and (re)load times) -
+    turned (reworked) equivalent always on
+
+  * reworked memusage/times logging
+
+  * added -s back, to mean something different: log short
+    stats line on every check (-c) invocation, to help
+    collecting data for RRD-like applications
+
+  * remove some bash-isms from rbldnsd.init
+
+  * lazy mode is still experimental...
+
+ -- Michael Tokarev <mjt@corpit.ru>  Sat, 28 Feb 2004 04:57:36 +0300
+
+rbldnsd (0.992pre1) unstable; urgency=low
+
+  * add `lazy' mode (-a, experimental) to stop returing
+    AUTH section by default, return it only when asked
+    explicitly
+
+  * recognize `-' as single-NS-comment char in $NS line
+
+  * use O_LARGEFILE and #define _LARGEFILE64_SOURCE in rbldnsd.c
+    to be able to write larger logfiles
+
+  * removed usage of NI_WITHSCOPEID (was used for unknwon reason
+    anyway and it have problems with new Solaris)
+
+  * fix ds_generic_dump() that was broken for quite some time
+
+  * fix example dataset in manpage (missing preference for MX)
+
+ -- Michael Tokarev <mjt@corpit.ru>  Wed,  4 Feb 2004 15:55:08 +0300
+
+rbldnsd (0.991) unstable; urgency=low
+
+  * implemented master format dump for ip4trie dataset
+
+  * removed all references to osirusoft.com
+
+  * switch to integer TTL everywhere
+
+  * PACK32S() and PACK16S() aka stpcpy() (incrementing destination)
+
+  * $NS records change: accept all NS in single line or in multiple
+    lines
+
+  * increase dataset reading line length from 512 bytes to 8k to
+    allow large list of nameservers in one $NS record
+
+  * use ns records from FIRST dataset (with non-empty $NS) only
+
+  * add new dataset to the end of a list, not to top (cosmetic change,
+    specifies loading order and thus logging order only)
+
+  * disallow zero TTL in command line
+
+  * reworked duplicate RR detection and choosing of minTTL.
+    Fix TTL even when we have exactly the same RR in packet already.
+
+  * simplified zone NS records handling
+
+  * new routine: zlog(loglevel, zone, fmt, ...)
+
+  * log number of zones at startup
+
+ -- Michael Tokarev <mjt@corpit.ru>  Sun, 30 Nov 2003 18:34:04 +0300
+
+rbldnsd (0.990pre0) unstable; urgency=low
+
+  * ensure we return all RRs of the same type (if there
+    are several of them) with the same (smallest) TTL.
+    Problem spotted by Victor Duchovny, MorganStanley.
+
+  * "randomize" order of RRs of the same type in `generic'
+    dataset. The randomization is dumb, but it is better
+    than nothing anyway.  Suggested by Furio Ercolessi.
+
+ -- Michael Tokarev <mjt@corpit.ru>  Sun, 30 Nov 2003 14:28:52 +0300
+
+rbldnsd (0.99) unstable; urgency=medium
+
+  * autoconf-style configuration.  Run ./configure before make.
+   - #include "config.h"
+   - uint32_t
+   - STATS_LL => uint64_t/long long/long, PRI_DNSCNT: PRIu64/llu/lu
+    Thanks to Christian Krackowizer for testing and patience.
+  * change ip4addr parsing routines to return -1 in case of error,
+    instead of 0, and treat 0 to be valid return value too (0/0)
+  * fix utimes printing (time rbldnsd spent when loading zones)
+  * move VERSION[_DATE] extraction from Makefile to configure,
+    made Makefile depend on debian/changelog.
+  * debian/rules: do not attempt to make distclean if there's no
+    Makefile
+  * another config test: <sys/select.h> (NOSELECT_H)
+  * some mods to ip4trie
+  * cast [ug]id_t to int for printf
+  * config test for vsnprintf(), fatal if not found for now (OSF lacks it)
+  * remove EasynetDynablock2rbldnsd.pl since easynet.nl provides dynablock
+    in rbldnsd format now.
+  * remove osirusoft2rbldns.pl since relays.osirusoft.com is dead.
+  * made zonelist really global in rbldnsd.c, reorder some globals to
+    be in one place, add some more comments
+  * Fixed range parsing.  E.g., 24.217.64-191 did not work (and any range
+    like this where last two bits where xored into 255)
+  * allow logging to standard output (-l - or -l +-)
+  * move logfile handling a bit earlier in the init process, and
+    do not send initialization messages to stdout in case we're
+    logging queries there (-l -)
+
+ -- Michael Tokarev <mjt@corpit.ru>  Tue, 16 Sep 2003 21:33:35 +0400
+
+rbldnsd (0.98) unstable; urgency=low
+
+  * use memmove() instead of memcpy() for overlapping regions,
+    even if dstaddr is less than srcaddr (current memcpy() can
+    deal with that, but this is out of spec and future versions
+    may do some more optimizations that'll break things)
+  * made init_zone_caches() to work for a list of zones, not just
+    a single zone, and move a call to this routine from newzone()
+    to init().  Fixes a memory leak in combined dataset (caches
+    was allocated but never used/freed).
+  * properly (but still ugly) fix stats counting
+  * some "ugliness": use more const's and explicitly declare routines
+    wich does not accept any arguments as such to be foo(void)
+    (Marco D'Itri md at linux.it)
+  * handle version.bind CH TXT (and version.server for that matter)
+  * return REFUSED instead of FORMERR in case unrecognized query
+    class (IN,ANY,etc) requested
+  * defttl => def_ttl to be consistent with def_rr
+  * set ttl for version.bind to be 0
+  * warn about truncating TXT records.  Change interface of parse_a_txt()
+    to include a line number
+  * TXT RR is 255 bytes max, not 254 (generic dataset)
+  * wildcards in dnset: *.example.com and example.com works as before,
+    but .example.com is now interpreted as BOTH *.example.com and example.com.
+  * clarifications in manpage: dataset vs zone
+  * fix logging to various destinations (LOGTO_* constants, vdslog())
+  * allow to specify multiple listening addresses.
+  * recognize -b host:port and [ip]:port syntax (only host previously)
+  * -b option is now mandatory
+  * do fork() early in the initialization process so that logging will
+    have proper pid tag. This also slightly simplified init routine.
+  * made array of listening sockets to be global
+  * added ip4trie (experimental) dataset: set of IP4 CIDR ranges.
+  * yet again, fix CIDR parsing (mask vs ~mask)
+  * fix ip4trie common length calculation in case diff == 0
+  * fix dslog() to use vprintf, not printf
+
+ -- Michael Tokarev <mjt@corpit.ru>  Sun, 17 Aug 2003 21:48:54 +0400
+
+rbldnsd (0.97b) unstable; urgency=low
+
+  * fixed security bug in per-zone statistic counting.
+    Thanks Marco D'Itri (md at linux.it) for pointing this out to me.
+
+ -- Michael Tokarev <mjt@corpit.ru>  Wed,  6 Aug 2003 03:20:36 +0400
+
+rbldnsd (0.97a) unstable; urgency=medium
+
+  * recognize and ignore "in" in `generic' dataset, as in:
+     example.com 1D IN A 127.0.0.1
+  * do not truncate addresses in CIDR like 1.2.3.4/24 to 1.2.3.0/24
+    in ip4range()
+  * fix a bug in ip4set_parse(): propagate error return properly
+
+ -- Michael Tokarev <mjt@corpit.ru>  Fri,  1 Aug 2003 13:43:28 +0400
+
+rbldnsd (0.97) unstable; urgency=low
+
+  * even better mempool align arith
+  * remove some dnlen usage (only tiny slowdown of zone reloads)
+  * use switch(firstchar) in ds_special()
+  * return SOA first to ANY queries
+  * Also return NS in AUTH in ANY queries inside base zone (cosmetic)
+  * add SOA/NS even before all other recs when queried base DN
+  * combined dataset optimization: try to reuse datasets from previous
+    load instead of reallocating them on every reload to preserve
+    statistics collected by subdatasets
+  * in some rare cases, dnset missed one RR for a DN with multiple RRs
+  * -DRECOGNIZE_IP4IN6 - treat reverse IPv6-mapped IPv4 queries as
+    plain IPv4 qieries
+  * Wirehub Dynablock => Easynet Dynablock
+  * -DSTATS_LL to use long longs for statistic counters
+  * per-basezone statistic counters
+  * corrections of various spelling errors in manpage, great thanks to
+    Bert Driehuis (driehuis{at}playbeing{dot}org) for this.
+
+ -- Michael Tokarev <mjt@corpit.ru>  Sun, 13 Jul 2003 03:19:56 +0400
+
+rbldnsd (0.96) unstable; urgency=high
+
+  * renamed almost all structures and variables, to be more accurate:
+     struct dataset => struct dsdata  (dsd)
+     struct zonedataset => struct dataset (zds => ds)
+     struct zonedatalist => struct dslist (zdl => dsl)
+     struct zonefile => struct dsfile (zf => dsf)
+     struct dataset_type => struct dstype (dst)
+     dataset_types[] => ds_types[]
+     zds_loading => ds_loading
+     struct dnsqueryinfo => struct dnsqinfo (qi)
+     connectzonedataset() => connectdataset()
+     zds_special() => ds_special()
+   and so on.
+
+  * reworked NS and SOA internals, to use more natural data structures
+    (no more ugly packing of several fields into one char[])
+
+  * always assume that SOA and NS refers to zone's base DN -
+    less work for DN compression routines
+
+  * precompute SOA and NS records (pack various fields, pre-compress
+    domain names) for faster response time
+
+  * return NS records if available in AUTHORITY section of positive
+    replies
+
+  * restore MX functionality that was broken for quite some time.
+    Note that currently, MX records aren't compressed
+
+  * do not lowercase domain names used in NS, SOA and MX records.
+    Add dns_dnequ() routine, remove dns_dntol() call from parse_dn().
+
+  * pre-initialize zone caches when creating zone structure (before
+    startup) - both to avoid memory fragmentation and to ensure all
+    the required memory is allocated.
+
+  * Only add NS records if reply contains some data
+
+  * Add NS AUTH record for queries to base zone too (when not asked for NS)
+
+  * simplify and clarify warning about too long NS or SOA RRs
+
+  * remove zlog()
+
+  * Moves:
+     dslog() &Co from rbldnsd_zones.c to rbldnsd_utils.c
+     dntoip4addr() from rbldnsd_utils.c to rbldnsd_packet.c
+     ds_loading from rbldnsd_zones.c to rbldnsd.c
+
+  * fixed alignment bug in mempool.c that caused allocation slip
+
+  * simplify dssoa allocation
+
+ -- Michael Tokarev <mjt@corpit.ru>  Thu, 29 May 2003 12:46:37 +0400
+
+rbldnsd (0.95) unstable; urgency=low
+
+  * Portability: #include <netinet/in.h> for sockaddr_in definition in
+    rbldnsd_packet.c
+
+  * Allocate dataset to be part of zonedataset -> remove dataset's allocfn
+
+  * Added `combined' dummy dataset
+
+  * Change loading routines: ds_loadfn become ds_startfn and ds_linefn,
+    ds_linefn is now passed via zonedataset to readdslines.  Preparations
+    for combined dataset.
+
+  * Implemented `combined' dataset, with many changes all other the places
+
+  * Notes, TODO items updated
+
+  * Fixed problem with DN compression introduced in recent changes.
+
+  * cleanup of #include's
+
+  * change names of zsoa, zns to reflect content more accurately
+
+  * align argument for mp_alloc(), to align object(s) to sizeof(int).
+    This allows to eliminate one mempool in combined dataset.
+
+  * use varlen zns_ttldn[]
+
+  * use one memory pool for all nested datasets in combined dataset
+
+  * add additional argument to ds_resetfn_t - freeall boolean, to
+    free all the memory instead of just zeroing it - needed for
+    combined dataset, but not currently used anyway
+
+  * in ip4set, remember size of previously allocated array to
+    avoid unnecessary realloc()s
+
+  * made ip4mask() to be an indexed array access to ip4addr_cidr_netmasks[]
+
+ -- Michael Tokarev <mjt@corpit.ru>  Tue, 27 May 2003 22:18:20 +0400
+
+rbldnsd (0.94) unstable; urgency=low
+
+  * implemented -d option (dump zone data in BIND format to stdout)
+
+  * data loading warnings goes to stderr instead of stdout
+
+  * Makefile portability tweaks for Solaris
+
+  * recognize ';' as comment char in addition to '#'; also, officially
+    recognize comments after an entry (IP address or domain name) in
+    ip4set and dnset
+
+ -- Michael Tokarev <mjt@corpit.ru>  Mon, 26 May 2003 17:49:27 +0400
+
+rbldnsd (0.93) unstable; urgency=low
+
+  * reverse change made in 0.91: SOA TTL, when SOA is in AUTHORIRY
+    section, should be set to MINTTL field of SOA itself.
+
+ -- Michael Tokarev <mjt@corpit.ru>  Sun, 18 May 2003 19:05:38 +0400
+
+rbldnsd (0.92) unstable; urgency=medium
+
+  * bugfix: fixed SOA screwup introduced in 0.91
+
+ -- Michael Tokarev <mjt@corpit.ru>  Sat, 17 May 2003 05:24:39 +0400
+
+rbldnsd (0.91) unstable; urgency=low
+
+  * print version info at build time (Makefile)
+  * made SIGNALLED_* names action-, not signal-dependant
+  * allow compilation without IPv6 (-DNOIPv6)
+  * free addrinfo structure for bind address (not a real leak: it used once)
+  * rotate nameserver records (simple cyclic rotation)
+  * do not reallocate memory for dataset headers on every reload
+  * fixed glitch in dnset - min DN labels was always 0 (tiny speedup only)
+  * fixed default A RR to be 127.0.0.2, not 2.0.0.127
+  * added a note about absolute vs relative domain names into manpage
+  * allow to specify a unit (s, m, h, d, w) for all time values
+  * changed default ttl to be 35m
+  * use ISSPACE/SKIPSPACE everywhere
+  * use PACK32/PACK16 everywhere
+  * some more variants of parse_{time,uint32}
+  * use parse_time() for -c option too
+  * always use SOA's TTL when SOA is included in answer
+  * added RPM .spec file
+
+ -- Michael Tokarev <mjt@corpit.ru>  Thu, 15 May 2003 02:35:35 +0400
+
+rbldnsd (0.90) unstable; urgency=low
+
+  * 0.90 final.  Some little mods for IPv6.
+
+ -- Michael Tokarev <mjt@corpit.ru>  Sat, 10 May 2003 01:54:52 +0400
+
+rbldnsd (0.89p4.ip6) unstable; urgency=low
+
+  * IPv6 transport support.  Default is to try any,
+    specify -6 or -4 to select IPv6 or IPv4.
+
+  * -a (ACL) and -L (log ACL) options are gone for now,
+    because there is no IPv6 versions.
+
+ -- Michael Tokarev <mjt@corpit.ru>  Thu,  8 May 2003 21:24:02 +0400
+
+rbldnsd (0.89p4) unstable; urgency=low
+
+  * NXDOMAIN elimination is gone.  Bind9 does that too, so I assume
+    it is correct behaviour.  Many code removed.
+  * Another prerelease.
+
+ -- Michael Tokarev <mjt@corpit.ru>  Thu,  8 May 2003 21:24:02 +0400
+
+rbldnsd (0.89p3) unstable; urgency=low
+
+  * ip4vset and ip4set merged, ditto for dnvset and dnset.
+  * $NS in datasets
+  * $TTL in datasets generic records; now required for $SOA and $NS
+  * $n substitutions
+  * more details in NEWS
+
+ -- Michael Tokarev <mjt@corpit.ru>  Thu,  8 May 2003 16:59:33 +0400
+
+rbldnsd (0.89p2) unstable; urgency=low
+
+  * again, many changes.  DN-based lists are now ok too from
+    BIND point of view.  Logging improvements.  See NEWS file.
+
+ -- Michael Tokarev <mjt@corpit.ru>  Tue,  6 May 2003 03:33:37 +0400
+
+rbldnsd (0.89p1) unstable; urgency=low
+
+  * big number of changes, to match BIND's runtime behaviour.
+    See NEWS for details
+
+ -- Michael Tokarev <mjt@corpit.ru>  Sun,  4 May 2003 18:27:42 +0400
+
+rbldnsd (0.84p2) unstable; urgency=low
+
+  * rewrote query parsing routine to be much more accurate (see
+    version 0.83 change entry) and a bit faster.
+  * cleanups, cleanups.
+  * return definitive answer to AAAA, PTR and CNAME queries.  A
+    hack for now, seeking for a better way...
+
+ -- Michael Tokarev <mjt@corpit.ru>  Tue, 29 Apr 2003 04:29:02 +0400
+
+rbldnsd (0.83) unstable; urgency=high
+
+  * critical buffer overflow fix in dns query parsing code.
+    Initial code (0.1 version) was right, but it was rewritten
+    in 0.2 - the bug was here since 0.2!..  Ughhh!..
+
+ -- Michael Tokarev <mjt@corpit.ru>  Sat, 19 Apr 2003 05:24:09 +0400
+
+rbldnsd (0.83p1) unstable; urgency=low
+
+  * -DNOSTDINT_H to use <sys/types.h> instead of <stdint.h> for uint32_t.
+  * changed slightly "zone loaded" message
+  * added minimal access control (-a netlist option)
+  * added query log filter (-L netlist option), and added logging of
+    timestamps.
+  * moved packet receiving/replying stuff into rbldnsd.c
+  * one-by-off bug - retrying interrupted replies was wrong
+  * use inline version of qsort in order to be able to use inline
+    comparision routine.  Speed up loading significantly.
+  * allow to run as non-root; little cleanups
+  * removed -DNOREMOVEDUPS, -DNOIP4RANGES, -DPRINT_TIMES => -DNOTIMES
+  * added statistic counters (SIGUSR1/USR2/exit) - disable with -DNOSTATS
+  * added meminfo logging via mallinfo (-m option) - disable with -DNOMEMINFO
+  * fixed invocation w/o -b (bind address): rbldnsd wasn't work w/o -b at all
+
+ -- Michael Tokarev <mjt@corpit.ru>  Sat, 19 Apr 2003 02:25:18 +0400
+
+rbldnsd (0.82) unstable; urgency=low
+
+  * recognize another variation of IP address range, for easy use:
+    127.0.0.1-2 is now treated as 127.0.0.1-127.0.0.2
+    127.0-200   is now treated as 127.0.0.0-127.200.255.255
+
+  * rbldnsd w/o arguments will exit with 1 after printing usage info
+    -h cause exit with 0
+    (I forgot to add exit() call after usage())
+
+  * example WirehubDynablock2rbldnsd.pl script
+
+  * debianized, added startup script for Debian
+    (rbldnsd is now a native Debian package)
+
+ -- Michael Tokarev <mjt@corpit.ru>  Sat,  5 Apr 2003 11:40:31 +0400
+
+rbldnsd (0.81-0) unstable; urgency=low
+
+  * Initial Debian Release.
+    Previous CHANGES file is now in CHANGES-0.81
+
+ -- Michael Tokarev <mjt@corpit.ru>  Sat,  5 Apr 2003 00:30:39 +0400
+
+Local variables:
+mode: debian-changelog
+End:

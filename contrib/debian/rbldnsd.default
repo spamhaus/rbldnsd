@@ -1,0 +1,42 @@
+# /etc/default/rbldnsd
+# This file should set one variable, RBLDNSD, to be a multiline
+# list of all instances of rbldnsd to start.  Every line in that
+# list consist of a key (basename for a pid file), and rbldnsd
+# command line, e.g.:
+#
+# RBLDNSD="dsbl -r/var/lib/rbldns/dsbl -b127.2 list.dsbl.org:ip4set:list"
+#
+# or, using multiple lines and line continuations:
+#
+# RBLDNSD="dsbl -r/var/lib/rbldns/dsbl -b 127.2 \
+#   list.dsbl.org:ip4set:list \
+#   multihop.dsbl.org:ip4set:multihop \
+#   unconfirmed.dsbl.org:ip4set:unconfirmed \
+#
+# local -r/var/lib/rbldns/local -b 127.3 \
+#   dialups.bl.example.com:ip4set:dialups \
+#   spews.bl.example.com:ip4set:spews \
+#   inputs.bl.example.com:ip4set:inputs \
+#   bl.example.com:ip4set:dialups \
+#   bl.example.com:ip4set:spews \
+#   bl.example.com:ip4set:inputs \
+#
+#  "
+#
+# This is the recommended way to keep entries readable and
+# easily editable.
+#
+# the first word, key, will be used to form pid file name, like
+# /var/run/rbldnsd-dsbl.pid, /var/run/rbldnsd-local.pid etc.
+# So, all keys should be unique.  This is done in order to support
+# several instances of rbldnsd, if that'll be required.  In a
+# simple case, when only one instance is needed, key may be
+# specified as a single dash, -, and in this case pid file
+# will be /var/run/rbldnsd.pid :
+#
+# RBLDNSD="- -r/var/lib/rbldns -b127.2 \
+#   zone list...\
+# "
+#
+# See rbldnsd(8) for descriptions of options.
+#

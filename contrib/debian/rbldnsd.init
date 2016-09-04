@@ -1,0 +1,118 @@
+#! /bin/sh
+# rbldnsd	startup script.
+#
+### BEGIN INIT INFO
+# Provides:       rbldnsd
+# Required-Start: $network $remote_fs $syslog
+# Required-Stop:  $network $remote_fs $syslog
+# Default-Start:  2 3 4 5
+# Default-Stop:   0 1 6
+### END INIT INFO
+#
+# chkconfig:	345 80 30
+# description:	rbldnsd is a DNS daemon for DNSBLs.  Configure it in \
+#		/etc/default/rbldnsd or /etc/sysconfig/rbldnsd
+
+PATH=/sbin:/bin:/usr/sbin:/usr/bin
+NAME=rbldnsd
+DESC=$NAME
+DAEMON=/usr/sbin/$NAME
+
+test -f $DAEMON || exit 0
+
+set -e
+
+RBLDNSD=
+
+if [ -f /etc/default/$NAME ] ; then
+  . /etc/default/$NAME
+elif [ -f /etc/sysconfig/$NAME ]; then
+  . /etc/sysconfig/$NAME
+else
+  exit 0
+fi
+
+test -n "$RBLDNSD" || exit 0
+
+forall() {
+  echo "$RBLDNSD" |
+    while read name args; do
+      case "$name" in
+        ""|\#*) continue;;
+	-) name=$NAME; pidfile=/var/run/$name.pid;;
+	*) pidfile=/var/run/rbldnsd-$name.pid;;
+      esac
+      pid=
+      if [ -f $pidfile ]; then
+        read p < $pidfile
+        if [ -n "$p" -a -f /proc/$p/cmdline ]; then
+          case "`cat /proc/$p/cmdline 2>/dev/null`" in
+            *$NAME*) pid=$p;;
+          esac
+        fi
+      fi
+      $1
+    done
+}
+
+report() {
+  echo "$1 $DESC: $name"
+}
+
+runit() {
+  $DAEMON -p $pidfile $args
+}
+
+start() {
+  if [ ! "$pid" ]; then
+    report Starting
+    runit
+  fi
+}
+
+stop() {
+  if [ "$pid" ]; then
+    report Stopping
+    kill $pid
+    rm -f $pidfile
+  fi
+}
+
+restart() {
+  if [ "$pid" ]; then
+    report Restarting 
+    kill $pid
+    sleep 1
+    runit
+  else
+    start
+  fi
+}
+
+reload() {
+  if [ "$pid" ]; then
+    report Reloading
+    kill -HUP $pid
+  fi
+}
+
+case "$1" in
+  start|restart)
+	forall $1
+	if [ -d /var/lock/subsys ] ; then touch /var/lock/subsys/$NAME; fi
+	;;
+  stop)
+	forall $1
+	rm -f /var/lock/subsys/$NAME
+	;;
+  reload|force-reload)
+	forall reload
+	;;
+  *)
+	N=/etc/init.d/$NAME
+	echo "Usage: $N {start|stop|restart|reload|force-reload}" >&2
+	exit 1
+	;;
+esac
+
+exit 0

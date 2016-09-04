@@ -1,0 +1,63 @@
+#!/usr/bin/make -f
+# debian/rules for rbldnsd
+# GNU copyright 1997 to 1999 by Joey Hess.
+# GNU copyright 2003 by Michael Tokarev.
+
+# Uncomment this to turn on verbose mode.
+#export DH_VERBOSE=1
+
+DEFS =
+CFLAGS = -pipe -Wall -W -g
+ifeq (,$(findstring noopt,$(DEB_BUILD_OPTIONS)))
+  CFLAGS += -O2
+endif
+-include /usr/share/dpkg/buildflags.mk
+
+config: config.h Makefile
+config.h Makefile: configure Makefile.in
+	dh_testdir
+	CFLAGS="$(CFLAGS) $(CPPFLAGS)" LDFLAGS="$(LDFLAGS)" DEFS="$(DEFS)" ./configure --enable-zlib
+
+build build-arch: debian/build-stamp
+debian/build-stamp: config.h
+	dh_testdir
+	$(MAKE)
+	touch $@
+
+build-indep:
+
+clean:
+	dh_testdir
+	rm -f debian/build-stamp
+	[ ! -f Makefile ] || $(MAKE) distclean
+	dh_clean
+
+install: debian/build-stamp
+	dh_testdir
+	dh_testroot
+	dh_clean
+
+	mkdir -p -m0755 debian/rbldnsd/usr/sbin
+	cp rbldnsd debian/rbldnsd/usr/sbin
+	dh_installman rbldnsd.8
+	dh_installinit
+	dh_installdocs README.user NEWS TODO CHANGES-0.81
+	dh_installchangelogs
+	dh_strip
+	dh_compress
+	dh_fixperms
+
+binary-indep:
+
+binary-arch: build install
+	dh_testdir
+	dh_testroot
+	dh_installdeb
+	dh_shlibdeps
+	dh_gencontrol
+	dh_md5sums
+	dh_builddeb
+
+binary: binary-arch
+
+.PHONY: build-indep build-arch build clean binary-indep binary-arch binary install

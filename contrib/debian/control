@@ -1,0 +1,17 @@
+Source: rbldnsd
+Section: net
+Priority: optional
+Maintainer: Michael Tokarev <mjt@corpit.ru>
+Uploaders: Santiago Vila <sanvila@debian.org>
+Build-Depends: debhelper (>> 4), zlib1g-dev
+Standards-Version: 3.7.2
+Vcs-Git: git://git.corpit.ru/rbldnsd.git
+Vcs-Browser: http://git.corpit.ru/?p=rbldnsd.git
+
+Package: rbldnsd
+Architecture: any
+Depends: ${shlibs:Depends}, adduser
+Description: small nameserver daemon designed for DNSBLs
+ Rbldnsd is a small authoritate-only DNS nameserver
+ designed to serve DNS-based blocklists (DNSBLs).
+ It may handle IP-based and name-based blocklists.
