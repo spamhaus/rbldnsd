@@ -959,7 +959,7 @@ static int do_reload(int do_fork) {
 # undef kb
   }
 #endif /* NO_MEMINFO */
-  dslog(LOG_INFO, 0, ibuf);
+  dslog(LOG_INFO, 0, "%s", ibuf);
 
   check_expires();
 
