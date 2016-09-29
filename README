@@ -1,6 +1,6 @@
 This is rbldnsd.
 
-The current source tree is mantained by The Spamhaus Project Ltd., London (UK)
+The current source tree is mantained by The Spamhaus Project Ltd.
 The original source was written originally by Michael Tokarev <mjt+rbldnsd@corpit.ru>
 
 
@@ -25,8 +25,6 @@ Copyright (C) 2002 Michael Tokarev
   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
   GNU General Public License for more details.
 
-  You should have received a copy of the GNU General Public License with
-  the Debian GNU/Linux distribution in file /usr/share/common-licenses/GPL;
-  if not, write to the Free Software Foundation, Inc., 59 Temple Place,
-  Suite 330, Boston, MA  02111-1307  USA
-
+  You should have received a copy of the GNU General Public License along
+  with this program; if not, write to the Free Software Foundation, Inc.,
+  51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
