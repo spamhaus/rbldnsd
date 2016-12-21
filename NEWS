@@ -1,6 +1,10 @@
 This file describes user-visible changes in rbldnsd.
 Newer news is at the top.
 
+0.998b
+ - Fix for memory errors on very large datasets.
+   Patch by Andrew Clayton
+
 0.998a (06 Sep 2016)
  - Minor fixes in copyright and documentation
  - bugfix: minor fix to prevent errors on newer compilers

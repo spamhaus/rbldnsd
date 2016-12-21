@@ -460,21 +460,21 @@ dump_a_txt(const char *name, const char *rr,
 
 #endif
 
-char *emalloc(unsigned size) {
+char *emalloc(size_t size) {
   void *ptr = malloc(size);
   if (!ptr)
     oom();
   return ptr;
 }
 
-char *ezalloc(unsigned size) {
+char *ezalloc(size_t size) {
   void *ptr = calloc(1, size);
   if (!ptr)
     oom();
   return ptr;
 }
 
-char *erealloc(void *ptr, unsigned size) {
+char *erealloc(void *ptr, size_t size) {
   void *nptr = realloc(ptr, size);
   if (!nptr)
     oom();
