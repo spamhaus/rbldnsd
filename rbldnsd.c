@@ -203,10 +203,79 @@ static volatile int signalled;
 #define SIGNALLED_ZSTATS	0x10
 #define SIGNALLED_TERM		0x20
 
+static inline int sockaddr_in_equal(const struct sockaddr_in *addr1,
+                                    const struct sockaddr_in *addr2)
+{
+  return (addr1->sin_port == addr2->sin_port
+          && addr1->sin_addr.s_addr == addr2->sin_addr.s_addr);
+}
+
+#ifndef NO_IPv6
+static inline int sockaddr_in6_equal(const struct sockaddr_in6 *addr1,
+                                     const struct sockaddr_in6 *addr2)
+{
+  if (memcmp(addr1->sin6_addr.s6_addr, addr2->sin6_addr.s6_addr, 16) != 0)
+    return 0;
+  return (addr1->sin6_port == addr2->sin6_port
+          && addr1->sin6_flowinfo == addr2->sin6_flowinfo
+          && addr1->sin6_scope_id == addr2->sin6_scope_id);
+}
+#endif
+
+static inline int sockaddr_equal(const struct sockaddr *addr1,
+                                 const struct sockaddr *addr2)
+{
+  if (addr1->sa_family != addr2->sa_family)
+    return 0;
+  switch (addr1->sa_family) {
+  case AF_INET:
+    return sockaddr_in_equal((const struct sockaddr_in *)addr1,
+                             (const struct sockaddr_in *)addr2);
+#ifndef NO_IPv6
+    return sockaddr_in6_equal((const struct sockaddr_in6 *)addr1,
+                              (const struct sockaddr_in6 *)addr2);
+#endif
+    default:
+      error(0, "unknown address family (%d)", addr1->sa_family);
+  }
+}
+
+/* already_bound(addr, addrlen)
+ *
+ * Determine whether we've already bound to a particular address.
+ * This is here mostly to deal with the fact that on certain systems,
+ * gethostbyname()/getaddrinfo() can return a duplicate 127.0.0.1
+ * for 'localhost'.  See
+ *   - http://sourceware.org/bugzilla/show_bug.cgi?id=4980
+ *   - https://bugzilla.redhat.com/show_bug.cgi?id=496300
+ */
+static int already_bound(const struct sockaddr *addr, socklen_t addrlen) {
+#ifdef NO_IPv6
+  struct sockaddr_in addr_buf;
+#else
+  struct sockaddr_in6 addr_buf;
+#endif
+  struct sockaddr *boundaddr = (struct sockaddr *)&addr_buf;
+  socklen_t buflen;
+  int i;
+
+  for (i = 0; i < numsock; i++) {
+    buflen = sizeof(addr_buf);
+    if (getsockname(sock[i], boundaddr, &buflen) < 0)
+      error(errno, "getsockname failed");
+    if (buflen == addrlen && sockaddr_equal(boundaddr, addr))
+      return 1;
+  }
+  return 0;
+}
+
 #ifdef NO_IPv6
 static void newsocket(struct sockaddr_in *sin) {
   int fd;
   const char *host = ip4atos(ntohl(sin->sin_addr.s_addr));
+
+  if (already_bound((struct sockaddr *)sin, sizeof(*sin)))
+    return;
   if (numsock >= MAXSOCK)
     error(0, "too many listening sockets (%d max)", MAXSOCK);
   fd = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
@@ -223,6 +292,8 @@ static int newsocket(struct addrinfo *ai) {
   int fd;
   char host[NI_MAXHOST], serv[NI_MAXSERV];
 
+  if (already_bound(ai->ai_addr, ai->ai_addrlen))
+    return 1;
   if (numsock >= MAXSOCK)
     error(0, "too many listening sockets (%d max)", MAXSOCK);
   fd = socket(ai->ai_family, ai->ai_socktype, ai->ai_protocol);

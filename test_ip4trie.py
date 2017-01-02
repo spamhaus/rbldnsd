@@ -9,7 +9,7 @@ __all__ = [
     ]
 
 def ip4trie(zone_data):
-    """ Run rbldnsd with an ip6trie dataset
+    """ Run rbldnsd with an ip4trie dataset
     """
     dnsd = Rbldnsd()
     dnsd.add_dataset('ip4trie', ZoneFile(zone_data))
