@@ -214,11 +214,6 @@ struct dataset {	/* ds */
   struct dssoa *ds_dssoa;		/* SOA record */
   struct dsns *ds_dsns;			/* list of nameservers */
   unsigned ds_nsttl;			/* TTL for NS records */
-#ifndef INCOMPAT_0_99
-  int ds_nsflags;
-#define DSF_NEWNS  0x01			/* new-style NS on one line */
-#define DSF_NSWARN 0x02			/* warned about new-style NS */
-#endif
   unsigned ds_ttl;			/* default ttl for a dataset */
   char *ds_subst[11];			/* substitution variables */
 #define SUBST_BASE_TEMPLATE	10

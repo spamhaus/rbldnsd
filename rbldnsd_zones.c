@@ -201,34 +201,11 @@ static int ds_special(struct dataset *ds, char *line, struct dsctx *dsc) {
      struct dsns *dsns, **dsnslp;
      unsigned ttl;
 
-#ifndef INCOMPAT_0_99
-#ifdef __GNUC__
-/* some compilers don't understand #warning directive */
-#warning NS record compatibility mode: remove for 1.0 final
-#endif
-     struct dsns *dsns_first = 0;
-     unsigned cnt;
-     int newformat = 0;
-#endif
-
     if (isdstype(ds->ds_type, acl))
       return 0;	/* don't allow NSes for ACLs */
 
-#ifndef INCOMPAT_0_99
-     if (ds->ds_nsflags & DSF_NEWNS) return 1;
-     if (ds->ds_dsns) {
-       dsns = ds->ds_dsns;
-       while(dsns->dsns_next)
-         dsns = dsns->dsns_next;
-       dsnslp = &dsns->dsns_next;
-     }
-     else
-       dsnslp = &ds->ds_dsns;
-     cnt = 0;
-#else
      if (ds->ds_dsns) return 1; /* ignore 2nd nameserver line */
      dsnslp = &ds->ds_dsns;
-#endif
 
      /*XXX parse options (AndrewSN suggested `-bloat') here */
 
@@ -239,9 +216,6 @@ static int ds_special(struct dataset *ds, char *line, struct dsctx *dsc) {
          /* skip nameservers that start with `-' aka 'commented-out' */
          do ++w; while (*w && !ISSPACE(*w));
          SKIPSPACE(w);
-#ifndef INCOMPAT_0_99
-	 newformat = 1;
-#endif
          continue;
        }
        if (!(w = parse_dn(w, dn, &dnlen))) return 0;
@@ -252,26 +226,9 @@ static int ds_special(struct dataset *ds, char *line, struct dsctx *dsc) {
        *dsnslp = dsns;
        dsnslp = &dsns->dsns_next;
        *dsnslp = NULL;
-#ifndef INCOMPAT_0_99
-       if (!cnt++)
-         dsns_first = dsns;
-#endif
      } while(*w);
 
-#ifndef INCOMPAT_0_99
-     if (cnt > 1 || newformat) {
-       ds->ds_nsflags |= DSF_NEWNS;
-       ds->ds_dsns = dsns_first; /* throw away all NS recs */
-     }
-     else if (dsns_first != ds->ds_dsns && !(ds->ds_nsflags & DSF_NSWARN)) {
-       dswarn(dsc, "compatibility mode: specify all NS records in ONE line");
-       ds->ds_nsflags |= DSF_NSWARN;
-     }
-     if (!ds->ds_nsttl || ds->ds_nsttl > ttl)
-       ds->ds_nsttl = ttl;
-#else
      ds->ds_nsttl = ttl;
-#endif
     return 1;
   }
 
@@ -411,9 +368,6 @@ static void freedataset(struct dataset *ds) {
   ds->ds_dsns = NULL;
   ds->ds_nsttl = 0;
   ds->ds_expires = 0;
-#ifndef INCOMPAT_0_99
-  ds->ds_nsflags = 0;
-#endif
   memset(ds->ds_subst, 0, sizeof(ds->ds_subst));
 }
 

@@ -1,13 +1,11 @@
 This file describes user-visible changes in rbldnsd.
 Newer news is at the top.
 
-Next release
-
+0.999 (Still not official, to be released)
+ - Removal of deprecated features (aka: NS record compatibility mode)
  - fix tests for systems without ipv6 support, or when ipv6 is
    disabled in rbldnsd at compile-time
-
  - fix tests for API change in pydns >= 2.3.6
-
  - It is no longer an error to request binding to a particular
    address/port more than once. (The subsequent requests are simply
    ignored.) (This avoids confusion on certain systems/configurations
