@@ -3,6 +3,7 @@ Newer news is at the top.
 
 0.999 (Still not official, to be released)
  - Removal of deprecated features (aka: NS record compatibility mode)
+ - Adding -F flag, used to identify the log facility of the daemon.
  - fix tests for systems without ipv6 support, or when ipv6 is
    disabled in rbldnsd at compile-time
  - fix tests for API change in pydns >= 2.3.6

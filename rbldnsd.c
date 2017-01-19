@@ -178,6 +178,7 @@ static void NORETURN usage(int exitcode) {
 "  This is an equivalent of bind9 \"minimal-answers\" setting.\n"
 "  In future versions this mode will be the default.\n"
 " -A - put AUTH section in every reply.\n"
+" -F facility - Log facility for syslog. Default is 'daemon'.\n"
 #ifndef NO_ZLIB
 " -C - disable on-the-fly decompression of dataset files\n"
 #endif
@@ -416,12 +417,58 @@ initsockets(const char *bindaddr[MAXSOCK], int nba, int UNUSED family) {
   }
 }
 
+static struct {
+    int facility;
+    const char *name;
+} facility_names[] = {
+    { LOG_AUTH,         "auth" },
+    { LOG_AUTHPRIV,     "authpriv" },
+    { LOG_CRON,         "cron" },
+    { LOG_DAEMON,       "daemon" },
+    { LOG_FTP,          "ftp" },
+    { LOG_KERN,         "kern" },
+    { LOG_LOCAL0,       "local0" },
+    { LOG_LOCAL1,       "local1" },
+    { LOG_LOCAL2,       "local2" },
+    { LOG_LOCAL3,       "local3" },
+    { LOG_LOCAL4,       "local4" },
+    { LOG_LOCAL5,       "local5" },
+    { LOG_LOCAL6,       "local6" },
+    { LOG_LOCAL7,       "local7" },
+    { LOG_LPR,          "lpr" },
+    { LOG_MAIL,         "mail" },
+    { LOG_NEWS,         "news" },
+    { LOG_SYSLOG,       "syslog" },
+    { LOG_USER,         "user" },
+    { LOG_UUCP,         "uucp" },
+};
+
+static int logfacility_lookup(const char *facility, int *logfacility) {
+    unsigned int t;
+
+    if ( logfacility == NULL ) {
+        return 0;
+    }
+
+    for ( t=0; t < sizeof(facility_names) / sizeof(facility_names[0]); t++ ) {
+        if ( !strncmp(facility_names[t].name, facility, strlen(facility_names[t].name)+1) ) {
+            *logfacility = facility_names[t].facility;
+            return 1;
+        }
+    }
+
+    *logfacility = LOG_DAEMON;
+
+    return 0;
+}
+
 static void init(int argc, char **argv) {
   int c;
   char *p;
   const char *user = NULL;
-  const char *rootdir = NULL, *workdir = NULL, *pidfile = NULL;
+  const char *rootdir = NULL, *workdir = NULL, *pidfile = NULL, *facility = NULL;
   const char *bindaddr[MAXSOCK];
+  int logfacility;
   int nba = 0;
   uid_t uid = 0;
   gid_t gid = 0;
@@ -441,7 +488,7 @@ static void init(int argc, char **argv) {
 
   if (argc <= 1) usage(1);
 
-  while((c = getopt(argc, argv, "u:r:b:w:t:c:p:nel:qs:h46dvaAfCx:X:")) != EOF)
+  while((c = getopt(argc, argv, "u:r:b:w:t:c:p:nel:qs:h46dvaAfF:Cx:X:")) != EOF)
     switch(c) {
     case 'u': user = optarg; break;
     case 'r': rootdir = optarg; break;
@@ -523,6 +570,7 @@ break;
     case 'a': lazy = 1; break;
     case 'A': lazy = 0; break;
     case 'f': forkon = 1; break;
+    case 'F': facility = optarg; break;
     case 'C': nouncompress = 1; break;
 #ifndef NO_DSO
     case 'x': ext = optarg; break;
@@ -535,6 +583,7 @@ break;
     case 'h': usage(0);
     default: error(0, "type `%.50s -h' for help", progname);
     }
+    /* options switch end */
 
   if (!(argc -= optind))
     error(0, "no zone(s) to service specified (-h for help)");
@@ -566,10 +615,20 @@ break;
   if (!nba)
     error(0, "no address to listen on (-b option) specified");
 
+  if ( facility == NULL ) {
+    logfacility = LOG_DAEMON;
+  }
+  else {
+    if ( logfacility_lookup(facility, &logfacility) == 0 ) {
+      error(0, "log facility %s is not valid", facility);
+    }
+  }
+
   tzset();
   if (nodaemon)
     logto = LOGTO_STDOUT|LOGTO_STDERR;
-  else {
+  else
+  {
     /* fork early so that logging will be from right pid */
     int pfd[2];
     if (pipe(pfd) < 0) error(errno, "pipe() failed");
@@ -582,7 +641,8 @@ break;
     }
     cfd = pfd[1];
     close(pfd[0]);
-    openlog(progname, LOG_PID|LOG_NDELAY, LOG_DAEMON);
+
+    openlog(progname, LOG_PID|LOG_NDELAY, logfacility);
     logto = LOGTO_STDERR|LOGTO_SYSLOG;
     if (!quickstart && !flog) logto |= LOGTO_STDOUT;
   }
