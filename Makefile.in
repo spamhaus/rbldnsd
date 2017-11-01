@@ -39,7 +39,7 @@ LIBS = @LIBS@
 
 NAME = rbldnsd
 
-# taken from debian/changelog, by ./configure
+# taken from contrib/debian/changelog, by ./configure
 VERSION = @VERSION@
 VERSION_DATE = @VERSION_DATE@
 
@@ -68,12 +68,12 @@ RBLDNSD_HDRS = rbldnsd.h
 RBLDNSD_OBJS = $(RBLDNSD_SRCS:.c=.o) lib$(NAME).a
 
 MISC = configure configure.lib \
-  $(NAME).8 qsort.c Makefile.in dns_maketab.awk $(NAME).spec \
+  $(NAME).8 qsort.c Makefile.in dns_maketab.awk contrib/rpm/$(NAME).spec \
   NEWS TODO CHANGES-0.81 README.user \
   rbldnsd.py
 TESTS = tests.py $(wildcard test_*.py)
-DEBFILES  = debian/changelog debian/copyright debian/rules debian/control \
-  debian/postinst debian/$(NAME).default debian/$(NAME).init
+DEBFILES  = contrib/debian/changelog contrib/debian/copyright contrib/debian/rules contrib/debian/control \
+  contrib/debian/postinst contrib/debian/$(NAME).default contrib/debian/$(NAME).init
 
 SRCS = $(LIB_SRCS) $(RBLDNSD_SRCS)
 GSRC = $(LIB_GSRC)
@@ -117,14 +117,14 @@ distclean: clean
 	-rm -f $(NAME) config.h Makefile config.status *.py[co]
 
 spec:
-	@sed "s/^Version:.*/Version: $(VERSION)/" $(NAME).spec \
-	  > $(NAME).spec.tmp
+	@sed "s/^Version:.*/Version: $(VERSION)/" contrib/rpm/$(NAME).spec \
+	  > contrib/rpm/$(NAME).spec.tmp
 	@set -e; \
-	if cmp $(NAME).spec $(NAME).spec.tmp ; then \
-	  rm -f $(NAME).spec.tmp; \
+	if cmp contrib/rpm/$(NAME).spec contrib/rpm/$(NAME).spec.tmp ; then \
+	  rm -f contrib/rpm/$(NAME).spec.tmp; \
 	else \
 	  echo "Updating $(NAME).spec ($(VERSION))" ; \
-	  mv -f $(NAME).spec.tmp $(NAME).spec ; \
+	  mv -f contrib/rpm/$(NAME).spec.tmp contrib/rpm/$(NAME).spec ; \
 	fi
 
 dist: $(NAME)-$(VERSION).tar.gz

@@ -2,14 +2,14 @@
 
 Summary: Small fast daemon to serve DNSBLs
 Name: rbldnsd
-Version: 0.998
-Release: 2
+Version: 0.999
+Release: 1
 License: GPL
 Group: System Environment/Daemons
 BuildRoot: %_tmppath/%name-%version
 PreReq: /sbin/chkconfig, /sbin/nologin, shadow-utils
 
-Source: http://www.github.com/spamhaus/%name/%{name}_%version.tar.gz
+Source: http://www.github.com/spamhaus/%name/%{name}-%version.tar.gz
 
 %define home /var/lib/rbldns
 
