@@ -39,7 +39,7 @@ LIBS = @LIBS@
 
 NAME = rbldnsd
 
-# taken from contrib/debian/changelog, by ./configure
+# taken from NEWS, by ./configure
 VERSION = @VERSION@
 VERSION_DATE = @VERSION_DATE@
 
