@@ -12,6 +12,11 @@ Newer news is at the top.
    ignored.) (This avoids confusion on certain systems/configurations
    where gethostbyname("localhost") can return 127.0.0.1 multiple
    times.)
+ - Moving rbldnsd.spec file under contrib/rpm/ to match debian move
+ - Updating various pointers to point to new contrib/ locations
+   (both debian and rpm spec)
+ - Maintenance of RPM spec file to match new file locations, versions,
+   and the make dist tar file naming schema.
 
 0.998b
  - Fix for memory errors on very large datasets.
