@@ -7,7 +7,7 @@ Release: 1
 License: GPL
 Group: System Environment/Daemons
 BuildRoot: %_tmppath/%name-%version
-PreReq: /sbin/chkconfig, /sbin/nologin, shadow-utils
+Requires: /sbin/chkconfig, /sbin/nologin, shadow-utils
 
 Source: http://www.github.com/spamhaus/%name/%{name}-%version.tar.gz
 
