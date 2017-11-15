@@ -2,14 +2,14 @@
 
 Summary: Small fast daemon to serve DNSBLs
 Name: rbldnsd
-Version: 0.998
+Version: 0.999
 Release: 1
 License: GPL
 Group: System Environment/Daemons
 BuildRoot: %_tmppath/%name-%version
-PreReq: /sbin/chkconfig, /sbin/nologin, shadow-utils
+Requires: /sbin/chkconfig, /sbin/nologin, shadow-utils
 
-Source: http://www.corpit.ru/mjt/%name/%{name}_%version.tar.gz
+Source: http://www.github.com/spamhaus/%name/%{name}-%version.tar.gz
 
 %define home /var/lib/rbldns
 
@@ -30,8 +30,8 @@ rm -rf $RPM_BUILD_ROOT
 mkdir -p $RPM_BUILD_ROOT{%_sbindir,%_mandir/man8,/etc/init.d,/etc/sysconfig}
 cp rbldnsd $RPM_BUILD_ROOT%_sbindir/
 cp -p rbldnsd.8 $RPM_BUILD_ROOT%_mandir/man8/
-cp -p debian/rbldnsd.default $RPM_BUILD_ROOT/etc/sysconfig/rbldnsd
-cp -p debian/rbldnsd.init $RPM_BUILD_ROOT/etc/init.d/rbldnsd
+cp -p contrib/debian/rbldnsd.default $RPM_BUILD_ROOT/etc/sysconfig/rbldnsd
+cp -p contrib/debian/rbldnsd.init $RPM_BUILD_ROOT/etc/init.d/rbldnsd
 chmod +x $RPM_BUILD_ROOT/etc/init.d/rbldnsd
 
 %clean
@@ -53,7 +53,7 @@ fi
 
 %files
 %defattr (-,root,root)
-%doc README.user NEWS TODO debian/changelog CHANGES-0.81
+%doc README.user NEWS TODO contrib/debian/changelog CHANGES-0.81
 %_sbindir/rbldnsd
 %_mandir/man8/rbldnsd.8*
 %config(noreplace) /etc/sysconfig/rbldnsd
