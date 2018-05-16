@@ -233,6 +233,7 @@ static inline int sockaddr_equal(const struct sockaddr *addr1,
     return sockaddr_in_equal((const struct sockaddr_in *)addr1,
                              (const struct sockaddr_in *)addr2);
 #ifndef NO_IPv6
+  case AF_INET6:
     return sockaddr_in6_equal((const struct sockaddr_in6 *)addr1,
                               (const struct sockaddr_in6 *)addr2);
 #endif
