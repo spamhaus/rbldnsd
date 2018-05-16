@@ -17,6 +17,7 @@ Newer news is at the top.
    (both debian and rpm spec)
  - Maintenance of RPM spec file to match new file locations, versions,
    and the make dist tar file naming schema.
+ - Fix for sockaddr_equal() which was missing an IPv6 case.
 
 0.998b (21 Dec 2016)
  - Fix for memory errors on very large datasets.
