@@ -18,7 +18,7 @@ Newer news is at the top.
  - Maintenance of RPM spec file to match new file locations, versions,
    and the make dist tar file naming schema.
 
-0.998b
+0.998b (21 Dec 2016)
  - Fix for memory errors on very large datasets.
    Patch by Andrew Clayton
 
