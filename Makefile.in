@@ -156,6 +156,7 @@ config.h Makefile: configure configure.lib Makefile.in NEWS
 # tests
 .PHONY: check check-python-tests check-selftests
 
+test: check-selftests check-python-tests
 
 check: check-selftests check-python-tests
 
