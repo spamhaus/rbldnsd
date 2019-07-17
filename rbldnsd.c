@@ -110,10 +110,26 @@ static int fork_on_reload;
 #if STATS_IPC_IOVEC
 static struct iovec *stats_iov;
 #endif
+
 #ifndef NO_DSO
+int extension_loaded = 0;
+char *extarg = NULL;
+
+/* function pointers intended to hold external dso addresses */
+ds_resetfn_t  *extreset = NULL;
+ds_startfn_t  *extstart = NULL;
+ds_linefn_t   *extline  = NULL;
+ds_finishfn_t *extfinish= NULL;
+ds_queryfn_t  *extquery = NULL;
+ds_loaddatasetfn_t *extloaddataset = NULL;
+#ifndef NO_MASTER_DUMP
+ds_dumpfn_t   *extdump  = NULL;
+#endif
+
+/* TODO: consider deprecating 'hook' functions */
 int (*hook_reload_check)(), (*hook_reload)();
 int (*hook_query_access)(), (*hook_query_result)();
-#endif
+#endif /* ifndef NO_DSO */
 
 /* a list of zonetypes. */
 const struct dstype *ds_types[] = {
@@ -129,6 +145,9 @@ const struct dstype *ds_types[] = {
   dstype(combined),
   dstype(generic),
   dstype(acl),
+#ifndef NO_DSO
+  dstype(extension),
+#endif
   NULL
 };
 
@@ -478,8 +497,9 @@ static void init(int argc, char **argv) {
   int cfd = -1;
   const struct zone *z;
 #ifndef NO_DSO
-  char *ext = NULL, *extarg = NULL;
-  int (*extinit)(const char *arg, struct zone *zonelist) = NULL;
+  char *ext = NULL;
+  int  (*extinit)   (const char *arg, struct zone *zonelist) = NULL;
+  extension_loaded = 0;
 #endif
 
   if ((progname = strrchr(argv[0], '/')) != NULL)
@@ -658,6 +678,26 @@ break;
     extinit = dlsym(handle, "rbldnsd_extension_init");
     if (!extinit)
       error(0, "unable to find extension init routine in `%s'", ext);
+
+    /*
+     * aside from an init routine, all other function hooks are considered
+     * 'optional'.
+     *
+     * TODO: Future we should ensure that an extension has minimum functions
+     *       defined. Leaving this alone for now though just in case there
+     *       are implementations in the wild that use extension with just
+     *       the original 'rbldnsd_extension_init' function defined.
+     */
+    extquery = dlsym(handle, "rbldnsd_extension_query");
+    extreset = dlsym(handle, "rbldnsd_extension_reset");
+    extstart = dlsym(handle, "rbldnsd_extension_start");
+    extline = dlsym(handle, "rbldnsd_extension_line");
+    extfinish = dlsym(handle, "rbldnsd_extension_finish");
+    extloaddataset = dlsym(handle, "rbldnsd_extension_loaddataset");
+#ifndef NO_MASTER_DUMP
+    extdump = dlsym(handle, "rbldnsd_extension_dump");
+#endif
+
   }
 #endif
 
@@ -720,7 +760,10 @@ break;
 
 #ifndef NO_DSO
   if (extinit && extinit(extarg, zonelist) != 0)
-    error(0, "unable to iniitialize extension `%s'", ext);
+    error(0, "unable to initialize extension `%s'", ext);
+  /* if we are here, then the extinit succeeded - set a flag */
+  if (extinit)
+    extension_loaded = 1;
 #endif
 
   if (!quickstart && !do_reload(0))

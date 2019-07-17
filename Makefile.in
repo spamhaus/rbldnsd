@@ -63,7 +63,7 @@ RBLDNSD_SRCS = rbldnsd.c rbldnsd_zones.c rbldnsd_packet.c \
   rbldnsd_ip4set.c rbldnsd_ip4tset.c rbldnsd_ip4trie.c \
   rbldnsd_ip6tset.c rbldnsd_ip6trie.c rbldnsd_dnset.c \
   rbldnsd_generic.c rbldnsd_combined.c rbldnsd_acl.c \
-  rbldnsd_util.c
+  rbldnsd_extension.c rbldnsd_util.c
 RBLDNSD_HDRS = rbldnsd.h
 RBLDNSD_OBJS = $(RBLDNSD_SRCS:.c=.o) lib$(NAME).a
 

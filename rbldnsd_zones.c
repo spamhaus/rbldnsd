@@ -385,6 +385,16 @@ int loaddataset(struct dataset *ds) {
   memset(&dsc, 0, sizeof(dsc));
   dsc.dsc_ds = ds;
 
+#ifndef NO_DSO
+  if (  extloaddataset
+     && ds
+     && ds->ds_type
+     && ds->ds_type->dst_name
+     && strcmp(ds->ds_type->dst_name, "extension") == 0) {
+    return extloaddataset(ds);
+  }
+#endif
+
   for(dsf = ds->ds_dsf; dsf; dsf = dsf->dsf_next) {
     dsc.dsc_fname = dsf->dsf_name;
     fd = open(dsf->dsf_name, O_RDONLY);

@@ -1,3 +1,5 @@
+#ifndef RBLDNSD_H
+#define RBLDNSD_H
 /* common rbldnsd #include header
  */
 
@@ -35,6 +37,7 @@ struct dataset;
 struct dsdata;
 struct dsctx;
 struct sockaddr;
+struct istream;
 
 struct dnspacket {		/* private structure */
   unsigned char p_buf[DNS_EDNS0_MAXPACKET]; /* packet buffer */
@@ -108,6 +111,10 @@ typedef void ds_dumpfn_t(void);
 typedef void
 ds_dumpfn_t(const struct dataset *ds, const unsigned char *odn, FILE *f);
 #define _master_dump_body(n)
+#endif
+
+#ifndef NO_DSO
+typedef int ds_loaddatasetfn_t(struct dataset *);
 #endif
 
 #define NSQUERY_OTHER	0
@@ -273,7 +280,9 @@ struct zone {	/* zone, list of zones */
   struct dnsstats z_stats;		/* statistic counters */
   struct dnsstats z_pstats;		/* for stats monitoring: prev values */
 #endif
+
 #ifndef NO_DSO
+
   void *z_hookdata;			/* data ptr for hooks */
 #endif
   struct zone *z_next;			/* next in list */
@@ -424,8 +433,29 @@ int PRINTFLIKE(3, 4) ssprintf(char *buf, int bufsz, const char *fmt, ...);
 /* hooks from a DSO extensions */
 #ifndef NO_DSO
 
-/* prototype for init routine */
-int rbldnsd_extension_init(char *arg, struct zone *zonelist);
+/*
+ * the 'extension' dataset type is a placeholder dummy that should only take
+ * effect if an extension is actually loaded.  This is needed however to
+ * start rbldnsd with the 'extension' dstype as DSO's are not able to inject
+ * types after the fact.
+ */
+declaredstype(extension);
+
+/* function pointers for external loaded data */
+extern ds_resetfn_t *extreset;
+extern ds_startfn_t *extstart;
+extern ds_linefn_t *extline;
+extern ds_finishfn_t *extfinish;
+extern ds_queryfn_t *extquery;
+extern ds_loaddatasetfn_t *extloaddataset;
+#ifndef NO_MASTER_DUMP
+extern ds_dumpfn_t *extdump;
+#endif
+
+/* TODO: Consider deprecating the 'hook_* / call_hook stuff.
+ *       While there are hook callouts in place in several locations,
+ *       the ability to create hooks does not seem to be fully implemented.
+ */
 
 /* return true/false depending whenever hook needs to be reloaded */
 extern int (*hook_reload_check)(const struct zone *zonelist);
@@ -455,3 +485,5 @@ extern int (*hook_query_result)
 #define call_hook(name, args) 0
 
 #endif
+
+#endif /* RBLDNSD_H*/
