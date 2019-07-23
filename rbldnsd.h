@@ -37,7 +37,6 @@ struct dataset;
 struct dsdata;
 struct dsctx;
 struct sockaddr;
-struct istream;
 
 struct dnspacket {		/* private structure */
   unsigned char p_buf[DNS_EDNS0_MAXPACKET]; /* packet buffer */

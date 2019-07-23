@@ -498,7 +498,7 @@ static void init(int argc, char **argv) {
   const struct zone *z;
 #ifndef NO_DSO
   char *ext = NULL;
-  int  (*extinit)   (const char *arg, struct zone *zonelist) = NULL;
+  int (*extinit)(const char *arg, struct zone *zonelist) = NULL;
   extension_loaded = 0;
 #endif
 
