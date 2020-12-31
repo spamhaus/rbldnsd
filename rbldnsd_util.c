@@ -243,6 +243,8 @@ int txtsubst(char sb[TXTBUFSIZ], const char *txt,
   char *const e = sb + 254;
   char *lp = sb;
   const char *s, *si, *sx;
+  const char *srec = s0;
+
   if (txt[0] == '=')
     sx = ++txt;
   else if (sn[SUBST_BASE_TEMPLATE] && *sn[SUBST_BASE_TEMPLATE]) {
@@ -273,8 +275,10 @@ int txtsubst(char sb[TXTBUFSIZ], const char *txt,
       sl = strlen(si);
       ++s;
     }
-    else
-      sl = strlen(si = s0);
+    else {
+      sl = strlen(si = srec);
+    }
+
     if (lp + sl > e) /* silently truncate TXT RR >255 bytes */
       sl = e - lp;
     memcpy(lp, si, sl);
