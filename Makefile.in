@@ -4,7 +4,7 @@
 
 SHELL = /bin/sh
 CC = @CC@
-CFLAGS = @CFLAGS@
+CFLAGS = -Wno-implicit-fallthrough -Wno-unused-result  @CFLAGS@
 LD = @LD@
 LDFLAGS = @LDFLAGS@
 AR = @AR@

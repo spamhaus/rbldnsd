@@ -20,7 +20,7 @@ class TestIp6TrieDataset(unittest.TestCase):
         with ip6trie(["dead::/16 listed",
                       "!dead::beef"]) as dnsd:
             self.assertEqual(dnsd.query(rfc3152("dead::beef")), None)
-            self.assertEqual(dnsd.query(rfc3152("dead::beee")), "listed")
+            self.assertEqual(dnsd.query(rfc3152("dead::beee")), b"listed")
 
 
 def rfc3152(ip6addr, domain='example.com'):

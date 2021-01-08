@@ -45,7 +45,7 @@ def daemon(acl, addr='localhost'):
     """ Create an Rbldnsd instance with given ACL
     """
     acl_zone = NamedTemporaryFile()
-    acl_zone.writelines("%s\n" % line for line in acl)
+    acl_zone.writelines(bytes("%s\n" % line, encoding='utf8') for line in acl)
     acl_zone.flush()
 
     dnsd = Rbldnsd(daemon_addr=addr)
@@ -63,20 +63,20 @@ class TestAclDataset(unittest.TestCase):
         with daemon(acl=[ "0.0.0.0/0 :refuse",
                           "127.0.0.1 :pass" ],
                     addr='127.0.0.1') as dnsd:
-            self.assertEqual(dnsd.query('test.example.com'), 'Success')
+            self.assertEqual(dnsd.query('test.example.com'), b'Success')
 
     @skipIf(no_ipv6, "IPv6 unsupported")
     def test_refuse_ipv6(self):
         with daemon(acl=["::1 :refuse"],
                     addr='::1') as dnsd:
-            self.assertRaises(QueryRefused, dnsd.query, 'test.example.com')
+            self.assertRaises(QueryRefused, dnsd.query, b'test.example.com')
 
     @skipIf(no_ipv6, "IPv6 unsupported")
     def test_pass_ipv6(self):
         with daemon(acl=[ "0/0 :refuse",
                           "0::1 :pass" ],
                     addr='::1') as dnsd:
-            self.assertEqual(dnsd.query('test.example.com'), 'Success')
+            self.assertEqual(dnsd.query('test.example.com'), b'Success')
 
 if __name__ == '__main__':
     unittest.main()

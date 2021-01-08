@@ -24,15 +24,15 @@ class TestIp4TrieDataset(unittest.TestCase):
         with ip4trie(["1.2.3.0/24 listed",
                       "!1.2.3.4"]) as dnsd:
             self.assertEqual(dnsd.query(reversed_ip("1.2.3.4")), None)
-            self.assertEqual(dnsd.query(reversed_ip("1.2.3.3")), "listed")
-            self.assertEqual(dnsd.query(reversed_ip("1.2.3.5")), "listed")
+            self.assertEqual(dnsd.query(reversed_ip("1.2.3.3")), b"listed")
+            self.assertEqual(dnsd.query(reversed_ip("1.2.3.5")), b"listed")
 
     def test_wildcard_prefix(self):
         with ip4trie(["0/0 wild",
                       "127.0.0.1 localhost"]) as dnsd:
-            self.assertEqual(dnsd.query(reversed_ip("127.0.0.1")), "localhost")
-            self.assertEqual(dnsd.query(reversed_ip("0.0.0.0")), "wild")
-            self.assertEqual(dnsd.query(reversed_ip("127.0.0.2")), "wild")
+            self.assertEqual(dnsd.query(reversed_ip("127.0.0.1")), b"localhost")
+            self.assertEqual(dnsd.query(reversed_ip("0.0.0.0")),   b"wild")
+            self.assertEqual(dnsd.query(reversed_ip("127.0.0.2")), b"wild")
 
 if __name__ == '__main__':
     unittest.main()
