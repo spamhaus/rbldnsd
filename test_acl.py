@@ -69,7 +69,7 @@ class TestAclDataset(unittest.TestCase):
     def test_refuse_ipv6(self):
         with daemon(acl=["::1 :refuse"],
                     addr='::1') as dnsd:
-            self.assertRaises(QueryRefused, dnsd.query, b'test.example.com')
+            self.assertRaises(QueryRefused, dnsd.query, 'test.example.com')
 
     @skipIf(no_ipv6, "IPv6 unsupported")
     def test_pass_ipv6(self):

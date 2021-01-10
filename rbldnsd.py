@@ -12,7 +12,7 @@ import unittest
 try:
     import DNS
 except ImportError:
-    raise RuntimeError("The py3dns library is not installed...")
+    raise RuntimeError("The python3-dns library is not installed...")
 try:
     from DNS import SocketError as DNS_SocketError
 except ImportError:

@@ -6,7 +6,7 @@ import unittest
 try:
     import DNS
 except ImportError:
-    print("TESTS SKIPPED: the py3dns library is not installed")
+    print("TESTS SKIPPED: the python3-dns library is not installed")
     sys.exit(0)
 
 from test_btrie import *

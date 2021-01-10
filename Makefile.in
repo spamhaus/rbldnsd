@@ -11,7 +11,9 @@ AR = @AR@
 ARFLAGS = @ARFLAGS@
 RANLIB = @RANLIB@
 AWK = @AWK@
-PYTHON = python
+# Debian, since the deprecation of python2, suggests to keep the python2 binary as `python`
+# As the tests are usually run on debian, we will force python3 instead of python
+PYTHON = python3
 GNUTAR = tar
 
 # Disable statistic counters
