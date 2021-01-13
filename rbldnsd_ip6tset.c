@@ -203,6 +203,9 @@ ds_ip6tset_query(const struct dataset *ds, const struct dnsqinfo *qi,
   const char *ipsubst;
 
   if (!qi->qi_ip6valid) {
+    if (dn_matches_partial_ipv6(qi)) {
+      return NSQUERY_QNMINIMIZE;
+    }
     return NSQUERY_NXDOMAIN;
   }
   check_query_overwrites(qi);

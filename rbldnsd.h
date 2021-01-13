@@ -328,6 +328,10 @@ void dump_ip6(const ip6oct_t *addr, unsigned wild_nibbles, const char *rr,
 void dump_ip6range(const ip6oct_t *beg, const ip6oct_t *end, const char *rr,
                    const struct dataset *ds, FILE *f);
 #endif
+
+int dn_matches_partial_ipv4(const struct dnsqinfo *qi);
+int dn_matches_partial_ipv6(const struct dnsqinfo *qi);
+
 #define TXTBUFSIZ 260
 int txtsubst(char txtbuf[TXTBUFSIZ], const char *template,
 	     const char *sub0, const struct dataset *ds);

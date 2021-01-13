@@ -452,6 +452,13 @@ int replypacket(struct dnspacket *pkt, unsigned qlen, struct zone *zone) {
     addrr_soa(pkt, zone, 1);	/* add SOA if any to AUTHORITY */
     h[p_f2] = DNS_R_NXDOMAIN;
     do_stats(zone->z_stats.q_nxd += 1);
+  } else if (found & NSQUERY_QNMINIMIZE) {
+    // Return no records, but set NOERROR
+    if (h[p_ancnt2] > 0) {/* There is at leas one answer in the packet */
+      fprintf(stderr, "Cannot minimize qname as the packet already contains a response rr\n");
+      abort();
+    }
+    addrr_soa(pkt, zone, 1); /* add SOA if any to AUTHORITY */
   } else {
     if (!h[p_ancnt2]) {	/* positive reply, no answers */
       addrr_soa(pkt, zone, 1);	/* add SOA if any to AUTHORITY */

@@ -117,6 +117,9 @@ ds_ip4tset_query(const struct dataset *ds, const struct dnsqinfo *qi,
   const char *ipsubst;
 
   if (!qi->qi_ip4valid) {
+    if (dn_matches_partial_ipv4(qi)) {
+      return NSQUERY_QNMINIMIZE;
+    }
     return NSQUERY_NXDOMAIN;
   }
   check_query_overwrites(qi);

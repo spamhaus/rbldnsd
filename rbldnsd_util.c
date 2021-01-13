@@ -610,3 +610,95 @@ void zlog(int level, const struct zone *zone, const char *fmt, ...) {
   dns_dntop(zone->z_dn, name, sizeof(name));
   dslog(level, 0, "zone %.70s: %s", name, buf);
 }
+
+#ifdef QNAMEMIN
+#endif
+
+#define oct(q,o)					\
+    switch(*q) {					\
+    case 1:						\
+      if (!digit(q[1]))					\
+        return 0;					\
+      o = d2n(q[1]);					\
+      break;						\
+    case 2:						\
+      if (!digit(q[1]) || !digit(q[2]))			\
+        return 0;					\
+      o = d2n(q[1]) * 10 + d2n(q[2]);			\
+      break;						\
+    case 3:						\
+      if (!digit(q[1]) || !digit(q[2]) || !digit(q[3]))	\
+        return 0;					\
+      o = d2n(q[1]) * 100 + d2n(q[2]) * 10 + d2n(q[3]);	\
+      if (o > 255) return 0;				\
+      break;						\
+    default: return 0;					\
+    }
+
+static int dn_is_partial_ip4(const unsigned char *q, int labels) {
+  unsigned o, c;
+  int counter = 0;
+
+  if ( labels >= 4 ) {
+    return 0;
+  }
+
+  for(c = labels; c; ) {
+    oct(q,o);
+    q += *q + 1;
+    counter ++;
+    c--;
+  }
+
+  return (counter == labels) ? 1 : 0;
+}
+
+#undef oct
+
+static int dn_is_partial_ip6(const unsigned char *q, int labels) {
+  unsigned c;
+  int counter = 0;
+
+  if ( labels >= 32 ) {
+    return 0;
+  }
+
+  for(c = labels; c; ) {
+    if (*q++ != 1) {
+      return 0;
+    }
+
+    if (digit(*q)) {
+      // It's ok
+      q++;
+    }
+    else if (*q >= 'a' && *q <= 'f') {
+      // It's ok
+      q++;
+    }
+    else {
+      // Not a valid label for ipv6
+      return 0;
+    }
+
+    counter ++;
+    c--;
+  }
+
+  return (counter == labels) ? 1 : 0;
+}
+
+int dn_matches_partial_ipv4(const struct dnsqinfo *qi) {
+  const unsigned char *q = qi->qi_dn;
+  unsigned qlab = qi->qi_dnlab;
+
+  return dn_is_partial_ip4(q, qlab);
+}
+
+int dn_matches_partial_ipv6(const struct dnsqinfo *qi) {
+  const unsigned char *q = qi->qi_dn;
+  unsigned qlab = qi->qi_dnlab;
+
+  return dn_is_partial_ip6(q, qlab);
+}
+
