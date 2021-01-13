@@ -224,7 +224,7 @@ ds_ip4set_query(const struct dataset *ds, const struct dnsqinfo *qi,
   const char *ipsubst;
 
   if (!qi->qi_ip4valid) {
-    return 0;
+    return NSQUERY_NXDOMAIN;
   }
   check_query_overwrites(qi);
 

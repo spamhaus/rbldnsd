@@ -255,7 +255,7 @@ ds_dnset_query(const struct dataset *ds, const struct dnsqinfo *qi,
       }
 
       if ((e = ds_dnset_find(dsd->w.e, dsd->w.n, dn, qlen0))) {
-        break;			/* found, listed */
+        break; /* found, listed */
       }
 
       /* remove next label at the end of rdn */

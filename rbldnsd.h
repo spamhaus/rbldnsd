@@ -311,7 +311,7 @@ void addrr_any(struct dnspacket *pkt, unsigned dtp,
                const void *data, unsigned dsz, unsigned ttl);
 
 #define check_query_overwrites(qi) \
-  if ((qi)->qi_tflag & NSQUERY_EMPTY)  return 0; \
+  if ((qi)->qi_tflag & NSQUERY_EMPTY)  return NSQUERY_NXDOMAIN; \
   if ((qi)->qi_tflag & NSQUERY_ALWAYS) return NSQUERY_ADDPEER
 
 int ds_acl_query(const struct dataset *ds, struct dnspacket *pkt);

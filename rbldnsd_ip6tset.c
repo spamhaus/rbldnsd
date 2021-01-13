@@ -202,7 +202,9 @@ ds_ip6tset_query(const struct dataset *ds, const struct dnsqinfo *qi,
   const struct dsdata *dsd = ds->ds_dsd;
   const char *ipsubst;
 
-  if (!qi->qi_ip6valid) return 0;
+  if (!qi->qi_ip6valid) {
+    return NSQUERY_NXDOMAIN;
+  }
   check_query_overwrites(qi);
 
   if (!ds_ip6tset_find(dsd->a, dsd->a_cnt, qi->qi_ip6)) {
