@@ -44,9 +44,10 @@ no_ipv6 = not _have_ipv6()
 def daemon(acl, addr='localhost'):
     """ Create an Rbldnsd instance with given ACL
     """
-    acl_zone = NamedTemporaryFile()
-    acl_zone.writelines("%s\n" % line for line in acl)
+    acl_zone = NamedTemporaryFile(delete=False)
+    acl_zone.writelines(bytes("%s\n" % line, encoding='utf8') for line in acl)
     acl_zone.flush()
+    acl_zone.close()
 
     dnsd = Rbldnsd(daemon_addr=addr)
     dnsd.add_dataset('acl', acl_zone)
@@ -63,7 +64,7 @@ class TestAclDataset(unittest.TestCase):
         with daemon(acl=[ "0.0.0.0/0 :refuse",
                           "127.0.0.1 :pass" ],
                     addr='127.0.0.1') as dnsd:
-            self.assertEqual(dnsd.query('test.example.com'), 'Success')
+            self.assertEqual(dnsd.query('test.example.com'), b'Success')
 
     @skipIf(no_ipv6, "IPv6 unsupported")
     def test_refuse_ipv6(self):
@@ -76,7 +77,7 @@ class TestAclDataset(unittest.TestCase):
         with daemon(acl=[ "0/0 :refuse",
                           "0::1 :pass" ],
                     addr='::1') as dnsd:
-            self.assertEqual(dnsd.query('test.example.com'), 'Success')
+            self.assertEqual(dnsd.query('test.example.com'), b'Success')
 
 if __name__ == '__main__':
     unittest.main()

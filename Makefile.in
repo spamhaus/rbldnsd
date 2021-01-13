@@ -4,14 +4,16 @@
 
 SHELL = /bin/sh
 CC = @CC@
-CFLAGS = @CFLAGS@
+CFLAGS = -Wno-implicit-fallthrough -Wno-unused-result  @CFLAGS@
 LD = @LD@
 LDFLAGS = @LDFLAGS@
 AR = @AR@
 ARFLAGS = @ARFLAGS@
 RANLIB = @RANLIB@
 AWK = @AWK@
-PYTHON = python
+# Debian, since the deprecation of python2, suggests to keep the python2 binary as `python`
+# As the tests are usually run on debian, we will force python3 instead of python
+PYTHON = python3
 GNUTAR = tar
 
 # Disable statistic counters

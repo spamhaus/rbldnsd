@@ -32,7 +32,7 @@ def deduce_pointer_size(makefile='./Makefile'):
     cc = make_vars['CC']
     cflags = make_vars['CFLAGS']
 
-    test_c = NamedTemporaryFile(suffix=".c")
+    test_c = NamedTemporaryFile(suffix=".c", delete=False)
     test_c.write(r'''
 #include <stdio.h>
 #ifndef __SIZEOF_POINTER__
@@ -44,6 +44,7 @@ int main () {
 }
 ''')
     test_c.flush()
+    test_c.close()
     src = test_c.name
 
     try:
@@ -64,7 +65,7 @@ int main () {
 try:
     sizeof_pointer = deduce_pointer_size()
 except Exception:
-    print "Can not deduce size of pointer. Assuming pointer size of 8."
+    print("Can not deduce size of pointer. Assuming pointer size of 8.")
     sizeof_pointer = 8
 
 if sizeof_pointer == 8:
@@ -79,7 +80,7 @@ else:
 def pad_prefix(prefix, plen):
     """Pad prefix on the right with zeros to a full 128 bits
     """
-    if not isinstance(prefix, (int, long)):
+    if not isinstance(prefix, (int, int)):
         raise TypeError("prefix must be an integer")
     if not 0 <= int(plen) <= 128:
         raise ValueError("plen out of range")
@@ -123,6 +124,9 @@ class CaptureOutput(object):
     def __init__(self):
         self._file = TemporaryFile()
 
+    def __del__(self):
+        self._file.close()
+
     def fileno(self):
         return self._file.fileno()
 
@@ -131,7 +135,8 @@ class CaptureOutput(object):
 
     def __str__(self):
         self._file.seek(0, 0)
-        return self._file.read()
+        return str(self._file.read())
+
 
 class Test_coalesce_lc_node(unittest.TestCase):
     def test_merge(self):
@@ -145,8 +150,8 @@ class Test_coalesce_lc_node(unittest.TestCase):
             (0, (8 - STRIDE), "root"),
             ]
         with BTrie(prefixes) as btrie:
-            self.assertEqual(btrie.lookup(0, 8), "term")
-            self.assertEqual(btrie.lookup(1, 8), "root")
+            self.assertEqual(btrie.lookup(0, 8), b"term")
+            self.assertEqual(btrie.lookup(1, 8), b"root")
 
     def test_steal_bits(self):
         # test coverage of coalesce_lc_node
@@ -159,8 +164,8 @@ class Test_coalesce_lc_node(unittest.TestCase):
             (0, (8 - STRIDE), "root"),
             ]
         with BTrie(prefixes) as btrie:
-            self.assertEqual(btrie.lookup(0, 0), "term")
-            self.assertEqual(btrie.lookup(1, 8), "root")
+            self.assertEqual(btrie.lookup(0, 0), b"term")
+            self.assertEqual(btrie.lookup(1, 8), b"root")
 
 class Test_shorten_lc_node(unittest.TestCase):
     def test_steal_child(self):
@@ -175,8 +180,8 @@ class Test_shorten_lc_node(unittest.TestCase):
             (0, 9 - STRIDE, "root"),
             ]
         with BTrie(prefixes) as btrie:
-            self.assertEqual(btrie.lookup(0, 8), "term")
-            self.assertEqual(btrie.lookup(1, 8), "root")
+            self.assertEqual(btrie.lookup(0, 8), b"term")
+            self.assertEqual(btrie.lookup(1, 8), b"root")
 
 class Test_convert_lc_node_1(unittest.TestCase):
     def test_left_child(self):
@@ -189,9 +194,9 @@ class Test_convert_lc_node_1(unittest.TestCase):
             (0, 0, "root"),
             ]
         with BTrie(prefixes) as btrie:
-            self.assertEqual(btrie.lookup(0, 0), "term")
-            self.assertEqual(btrie.lookup(1, 2), "tbm node")
-            self.assertEqual(btrie.lookup(1, 1), "root")
+            self.assertEqual(btrie.lookup(0, 0), b"term")
+            self.assertEqual(btrie.lookup(1, 2), b"tbm node")
+            self.assertEqual(btrie.lookup(1, 1), b"root")
 
     def test_right_child(self):
         # test coverage of coalesce_lc_node
@@ -201,9 +206,9 @@ class Test_convert_lc_node_1(unittest.TestCase):
             (0, 0, "root"),
             ]
         with BTrie(prefixes) as btrie:
-            self.assertEqual(btrie.lookup(3, 2), "term")
-            self.assertEqual(btrie.lookup(2, 2), "tbm node")
-            self.assertEqual(btrie.lookup(0, 1), "root")
+            self.assertEqual(btrie.lookup(3, 2), b"term")
+            self.assertEqual(btrie.lookup(2, 2), b"tbm node")
+            self.assertEqual(btrie.lookup(0, 1), b"root")
 
 class Test_convert_lc_node(unittest.TestCase):
     def test_left_child(self):
@@ -216,9 +221,9 @@ class Test_convert_lc_node(unittest.TestCase):
             (0, 0, "root"),
             ]
         with BTrie(prefixes) as btrie:
-            self.assertEqual(btrie.lookup(0, STRIDE), "term")
-            self.assertEqual(btrie.lookup(1, STRIDE), "tbm node")
-            self.assertEqual(btrie.lookup(1, 1), "root")
+            self.assertEqual(btrie.lookup(0, STRIDE), b"term")
+            self.assertEqual(btrie.lookup(1, STRIDE), b"tbm node")
+            self.assertEqual(btrie.lookup(1, 1),      b"root")
 
 class Test_insert_lc_node(unittest.TestCase):
     def test_insert_lc_len_1(self):
@@ -231,10 +236,10 @@ class Test_insert_lc_node(unittest.TestCase):
             (0, 0, "root"),
             ]
         with BTrie(prefixes) as btrie:
-            self.assertEqual(btrie.lookup(0, 0), "term")
-            self.assertEqual(btrie.lookup(1, STRIDE + 2), "tbm ext path")
-            self.assertEqual(btrie.lookup(1, 2), "tbm node")
-            self.assertEqual(btrie.lookup(1, 1), "root")
+            self.assertEqual(btrie.lookup(0, 0), b"term")
+            self.assertEqual(btrie.lookup(1, STRIDE + 2), b"tbm ext path")
+            self.assertEqual(btrie.lookup(1, 2), b"tbm node")
+            self.assertEqual(btrie.lookup(1, 1), b"root")
 
     def test_extend_lc_tail_optimization(self):
         prefixes = [
@@ -245,9 +250,9 @@ class Test_insert_lc_node(unittest.TestCase):
             (0, 0, "root"),
             ]
         with BTrie(prefixes) as btrie:
-            self.assertEqual(btrie.lookup(1, STRIDE + 2), "term")
-            self.assertEqual(btrie.lookup(0, 0), "tbm node")
-            self.assertEqual(btrie.lookup(1, 1), "root")
+            self.assertEqual(btrie.lookup(1, STRIDE + 2), b"term")
+            self.assertEqual(btrie.lookup(0, 0), b"tbm node")
+            self.assertEqual(btrie.lookup(1, 1), b"root")
 
     def test_coalesce_lc_tail(self):
         prefixes = [
@@ -259,9 +264,9 @@ class Test_insert_lc_node(unittest.TestCase):
             (0, 7 - STRIDE, "promoted"),
             ]
         with BTrie(prefixes) as btrie:
-            self.assertEqual(btrie.lookup(0, 0), "term")
-            self.assertEqual(btrie.lookup(1, 9 - STRIDE), "tbm node")
-            self.assertEqual(btrie.lookup(1, 8 - STRIDE), "promoted")
+            self.assertEqual(btrie.lookup(0, 0), b"term")
+            self.assertEqual(btrie.lookup(1, 9 - STRIDE), b"tbm node")
+            self.assertEqual(btrie.lookup(1, 8 - STRIDE), b"promoted")
 
 class Test_init_tbm_node(unittest.TestCase):
     def test_short_lc_children(self):
@@ -276,10 +281,10 @@ class Test_init_tbm_node(unittest.TestCase):
             (0, 0, "root"),
             ]
         with BTrie(prefixes) as btrie:
-            self.assertEqual(btrie.lookup(0, 0), "term0")
-            self.assertEqual(btrie.lookup(1, STRIDE + 1), "term1")
-            self.assertEqual(btrie.lookup(1, 2), "tbm")
-            self.assertEqual(btrie.lookup(1, 1), "root")
+            self.assertEqual(btrie.lookup(0, 0), b"term0")
+            self.assertEqual(btrie.lookup(1, STRIDE + 1), b"term1")
+            self.assertEqual(btrie.lookup(1, 2), b"tbm")
+            self.assertEqual(btrie.lookup(1, 1), b"root")
 
     def test_long_lc_children(self):
         # this exercises the shorten_lc_node calls in init_tbm_node()
@@ -293,10 +298,10 @@ class Test_init_tbm_node(unittest.TestCase):
             (0, 0, "root"),
             ]
         with BTrie(prefixes) as btrie:
-            self.assertEqual(btrie.lookup(0, 0), "term0")
-            self.assertEqual(btrie.lookup(1, STRIDE + 1), "term1")
-            self.assertEqual(btrie.lookup(1, 2), "tbm")
-            self.assertEqual(btrie.lookup(1, 1), "root")
+            self.assertEqual(btrie.lookup(0, 0), b"term0")
+            self.assertEqual(btrie.lookup(1, STRIDE + 1), b"term1")
+            self.assertEqual(btrie.lookup(1, 2), b"tbm")
+            self.assertEqual(btrie.lookup(1, 1), b"root")
 
     def test_set_internal_data_for_root_prefix(self):
         # this exercises the "set internal data for root prefix" code
@@ -310,10 +315,10 @@ class Test_init_tbm_node(unittest.TestCase):
             (0, 0, "root"),
             ]
         with BTrie(prefixes) as btrie:
-            self.assertEqual(btrie.lookup(0, 0), "ext path")
-            self.assertEqual(btrie.lookup(1, STRIDE + 1), "int data")
-            self.assertEqual(btrie.lookup(1, 2), "tbm")
-            self.assertEqual(btrie.lookup(1, 1), "root")
+            self.assertEqual(btrie.lookup(0, 0), b"ext path")
+            self.assertEqual(btrie.lookup(1, STRIDE + 1), b"int data")
+            self.assertEqual(btrie.lookup(1, 2), b"tbm")
+            self.assertEqual(btrie.lookup(1, 1), b"root")
 
     def test_set_right_ext_path(self):
         # this exercises the insert_lc_node(right_ext) call in init_tbm_node()
@@ -328,10 +333,10 @@ class Test_init_tbm_node(unittest.TestCase):
             (0, 8 - STRIDE, "top"),
             ]
         with BTrie(prefixes) as btrie:
-            self.assertEqual(btrie.lookup(0, 0), "tbm")
-            self.assertEqual(btrie.lookup(2, 10), "term")
-            self.assertEqual(btrie.lookup(3, 10), "ext path")
-            self.assertEqual(btrie.lookup(1, 9 - STRIDE), "top")
+            self.assertEqual(btrie.lookup(0, 0), b"tbm")
+            self.assertEqual(btrie.lookup(2, 10), b"term")
+            self.assertEqual(btrie.lookup(3, 10), b"ext path")
+            self.assertEqual(btrie.lookup(1, 9 - STRIDE), b"top")
 
 class Test_add_to_trie(unittest.TestCase):
     def test_duplicate_terminal_lc(self):
@@ -341,7 +346,7 @@ class Test_add_to_trie(unittest.TestCase):
             ]
         stderr = CaptureOutput()
         with BTrie(prefixes, stderr=stderr) as btrie:
-            self.assertEqual(btrie.lookup(0, 0), "term")
+            self.assertEqual(btrie.lookup(0, 0), b"term")
         self.assertTrue("duplicated entry for" in stderr,
                         "No duplicated entry error message in stderr: %r"
                         % str(stderr))
@@ -354,11 +359,11 @@ class Test_add_to_trie(unittest.TestCase):
             ]
         stderr = CaptureOutput()
         with BTrie(prefixes, stderr=stderr) as btrie:
-            self.assertEqual(btrie.lookup(4, 4), "term")
-            self.assertEqual(btrie.lookup(0, 0), "root")
+            self.assertEqual(btrie.lookup(4, 4), b"term")
+            self.assertEqual(btrie.lookup(0, 0), b"root")
+
         self.assertTrue("duplicated entry for" in stderr,
-                        "No duplicated entry error message in stderr: %r"
-                        % str(stderr))
+                        "No duplicated entry error message in stderr: %r" % stderr)
 
     def test_split_first_byte_of_lc_prefix(self):
         # this is for coverage of common_prefix()
@@ -367,8 +372,8 @@ class Test_add_to_trie(unittest.TestCase):
             (0x1000, 16, "splitter"),
             ]
         with BTrie(prefixes) as btrie:
-            self.assertEqual(btrie.lookup(0x1234, 16), "long")
-            self.assertEqual(btrie.lookup(0x1000, 16), "splitter")
+            self.assertEqual(btrie.lookup(0x1234, 16), b"long")
+            self.assertEqual(btrie.lookup(0x1000, 16), b"splitter")
 
     def test_split_last_byte_of_lc_prefix(self):
         # this is for coverage of common_prefix()
@@ -377,8 +382,8 @@ class Test_add_to_trie(unittest.TestCase):
             (0x1238, 15, "splitter"),
             ]
         with BTrie(prefixes) as btrie:
-            self.assertEqual(btrie.lookup(0x1234, 15), "long")
-            self.assertEqual(btrie.lookup(0x1238, 15), "splitter")
+            self.assertEqual(btrie.lookup(0x1234, 15), b"long")
+            self.assertEqual(btrie.lookup(0x1238, 15), b"splitter")
 
 class Test_search_trie(unittest.TestCase):
     def test_tbm_root_data(self):
@@ -386,7 +391,7 @@ class Test_search_trie(unittest.TestCase):
         prefixes = [(0, 127, "tbm root"),
                     (1, 128, "int data")]
         with BTrie(prefixes) as btrie:
-            self.assertEqual(btrie.lookup(0, 0), "tbm root")
+            self.assertEqual(btrie.lookup(0, 0), b"tbm root")
 
     def test_tbm_internal_data(self):
         # test access to each (non-root) internal node in a TBM node
@@ -397,8 +402,7 @@ class Test_search_trie(unittest.TestCase):
                             for pfx in range(1 << plen))
             with BTrie(prefixes) as btrie:
                 for pfx in range(1 << plen):
-                    self.assertEqual(btrie.lookup(pfx, 128),
-                                     "%u/%u" % (pfx, plen))
+                    self.assertEqual(btrie.lookup(pfx, 128), bytes("%u/%u" % (pfx, plen), encoding='utf8') )
 
     def test_tbm_extending_paths(self):
         # test access to each extended path of a TBM node
@@ -406,7 +410,7 @@ class Test_search_trie(unittest.TestCase):
         prefixes.extend((pfx, STRIDE, str(pfx)) for pfx in range(1 << STRIDE))
         with BTrie(prefixes) as btrie:
             for pfx in range(1 << STRIDE):
-                self.assertEqual(btrie.lookup(pfx, STRIDE), str(pfx))
+                self.assertEqual(btrie.lookup(pfx, STRIDE), bytes(str(pfx), encoding='utf8'))
 
     def test_no_match(self):
         prefixes = [
@@ -420,7 +424,7 @@ class Test_search_trie(unittest.TestCase):
             (0, 2 * STRIDE, "term"),
             ]
         with BTrie(prefixes) as btrie:
-            self.assertEqual(btrie.lookup(0,0), "term")
+            self.assertEqual(btrie.lookup(0,0), b"term")
 
     def test_parents_internal_data(self):
         prefixes = [
@@ -429,7 +433,7 @@ class Test_search_trie(unittest.TestCase):
             (0x200, 10, "term"),
             ]
         with BTrie(prefixes) as btrie:
-            self.assertEqual(btrie.lookup(0x201, 10), "int data")
+            self.assertEqual(btrie.lookup(0x201, 10), b"int data")
 
 if __name__ == '__main__':
     unittest.main()

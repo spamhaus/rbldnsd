@@ -12,14 +12,12 @@ import unittest
 try:
     import DNS
 except ImportError:
-    raise RuntimeError("The pydns library is not installed")
+    raise RuntimeError("The python3-dns library is not installed...")
 try:
     from DNS import SocketError as DNS_SocketError
 except ImportError:
     class DNS_SocketError(Exception):
         """ Dummy, never raised.
-
-        (Older versions of pydns before 2.3.6 do not raise SocketError.)
         """
 
 DUMMY_ZONE_HEADER = """
@@ -29,23 +27,26 @@ $NS 1d ns0.example.org
 
 class ZoneFile(object):
     def __init__(self, lines=None, no_header=False):
-        self._file = NamedTemporaryFile()
+        self._file = NamedTemporaryFile(delete=False)
         if not no_header:
-            self._file.write(DUMMY_ZONE_HEADER)
+            self._file.write(bytes(DUMMY_ZONE_HEADER, encoding = 'utf-8'))
         if lines is not None:
             self.writelines(lines)
         self._file.flush()
+
+    def __del__(self):
+        self._file.close()
 
     @property
     def name(self):
         return self._file.name
 
     def write(self, str):
-        self._file.write(str)
+        self._file.write(bytes(str))
         self._file.flush()
 
     def writelines(self, lines):
-        self._file.writelines("%s\n" % line for line in lines)
+        self._file.writelines(bytes("%s\n" % line, encoding = 'utf-8') for line in lines)
         self._file.flush()
 
 class DaemonError(Exception):
@@ -111,7 +112,7 @@ class Rbldnsd(object):
                 '-b', '%s/%u' % (self.daemon_addr, self.daemon_port),
                 ]
         for zone, ds_type, file in self.datasets:
-            if isinstance(file, basestring):
+            if isinstance(file, str):
                 filename = file
             else:
                 filename = file.name
@@ -159,12 +160,15 @@ class Rbldnsd(object):
                     raise DaemonError("can not kill stop rbldnsd")
                 time.sleep(0.1)
 
+        self._stdout.close()
+
         self._daemon = None
         if daemon.returncode != 0:
             raise DaemonError("rbldnsd exited with code %d"
                               % daemon.returncode)
 
     @property
+
     def no_ipv6(self):
         """ Was rbldnsd compiled with -DNO_IPv6?
         """
@@ -176,7 +180,8 @@ class Rbldnsd(object):
         help_message = proc.stdout.readlines()
         if proc.wait() != 0:
             raise subprocess.CalledProcessError(proc.returncode, cmd)
-        return not any(line.lstrip().startswith('-6 ')
+
+        return not any(line.lstrip().startswith(b'-6 ')
                        for line in help_message)
 
 

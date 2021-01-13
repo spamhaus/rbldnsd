@@ -7,3 +7,4 @@ config.*
 rbldnsd
 /btrie.test
 /tests/*.py[co]
+__pycache__
