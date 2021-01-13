@@ -309,6 +309,42 @@ static int ds_special(struct dataset *ds, char *line, struct dsctx *dsc) {
     return 1;
   }
 
+  if ((w = firstword_lc(line, "qnmin"))) {
+    struct dataset *dsu = NULL;
+
+    if ( dsc->dsc_subset != NULL ) {
+        dsu = dsc->dsc_subset;
+    }
+    else {
+        dsu = ds;
+    }
+
+    char *end;
+    char *label = line + strlen("qnmin") + 1;
+
+    /* Remove spaces at the beginning  */
+    while ( ISSPACE(*label) ) {
+        label ++;
+    }
+
+    /* Remove spaces at the end and, if there are spaces in the middle, trucate the label. */
+    end = label + strlen(label);
+    while ( end > label ) {
+        if ( ISSPACE(*end) ) {
+            *end ='\0';
+        }
+        end --;
+    }
+
+    if ((w = firstword_lc(label, "true"))!=NULL) {
+      dsu->ds_qnmin = 1;
+    } else {
+      dsu->ds_qnmin = 0;
+    }
+
+    return 1;
+  }
+
   return 0;
 }
 
