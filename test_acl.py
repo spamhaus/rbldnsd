@@ -44,9 +44,10 @@ no_ipv6 = not _have_ipv6()
 def daemon(acl, addr='localhost'):
     """ Create an Rbldnsd instance with given ACL
     """
-    acl_zone = NamedTemporaryFile()
+    acl_zone = NamedTemporaryFile(delete=False)
     acl_zone.writelines(bytes("%s\n" % line, encoding='utf8') for line in acl)
     acl_zone.flush()
+    acl_zone.close()
 
     dnsd = Rbldnsd(daemon_addr=addr)
     dnsd.add_dataset('acl', acl_zone)

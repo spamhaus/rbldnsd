@@ -32,7 +32,7 @@ def deduce_pointer_size(makefile='./Makefile'):
     cc = make_vars['CC']
     cflags = make_vars['CFLAGS']
 
-    test_c = NamedTemporaryFile(suffix=".c")
+    test_c = NamedTemporaryFile(suffix=".c", delete=False)
     test_c.write(r'''
 #include <stdio.h>
 #ifndef __SIZEOF_POINTER__
@@ -44,6 +44,7 @@ int main () {
 }
 ''')
     test_c.flush()
+    test_c.close()
     src = test_c.name
 
     try:
@@ -122,6 +123,9 @@ class BTrie(object):
 class CaptureOutput(object):
     def __init__(self):
         self._file = TemporaryFile()
+
+    def __del__(self):
+        self._file.close()
 
     def fileno(self):
         return self._file.fileno()

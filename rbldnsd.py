@@ -27,12 +27,15 @@ $NS 1d ns0.example.org
 
 class ZoneFile(object):
     def __init__(self, lines=None, no_header=False):
-        self._file = NamedTemporaryFile()
+        self._file = NamedTemporaryFile(delete=False)
         if not no_header:
             self._file.write(bytes(DUMMY_ZONE_HEADER, encoding = 'utf-8'))
         if lines is not None:
             self.writelines(lines)
         self._file.flush()
+
+    def __del__(self):
+        self._file.close()
 
     @property
     def name(self):
@@ -156,6 +159,8 @@ class Rbldnsd(object):
                 elif retry == 50:
                     raise DaemonError("can not kill stop rbldnsd")
                 time.sleep(0.1)
+
+        self._stdout.close()
 
         self._daemon = None
         if daemon.returncode != 0:
