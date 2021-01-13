@@ -9,6 +9,12 @@ before_script:
       sudo sh -c 'echo 0 > /proc/sys/net/ipv6/conf/all/disable_ipv6';
     fi
 
+after_script:
+  # Make sure of which CC version was used
+  - env
+  - $CC --version
+  - grep CC Makefile
+
 matrix:
   include:
     - os: linux
@@ -18,7 +24,8 @@ matrix:
             - ubuntu-toolchain-r-test
           packages:
             - g++-4.9
-            - python-dns
+            - python3
+            - python3-dns
       env:
          - MATRIX_EVAL="CC=gcc-4.9 && CXX=g++-4.9"
 
@@ -29,7 +36,8 @@ matrix:
             - ubuntu-toolchain-r-test
           packages:
             - g++-5
-            - python-dns
+            - python3
+            - python3-dns
       env:
          - MATRIX_EVAL="CC=gcc-5 && CXX=g++-5"
 
@@ -40,7 +48,8 @@ matrix:
             - ubuntu-toolchain-r-test
           packages:
             - g++-6
-            - python-dns
+            - python3
+            - python3-dns
       env:
         - MATRIX_EVAL="CC=gcc-6 && CXX=g++-6"
 
@@ -51,9 +60,22 @@ matrix:
             - ubuntu-toolchain-r-test
           packages:
             - g++-7
-            - python-dns
+            - python3
+            - python3-dns
       env:
         - MATRIX_EVAL="CC=gcc-7 && CXX=g++-7"
+
+    - os: linux
+      addons:
+        apt:
+          sources:
+            - ubuntu-toolchain-r-test
+          packages:
+            - g++-8
+            - python3
+            - python3-dns
+      env:
+        - MATRIX_EVAL="CC=gcc-8 && CXX=g++-8"
 
 before_install:
     - eval "${MATRIX_EVAL}"
