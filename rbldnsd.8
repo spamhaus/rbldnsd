@@ -726,7 +726,7 @@ the above example may be simplified to:
 .fi
 There is no default TXT value, so
 .B rbldnsd
-will not return anything for TXT queries it TXT isn't
+will not return anything for TXT queries unless TXT isn't
 specified.
 .PP
 When A value is specified for a given entry, but TXT template
@@ -782,7 +782,7 @@ text given for individual entries. In order to stop usage of base template
 \fB$=\fR for a single record, start it with \fB=\fR (which will be omitted
 from the resulting TXT value).  For example,
 .nf
-  $0 See http://www.example.com/bl?$= ($) for details
+  $= See http://www.example.com/bl?$= ($) for details
   127.0.0.2	r123
   127.0.0.3
   127.0.0.4	=See other blocklists for details about $
