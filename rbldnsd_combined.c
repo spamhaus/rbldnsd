@@ -209,6 +209,20 @@ ds_combined_query(const struct dataset *ds, const struct dnsqinfo *qi,
     }
     found |= ret;
   }
+
+  /*
+    `found` may have several bits set. For example, a dataset could have returned NSQUERY_NXDOMAIN while another one
+    could have returned NSQUERY_QNMINIMIZE or NSQUERY_FOUND.
+    Give the proper priority to the flags, removing whatever we may not need.
+  */
+  if ( found & NSQUERY_FOUND) {
+    found &= ~NSQUERY_NXDOMAIN;
+    found &= ~NSQUERY_QNMINIMIZE;
+  } else  if ( found & NSQUERY_QNMINIMIZE ) {
+    // Clearing NSQUERY_FOUND. is not really necessary
+    found &= ~NSQUERY_NXDOMAIN;
+  }
+
   /* if it was a query for our base subzone, always return `found' */
   return found | (sqi.qi_dnlab ? 0 : NSQUERY_FOUND);
 }

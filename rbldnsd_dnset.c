@@ -227,6 +227,9 @@ ds_dnset_query(const struct dataset *ds, const struct dnsqinfo *qi,
   char name[DNS_MAXDOMAIN+1];
 
   if (!qlab) {
+    if ( ds->ds_qnmin != 0 ) {
+      return NSQUERY_QNMINIMIZE;;
+    }
     return NSQUERY_NXDOMAIN; /* do not match empty dn */
   }
 

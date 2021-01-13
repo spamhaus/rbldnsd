@@ -336,12 +336,12 @@ static int ds_special(struct dataset *ds, char *line, struct dsctx *dsc) {
         end --;
     }
 
-    if ((w = firstword_lc(label, "true"))!=NULL) {
+    if (!strncasecmp(label, "true", sizeof("true"))) {
       dsu->ds_qnmin = 1;
     } else {
       dsu->ds_qnmin = 0;
     }
-
+    //printf("Setting to %d '%s' %s\n", dsu->ds_qnmin, label, w);
     return 1;
   }
 
