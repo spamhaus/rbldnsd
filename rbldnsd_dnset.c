@@ -216,7 +216,7 @@ ds_dnset_find(const struct entry *e, int n,
   return NULL;			/* not found */
 }
 
-static int
+static enum ds_qresult_e
 ds_dnset_query(const struct dataset *ds, const struct dnsqinfo *qi,
                struct dnspacket *pkt) {
   const struct dsdata *dsd = ds->ds_dsd;
@@ -226,7 +226,10 @@ ds_dnset_query(const struct dataset *ds, const struct dnsqinfo *qi,
   const struct entry *e, *t;
   char name[DNS_MAXDOMAIN+1];
 
-  if (!qlab) return 0;		/* do not match empty dn */
+  if (!qlab) {
+    return NSQUERY_NXDOMAIN; /* do not match empty dn */
+  }
+
   check_query_overwrites(qi);
 
   if (qlab > dsd->p.maxlab 	/* if we have less labels, search unnec. */
@@ -238,20 +241,22 @@ ds_dnset_query(const struct dataset *ds, const struct dnsqinfo *qi,
     /* remove labels until number of labels in query is greather
      * than we have in wildcard array, but remove at least 1 label
      * for wildcard itself. */
-    do
+    do {
       --qlab, qlen0 -= *dn + 1, dn += *dn + 1;
-    while(qlab > dsd->w.maxlab);
+    } while(qlab > dsd->w.maxlab);
 
     /* now, lookup every so long dn in wildcard array */
     for(;;) {
 
-      if (qlab < dsd->w.minlab)
+      if (qlab < dsd->w.minlab) {
         /* oh, number of labels in query become less than
          * minimum we have listed.  Nothing to search anymore */
-        return 0;
+        return NSQUERY_NXDOMAIN;
+      }
 
-      if ((e = ds_dnset_find(dsd->w.e, dsd->w.n, dn, qlen0)))
+      if ((e = ds_dnset_find(dsd->w.e, dsd->w.n, dn, qlen0))) {
         break;			/* found, listed */
+      }
 
       /* remove next label at the end of rdn */
       qlen0 -= *dn + 1;
@@ -262,16 +267,22 @@ ds_dnset_query(const struct dataset *ds, const struct dnsqinfo *qi,
     t = dsd->w.e + dsd->w.n;
 
   }
-  else
+  else {
     t = dsd->p.e + dsd->p.n;
+  }
 
-  if (!e->rr) return 0;	/* exclusion */
+  if (!e->rr) {
+    return NSQUERY_NXDOMAIN; /* exclusion */
+  }
 
   dn = e->ldn;
-  if (qi->qi_tflag & NSQUERY_TXT)
+  if (qi->qi_tflag & NSQUERY_TXT) {
     dns_dntop(e->ldn + 1, name, sizeof(name));
-  do addrr_a_txt(pkt, qi->qi_tflag, e->rr, name, ds);
-  while(++e < t && e->ldn == dn);
+  }
+
+  do {
+    addrr_a_txt(pkt, qi->qi_tflag, e->rr, name, ds);
+  }while(++e < t && e->ldn == dn);
 
   return NSQUERY_FOUND;
 }

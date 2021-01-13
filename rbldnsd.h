@@ -98,7 +98,7 @@ typedef void ds_startfn_t(struct dataset *ds);
 typedef int ds_linefn_t(struct dataset *ds, char *line, struct dsctx *dsc);
 typedef void ds_finishfn_t(struct dataset *ds, struct dsctx *dsc);
 typedef void ds_resetfn_t(struct dsdata *dsd, int freeall);
-typedef int
+typedef enum ds_qresult_e
 ds_queryfn_t(const struct dataset *ds, const struct dnsqinfo *qi,
              struct dnspacket *pkt);
 #ifdef NO_MASTER_DUMP
@@ -118,15 +118,21 @@ ds_dumpfn_t(const struct dataset *ds, const unsigned char *odn, FILE *f);
 #define NSQUERY_TXT	(1u<<4)
 #define NSQUERY_ANY	0xffffu
 
-/* special cases for ACLs */
-#define NSQUERY_IGNORE	0x010000u
-#define NSQUERY_REFUSE	0x020000u
-#define NSQUERY_EMPTY	0x040000u
-#define NSQUERY_ALWAYS	0x080000u
+enum ds_qresult_e {
+    /* ZERO left out on purpose */
+    NSQUERY_NXDOMAIN	= (1u<<0),
+    NSQUERY_FOUND	= (1u<<1),
+    NSQUERY_ADDPEER	= (1u<<2),
+    NSQUERY_QNMINIMIZE	= (1u<<3),
+    /* special cases for ACLs */
+    NSQUERY_IGNORE	= 0x010000u,
+    NSQUERY_REFUSE	= 0x020000u,
+    NSQUERY_EMPTY	= 0x040000u,
+    NSQUERY_ALWAYS	= 0x080000u
+};
+typedef enum ds_qresult_e ds_qresult;
 
 /* result flags from dataset queryfn */
-#define NSQUERY_FOUND	0x01
-#define NSQUERY_ADDPEER	0x02
 
 struct dstype {	/* dst */
   const char *dst_name;		/* name of the type */

@@ -97,23 +97,28 @@ static void ds_ip4trie_finish(struct dataset *ds, struct dsctx *dsc) {
   dsloaded(dsc, "%s", btrie_stats(ds->ds_dsd->btrie));
 }
 
-static int
+static enum ds_qresult_e
 ds_ip4trie_query(const struct dataset *ds, const struct dnsqinfo *qi,
                  struct dnspacket *pkt) {
   const char *rr;
   btrie_oct_t addr_bytes[4];
 
-  if (!qi->qi_ip4valid) return 0;
+  if (!qi->qi_ip4valid) {
+    return NSQUERY_NXDOMAIN;
+  }
+
   check_query_overwrites(qi);
 
   ip4unpack(addr_bytes, qi->qi_ip4);
   rr = btrie_lookup(ds->ds_dsd->btrie, addr_bytes, 32);
 
-  if (!rr)
-    return 0;
+  if (!rr) {
+    return NSQUERY_NXDOMAIN;
+  }
 
   addrr_a_txt(pkt, qi->qi_tflag, rr,
               qi->qi_tflag & NSQUERY_TXT ? ip4atos(qi->qi_ip4) : NULL, ds);
+
   return NSQUERY_FOUND;
 }
 

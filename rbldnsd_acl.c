@@ -203,16 +203,18 @@ int ds_acl_query(const struct dataset *ds, struct dnspacket *pkt) {
   }
 
   switch((unsigned long)rr) {
-  case 0: return 0;
-  case RR_IGNORE:	return NSQUERY_IGNORE;
-  case RR_REFUSE:	return NSQUERY_REFUSE;
-  case RR_EMPTY:	return NSQUERY_EMPTY;
-  case RR_PASS:		return 0;
+    case 0:		return 0;
+    case RR_IGNORE:	return NSQUERY_IGNORE;
+    case RR_REFUSE:	return NSQUERY_REFUSE;
+    case RR_EMPTY:	return NSQUERY_EMPTY;
+    case RR_PASS:	return 0;
   }
+
   if (!pkt->p_substrr) {
     pkt->p_substrr = rr;
     pkt->p_substds = ds;
   }
+
   return NSQUERY_ALWAYS;
 }
 

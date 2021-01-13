@@ -98,24 +98,30 @@ ds_ip6trie_finish(struct dataset *ds, struct dsctx *dsc)
   dsloaded(dsc, "%s", btrie_stats(ds->ds_dsd->btrie));
 }
 
-static int
+static enum ds_qresult_e
 ds_ip6trie_query(const struct dataset *ds, const struct dnsqinfo *qi,
                  struct dnspacket *pkt)
 {
   const char *subst = NULL;
   const char *rr;
 
-  if (!qi->qi_ip6valid) return 0;
+  if (!qi->qi_ip6valid) {
+    return NSQUERY_NXDOMAIN;
+  }
+
   check_query_overwrites(qi);
 
   rr = btrie_lookup(ds->ds_dsd->btrie, qi->qi_ip6, 8 * IP6ADDR_FULL);
 
-  if (!rr)
-    return 0;
+  if (!rr) {
+    return NSQUERY_NXDOMAIN;
+  }
 
-  if (qi->qi_tflag & NSQUERY_TXT)
+  if (qi->qi_tflag & NSQUERY_TXT) {
     subst = ip6atos(qi->qi_ip6, IP6ADDR_FULL);
+  }
   addrr_a_txt(pkt, qi->qi_tflag, rr, subst, ds);
+
   return NSQUERY_FOUND;
 }
 

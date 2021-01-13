@@ -184,7 +184,7 @@ int ds_combined_newset(struct dataset *ds, char *line, struct dsctx *dsc) {
   return 1;
 }
 
-static int
+static enum ds_qresult_e
 ds_combined_query(const struct dataset *ds, const struct dnsqinfo *qi,
                   struct dnspacket *pkt) {
   struct dnsqinfo sqi;
@@ -194,10 +194,21 @@ ds_combined_query(const struct dataset *ds, const struct dnsqinfo *qi,
     findqzone(ds->ds_dsd->zlist,
               qi->qi_dnlen0 + 1, qi->qi_dnlab, qi->qi_dnlptr,
               &sqi);
-  if (!zone) return 0;
+
+  if (!zone) {
+    return NSQUERY_NXDOMAIN;
+  }
+
   sqi.qi_tflag = qi->qi_tflag;
-  for (dsl = zone->z_dsl; dsl; dsl = dsl->dsl_next)
-    found |= dsl->dsl_queryfn(dsl->dsl_ds, &sqi, pkt);
+  for (dsl = zone->z_dsl; dsl; dsl = dsl->dsl_next) {
+    enum ds_qresult_e ret;
+    ret = dsl->dsl_queryfn(dsl->dsl_ds, &sqi, pkt);
+    if ( ret <= 0 ) {
+      printf("Failure in return value of queryfn: %s:%u - spec: %s\n", __FILE__, __LINE__, dsl->dsl_ds->ds_spec);
+      abort();
+    }
+    found |= ret;
+  }
   /* if it was a query for our base subzone, always return `found' */
   return found | (sqi.qi_dnlab ? 0 : NSQUERY_FOUND);
 }

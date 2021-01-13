@@ -196,7 +196,7 @@ ds_ip6tset_find_excl(const struct ip6full *arr, int b, const ip6oct_t *q) {
   return 0;
 }
 
-static int
+static enum ds_qresult_e
 ds_ip6tset_query(const struct dataset *ds, const struct dnsqinfo *qi,
                 struct dnspacket *pkt) {
   const struct dsdata *dsd = ds->ds_dsd;
@@ -205,13 +205,17 @@ ds_ip6tset_query(const struct dataset *ds, const struct dnsqinfo *qi,
   if (!qi->qi_ip6valid) return 0;
   check_query_overwrites(qi);
 
-  if (!ds_ip6tset_find(dsd->a, dsd->a_cnt, qi->qi_ip6))
-    return 0;
-  if (dsd->e_cnt && ds_ip6tset_find_excl(dsd->e, dsd->e_cnt, qi->qi_ip6))
-    return 0;
+  if (!ds_ip6tset_find(dsd->a, dsd->a_cnt, qi->qi_ip6)) {
+    return NSQUERY_NXDOMAIN;
+  }
+
+  if (dsd->e_cnt && ds_ip6tset_find_excl(dsd->e, dsd->e_cnt, qi->qi_ip6)) {
+    return NSQUERY_NXDOMAIN;
+  }
 
   ipsubst = (qi->qi_tflag & NSQUERY_TXT) ?
     ip6atos(qi->qi_ip6, IP6ADDR_FULL) : NULL;
+
   addrr_a_txt(pkt, qi->qi_tflag, dsd->def_rr, ipsubst, ds);
 
   return NSQUERY_FOUND;

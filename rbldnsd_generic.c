@@ -232,7 +232,7 @@ ds_generic_add_rrs(struct dnspacket *pkt, const struct entry *e, const struct en
   for(t = e; t < m; ++t) ds_generic_add_rr(pkt, t);
 }
 
-static int
+static enum ds_qresult_e
 ds_generic_query(const struct dataset *ds, const struct dnsqinfo *qi,
                  struct dnspacket *pkt) {
   const struct dsdata *dsd = ds->ds_dsd;
@@ -240,16 +240,20 @@ ds_generic_query(const struct dataset *ds, const struct dnsqinfo *qi,
   const struct entry *e, *t, *l;
   unsigned qt = qi->qi_tflag;
 
-  if (qi->qi_dnlab > dsd->maxlab || qi->qi_dnlab < dsd->minlab)
-    return 0;
+  if (qi->qi_dnlab > dsd->maxlab || qi->qi_dnlab < dsd->minlab) {
+    return NSQUERY_NXDOMAIN;
+  }
 
   e = dsd->e;
   t = ds_generic_find(e, dsd->n, qi->qi_dn, qi->qi_dnlen0);
-  if (!t)
-    return 0;
+
+  if (!t) {
+    return NSQUERY_NXDOMAIN;
+  }
 
   /* find first and last entries with the DN and qtype in question */
   dn = t->ldn;
+
   if (qt == NSQUERY_ANY) {
     /* ANY query, we want all records regardless of type;
      * but "randomize" each type anyway */
@@ -272,20 +276,29 @@ ds_generic_query(const struct dataset *ds, const struct dnsqinfo *qi,
       ++t;
     }
   }
-  else if (qt == NSQUERY_OTHER)
-    return 1; /* we have nothing of this type */
+  else if (qt == NSQUERY_OTHER) {
+    return NSQUERY_FOUND; /* we have nothing of this type */
+  }
   else if (t->dtyp > qt) { /* search backward */
-    do if (--t < e || t->ldn != dn || t->dtyp < qt) return 1;
-    while (t->dtyp > qt);
+    do {
+      if (--t < e || t->ldn != dn || t->dtyp < qt) {
+        return NSQUERY_FOUND;
+      }
+    } while (t->dtyp > qt);
+
     l = t + 1;
     do --t;
     while(t >= e && t->ldn == dn && t->dtyp == qt);
+
     ds_generic_add_rrs(pkt, t + 1, l);
   }
   else if (t->dtyp < qt) { /* search forward */
     l = e + dsd->n;
-    do if (++t >= l || t->ldn != dn || t->dtyp > qt) return 1;
-    while(t->dtyp < qt);
+    do {
+      if (++t >= l || t->ldn != dn || t->dtyp > qt) {
+        return NSQUERY_FOUND;
+      }
+    } while(t->dtyp < qt);
     e = t;
     do ++t;
     while(t < l && t->ldn == dn && t->dtyp == qt);

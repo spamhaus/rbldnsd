@@ -110,17 +110,20 @@ ds_ip4tset_find(const ip4addr_t *e, int b, ip4addr_t q) {
   return 0;
 }
 
-static int
+static enum ds_qresult_e
 ds_ip4tset_query(const struct dataset *ds, const struct dnsqinfo *qi,
                 struct dnspacket *pkt) {
   const struct dsdata *dsd = ds->ds_dsd;
   const char *ipsubst;
 
-  if (!qi->qi_ip4valid) return 0;
+  if (!qi->qi_ip4valid) {
+    return NSQUERY_NXDOMAIN;
+  }
   check_query_overwrites(qi);
 
-  if (!dsd->n || !ds_ip4tset_find(dsd->e, dsd->n, qi->qi_ip4))
-    return 0;
+  if (!dsd->n || !ds_ip4tset_find(dsd->e, dsd->n, qi->qi_ip4)) {
+    return NSQUERY_NXDOMAIN;
+  }
 
   ipsubst = (qi->qi_tflag & NSQUERY_TXT) ? ip4atos(qi->qi_ip4) : NULL;
   addrr_a_txt(pkt, qi->qi_tflag, dsd->def_rr, ipsubst, ds);

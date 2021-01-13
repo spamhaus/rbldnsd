@@ -214,7 +214,7 @@ ds_ip4set_find(const struct entry *e, int b, ip4addr_t q) {
   return NULL;
 }
 
-static int
+static enum ds_qresult_e
 ds_ip4set_query(const struct dataset *ds, const struct dnsqinfo *qi,
                 struct dnspacket *pkt) {
   const struct dsdata *dsd = ds->ds_dsd;
@@ -223,7 +223,9 @@ ds_ip4set_query(const struct dataset *ds, const struct dnsqinfo *qi,
   const struct entry *e, *t;
   const char *ipsubst;
 
-  if (!qi->qi_ip4valid) return 0;
+  if (!qi->qi_ip4valid) {
+    return 0;
+  }
   check_query_overwrites(qi);
 
 #define try(i,mask) \
@@ -234,14 +236,19 @@ ds_ip4set_query(const struct dataset *ds, const struct dnsqinfo *qi,
   if (!try(E32, M32) &&
       !try(E24, M24) &&
       !try(E16, M16) &&
-      !try(E08, M08))
-    return 0;
+      !try(E08, M08)) {
+    return NSQUERY_NXDOMAIN;
+  }
 
-  if (!e->rr) return 0;		/* exclusion */
+  if (!e->rr) {
+    return NSQUERY_NXDOMAIN; /* exclusion */
+  }
 
   ipsubst = (qi->qi_tflag & NSQUERY_TXT) ? ip4atos(q) : NULL;
-  do addrr_a_txt(pkt, qi->qi_tflag, e->rr, ipsubst, ds);
-  while(++e < t && e->addr == f);
+
+  do {
+    addrr_a_txt(pkt, qi->qi_tflag, e->rr, ipsubst, ds);
+  } while(++e < t && e->addr == f);
 
   return NSQUERY_FOUND;
 }
