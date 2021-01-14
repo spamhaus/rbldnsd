@@ -222,7 +222,9 @@ struct dataset {	/* ds */
   unsigned ds_nsttl;			/* TTL for NS records */
   unsigned ds_ttl;			/* default ttl for a dataset */
   char *ds_subst[11];			/* substitution variables */
+#ifdef QNAMEMIN
   int ds_qnmin;				/* qname minimization flag*/
+#endif
 #define SUBST_BASE_TEMPLATE	10
   struct mempool *ds_mp;		/* memory pool for data */
   struct dataset *ds_next;		/* next in global list */

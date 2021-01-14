@@ -104,11 +104,13 @@ ds_ip4trie_query(const struct dataset *ds, const struct dnsqinfo *qi,
   btrie_oct_t addr_bytes[4];
 
   if (!qi->qi_ip4valid) {
+#ifdef QNAMEMIN
     if (dn_matches_partial_ipv4(qi)) {
       if ( ds->ds_qnmin != 0 ) {
         return NSQUERY_QNMINIMIZE;
       }
     }
+#endif
     return NSQUERY_NXDOMAIN;
   }
 

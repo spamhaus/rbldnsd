@@ -309,6 +309,7 @@ static int ds_special(struct dataset *ds, char *line, struct dsctx *dsc) {
     return 1;
   }
 
+#ifdef QNAMEMIN
   if ((w = firstword_lc(line, "qnmin"))) {
     struct dataset *dsu = NULL;
 
@@ -344,6 +345,7 @@ static int ds_special(struct dataset *ds, char *line, struct dsctx *dsc) {
     //printf("Setting to %d '%s' %s\n", dsu->ds_qnmin, label, w);
     return 1;
   }
+#endif
 
   return 0;
 }

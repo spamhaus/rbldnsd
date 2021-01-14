@@ -612,7 +612,6 @@ void zlog(int level, const struct zone *zone, const char *fmt, ...) {
 }
 
 #ifdef QNAMEMIN
-#endif
 
 #define oct(q,o)					\
     switch(*q) {					\
@@ -702,3 +701,4 @@ int dn_matches_partial_ipv6(const struct dnsqinfo *qi) {
   return dn_is_partial_ip6(q, qlab);
 }
 
+#endif
