@@ -12,7 +12,7 @@ else
   exit 1
 fi
 
-options="ipv6 stats master_dump zlib dso asserts"
+options="ipv6 stats master_dump zlib dso asserts systemd"
 
 for opt in $options; do
   eval enable_$opt=
@@ -25,7 +25,7 @@ fi
 enable() {
   opt=`echo "$1" | sed 's/^--[^-]*-//'`
   case "$opt" in
-    ipv6|stats|master_dump|zlib|dso|asserts) ;;
+    ipv6|stats|master_dump|zlib|dso|asserts|systemd) ;;
     master-dump) opt=master_dump ;;
     *) echo "configure: unrecognized option \`$1'" >&2; exit 1;;
   esac
@@ -53,6 +53,7 @@ Optional features (all enabled by default if system supports a feature):
   zlib - zlib support
   dso - dynamic extensions (using shared objects) -- disabled by default
   asserts - enable/disable debugging assertions -- disabled by default
+  systemd - enable/disable systemd support -- disabled by default
 EOF
       exit 0
       ;;
@@ -76,8 +77,6 @@ VERSION_DATE="$*"
 
 ac_msg "configure: $name"
 ac_result "$VERSION ($VERSION_DATE)"
-
-ac_subst VERSION VERSION_DATE
 
 ac_prog_c_compiler
 ac_prog_ranlib
@@ -343,6 +342,19 @@ fi
 if [ y != "$enable_asserts" ]; then
   echo "#define NDEBUG		1	/* option disabled */" >>confdef.h
 fi
+
+if [ y = "$enable_systemd" ]; then
+  PKGCONFIG="pkg-config"
+  if ac_run $PKGCONFIG --libs libsystemd; then
+    echo "libsystemd FOUND"
+    USE_SYSTEMD=1
+    echo "#define USE_SYSTEMD	1	/* option enabled */" >>confdef.h
+  else
+    ac_fatal "libsystemd NOT FOUND. Aborting."
+  fi
+fi
+
+ac_subst VERSION VERSION_DATE PKGCONFIG USE_SYSTEMD
 
 ac_output Makefile
 ac_msg "creating config.h"
