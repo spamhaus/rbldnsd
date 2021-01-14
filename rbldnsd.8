@@ -1,6 +1,6 @@
 .\" rbldnsd manpage
 .\"
-.TH rbldnsd 8 "Dec 2015"
+.TH RBLDNSD 8 "January 14, 2021"
 .SH NAME
 rbldnsd \- DNS daemon suitable for running DNS\-based blocklists
 .SH SYNOPSIS
@@ -428,6 +428,14 @@ like /24 (the two are the same):
 This constraint is active for a dataset it is specified in, and can
 be owerwritten (by subsequent $MAXRANGE statement) by a smaller value,
 but can not be increased.
+
+.IP "\fB$QNMIN\fR \fI[true|false]\fR"
+Specifies if \fBQNAME Minimization\fR should be enabled or not for this
+specific dataset. Values should be "true" or "false"(default).
+See also \fB\-t\fR option.
+.fi
+This special entry is valid only when \fBrbldnsd\fR
+has been compiled with the `--enable-qnmin` option.
 
 .IP "\fB$\fIn\fR \fItext\fR"
 (\fIn\fR is a single digit).
@@ -869,6 +877,20 @@ performs \fB$\fR substitution in the TXT template returned from
 ACL dataset, it will use client IP address to substitute for a
 single $ character, instead of the IP address or domain name
 found in the original query.
+
+.SH QNAME MINIMIZATION
+
+.B Rbldnsd
+tries to support RFC 7816 (DNS Query Name Minimisation to Improve Privacy). The
+support is not 100% complete because it would require extensive changes to
+each dataset type, thus causing excessive regressions.
+.fi
+This feature is enabled when \fBrbldnsd\fR is compiled with the
+\fB--enable-qnmin\fR option.
+
+To preserve backward compatibility, qname minimization is not enabled by
+default. Enabling it is done on a per dataset basis and it requires
+the \fB$QNMIN\fR special entry to be set to true.
 
 .SH SIGNALS
 
