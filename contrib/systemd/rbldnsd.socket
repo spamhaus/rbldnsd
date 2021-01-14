@@ -1,0 +1,16 @@
+[Socket]
+# This is the value hardcoded in the daemon for sockets opened with -b.
+ReceiveBuffer=64K
+# Listen on independent IPv4 and IPv6 sockets.
+BindIPv6Only=ipv6-only
+
+ListenDatagram=[::]:53
+ListenDatagram=0.0.0.0:53
+
+# When binding to a specific address it is recommended to set IP_FREEBIND.
+#FreeBind=true
+#ListenDatagram=192.0.2.1:53
+#ListenDatagram=[2001:db8:abcd::1]:53
+
+[Install]
+WantedBy=sockets.target

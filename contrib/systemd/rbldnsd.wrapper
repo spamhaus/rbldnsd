@@ -1,0 +1,61 @@
+#!/bin/sh -e
+# This script will parse the rbldnsd defaults file and start the instance
+# specified on the command line (or else the main one).
+
+# default "empty" configuration
+RBLDNSD='- -b 127.0.0.2 example.net:generic:/dev/null'
+
+if [ -f /etc/default/rbldnsd ]; then
+  . /etc/default/rbldnsd
+elif [ -f /etc/sysconfig/rbldnsd ]; then
+  . /etc/sysconfig/rbldnsd
+fi
+
+daemon_cmdline() {
+  local to_start="$1"
+  # use the default instance ("-") if no argument was specified
+  [ "$to_start" ] || to_start='-'
+
+  local remove_b_option=
+  if [ "$LISTEN_FDS" -a "$LISTEN_PID" = $$ ]; then
+    remove_b_option=1
+  fi
+
+  echo "$RBLDNSD" |
+  while read name args; do
+    # look for the requested instance
+    if [ "$name" != "$to_start" ]; then
+      continue
+    fi
+
+    local newargs=
+    local skip_next=
+    for arg in $args; do
+      if [ "$skip_next" ]; then
+        skip_next=
+        continue
+      fi
+
+      if [ "$remove_b_option" ]; then
+        case "$arg" in
+          -b)   skip_next=1; continue ;;
+          -b?*) continue ;;
+        esac
+      fi
+
+      newargs="$newargs $arg"
+    done
+
+    echo $newargs
+    return
+  done
+}
+
+# The real daemon must be started outside of the while loop because
+# a loop which is part of a pipeline is run in a subshell.
+# For socket activation to work the PID of the real daemon must be
+# the same of the process started by systemd.
+newargs="$(daemon_cmdline "$1")"
+
+exec /usr/sbin/rbldnsd $newargs
+
