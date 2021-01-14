@@ -240,7 +240,17 @@ ds_generic_query(const struct dataset *ds, const struct dnsqinfo *qi,
   const struct entry *e, *t, *l;
   unsigned qt = qi->qi_tflag;
 
-  if (qi->qi_dnlab > dsd->maxlab || qi->qi_dnlab < dsd->minlab) {
+  if (qi->qi_dnlab > dsd->maxlab) {
+    /* We are definitely returning NXDOMAIN as we don't have that much labels */
+    return NSQUERY_NXDOMAIN;
+  }
+
+  if (qi->qi_dnlab < dsd->minlab) {
+#ifdef QNAMEMIN
+    if ( ds->ds_qnmin != 0 ) {
+      return NSQUERY_QNMINIMIZE;
+    }
+#endif
     return NSQUERY_NXDOMAIN;
   }
 
@@ -248,6 +258,11 @@ ds_generic_query(const struct dataset *ds, const struct dnsqinfo *qi,
   t = ds_generic_find(e, dsd->n, qi->qi_dn, qi->qi_dnlen0);
 
   if (!t) {
+#ifdef QNAMEMIN
+    if ( ds->ds_qnmin != 0 ) {
+      return NSQUERY_QNMINIMIZE;
+    }
+#endif
     return NSQUERY_NXDOMAIN;
   }
 
@@ -269,7 +284,7 @@ ds_generic_query(const struct dataset *ds, const struct dnsqinfo *qi,
         break;
       }
       else if (t->dtyp != qt) {
-	qt = t->dtyp;
+        qt = t->dtyp;
         ds_generic_add_rrs(pkt, e, t);
         e = t;
       }
