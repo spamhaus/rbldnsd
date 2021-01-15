@@ -2,6 +2,9 @@ This file describes user-visible changes in rbldnsd.
 Newer news is at the top.
 
 0.999 (Still not official, to be released)
+ - Support for systemd added (thanks to Marco d'Itri). Please
+   use --enable-systemd when configuring and make sure that you have
+   pkg-config installed.
  - Removal of deprecated features (aka: NS record compatibility mode)
  - Adding -F flag, used to identify the log facility of the daemon.
  - fix tests for systems without ipv6 support, or when ipv6 is

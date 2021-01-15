@@ -1,0 +1,29 @@
+[Unit]
+Description=DNSBL name server %i
+Documentation=man:rbldnsd(8)
+PartOf=rbldnsd.service
+Before=rbldnsd.service
+ReloadPropagatedFrom=rbldnsd.service
+After=network.target
+# Do not start the daemon unless some zone has been installed
+ConditionPathExistsGlob=/var/lib/rbldns/*
+# Enable this directive to use socket activation.
+# When socket activation is enabled the rbldnsd.wrapper script will remove
+# the -b option from the command line.
+#Requires=rbldnsd.socket
+
+[Service]
+Type=notify
+ExecStart=/usr/sbin/rbldnsd.wrapper %i
+ExecReload=/bin/kill -HUP $MAINPID
+Restart=on-failure
+NoNewPrivileges=yes
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+LockPersonality=yes
+MemoryDenyWriteExecute=true
+RestrictRealtime=yes
+RemoveIPC=yes
+SystemCallArchitectures=native
+
+[Install]
+WantedBy=multi-user.target

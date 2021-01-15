@@ -1,7 +1,16 @@
 /* rbldnsd: main program
  */
 
+#include "config.h"
+
 #define _LARGEFILE64_SOURCE /* to define O_LARGEFILE if supported */
+
+#ifdef USE_SYSTEMD
+#define _GNU_SOURCE /* for unshare(2) */
+#include <sched.h>
+#endif
+
+#include "rbldnsd.h"
 
 #include <sys/types.h>
 #include <unistd.h>
@@ -21,7 +30,6 @@
 #include <sys/time.h>	/* some systems can't include time.h and sys/time.h */
 #include <fcntl.h>
 #include <sys/wait.h>
-#include "rbldnsd.h"
 
 #ifndef NO_SELECT_H
 # include <sys/select.h>
@@ -47,6 +55,12 @@
 #endif
 #ifndef NO_DSO
 # include <dlfcn.h>
+#endif
+
+#ifdef USE_SYSTEMD
+# include <systemd/sd-daemon.h>
+# include <sched.h>
+# include <sys/mount.h>
 #endif
 
 #ifndef NI_MAXHOST
@@ -463,6 +477,38 @@ static int logfacility_lookup(const char *facility, int *logfacility) {
     return 0;
 }
 
+#ifdef USE_SYSTEMD
+static void systemd_initsockets(void) {
+  int fd_num, fd_count;
+  char host[NI_MAXHOST], serv[NI_MAXSERV];
+  struct sockaddr_storage ai;
+  socklen_t addrlen = sizeof(ai);
+
+  fd_count = sd_listen_fds(1);
+  for (fd_num = 0; fd_num < fd_count; fd_num++) {
+    int fd = SD_LISTEN_FDS_START + fd_num;
+
+    if (numsock >= MAXSOCK) {
+      error(0, "too many listening sockets (%d max)", MAXSOCK);
+    }
+
+    if (sd_is_socket(fd, AF_UNSPEC, SOCK_DGRAM, -1) <= 0) {
+      dslog(LOG_WARNING, 0, "systemd listening socket %d is not a datagram socket", fd);
+      close(fd);
+      continue;
+    }
+
+    getsockname(fd, (struct sockaddr *)&ai, &addrlen);
+    getnameinfo((struct sockaddr *)&ai, addrlen,
+                host, sizeof(host), serv, sizeof(serv),
+                NI_NUMERICHOST|NI_NUMERICSERV);
+    dslog(LOG_INFO, 0, "systemd socket listening on %s/%s (fd %d)", host, serv, fd);
+
+    sock[numsock++] = fd;
+  }
+}
+#endif
+
 static void init(int argc, char **argv) {
   int c;
   char *p;
@@ -613,8 +659,13 @@ break;
   }
 #endif
 
-  if (!nba)
+  if (!nba
+#ifdef USE_SYSTEMD
+      && !sd_listen_fds(0)
+#endif
+  ) {
     error(0, "no address to listen on (-b option) specified");
+  }
 
   if ( facility == NULL ) {
     logfacility = LOG_DAEMON;
@@ -626,6 +677,51 @@ break;
   }
 
   tzset();
+
+#ifdef USE_SYSTEMD
+  if (getenv("NOTIFY_SOCKET")) {
+    /* started as a systemd Type=notify service */
+    openlog(progname, LOG_PID|LOG_NDELAY, LOG_DAEMON);
+    logto = LOGTO_SYSLOG;
+
+    /* bind mount the systemd notification socket inside our chroot */
+    if (rootdir) {
+      int fd;
+      char *chroot_socket;
+
+      chroot_socket = emalloc(strlen(rootdir) + strlen("/systemd_notify") + 1);
+      strcpy(chroot_socket, rootdir);
+      strcat(chroot_socket, "/systemd_notify");
+      /* create an empty file to be used as a target for the bind mount */
+      if ((fd = open(chroot_socket, O_WRONLY|O_CREAT|O_TRUNC, 0644)) < 0) {
+        error(0, "creation of %s failed", chroot_socket);
+      }
+      close(fd);
+
+      /* Create a new mount namespace with private propagation to tie the
+       * lifetime of the bind mount to the rbldnsd process.
+       * Thanks to this the daemon does not need to remove the bind mount
+       * before exiting.
+       */
+
+      if (unshare(CLONE_NEWNS) != 0) {
+        error(errno, "unable to unshare(CLONE_NEWNS)");
+      }
+      if (mount(NULL, "/", NULL, MS_PRIVATE|MS_REC, NULL) != 0) {
+         error(errno, "unable to mark the mount namespace MS_PRIVATE)");
+      }
+
+      /* bind mount the notification protocol socket over the empty file */
+      if (mount(getenv("NOTIFY_SOCKET"), chroot_socket, NULL, MS_BIND, NULL) != 0) {
+         error(errno, "unable to bind mount %s", chroot_socket);
+      }
+      free(chroot_socket);
+
+      /* and instruct libsystemd to use the new socket */
+      setenv("NOTIFY_SOCKET", "/systemd_notify", 1);
+    }
+  } else
+#endif
   if (nodaemon)
     logto = LOGTO_STDOUT|LOGTO_STDERR;
   else
@@ -649,6 +745,10 @@ break;
   }
 
   initsockets(bindaddr, nba, family);
+
+#ifdef USE_SYSTEMD
+  systemd_initsockets();
+#endif
 
 #ifndef NO_DSO
   if (ext) {
@@ -982,6 +1082,10 @@ static int do_reload(int do_fork) {
     return 1;	/* nothing to reload */
   }
 
+#ifdef USE_SYSTEMD
+  sd_notify(0, "RELOADING=1\n");
+#endif
+
   if (do_fork) {
     int pfd[2];
     if (flog && !flushlog)
@@ -1124,6 +1228,10 @@ static int do_reload(int do_fork) {
     wait(&s);
   }
 
+#ifdef USE_SYSTEMD
+  sd_notify(0, "READY=1\n");
+#endif
+
   return r;
 }
 
@@ -1136,6 +1244,11 @@ static void do_signalled(void) {
         fflush(flog);
       _exit(0);
     }
+
+#ifdef USE_SYSTEMD
+    sd_notify(0, "STOPPING=1\n");
+#endif
+
     dslog(LOG_INFO, 0, "terminating");
 #ifndef NO_STATS
     if (statsfile)
