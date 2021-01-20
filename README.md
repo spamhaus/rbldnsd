@@ -13,7 +13,7 @@ https://rbldnsd.io/
 The original, unmantained source and debian packages can always be found at
 http://www.corpit.ru/mjt/rbldnsd.html
 
-Copyright (C) 2016-2018 The Spamhaus Project Ltd.
+Copyright (C) 2016-2021 The Spamhaus Project Ltd.
 Copyright (C) 2002 Michael Tokarev
 
 ```
