@@ -611,7 +611,7 @@ void zlog(int level, const struct zone *zone, const char *fmt, ...) {
   dslog(level, 0, "zone %.70s: %s", name, buf);
 }
 
-#ifdef QNAMEMIN
+#ifdef MANAGE_ENT
 
 #define oct(q,o)					\
     switch(*q) {					\

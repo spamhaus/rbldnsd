@@ -12,7 +12,7 @@ else
   exit 1
 fi
 
-options="ipv6 stats master_dump zlib dso asserts qnmin"
+options="ipv6 stats master_dump zlib dso asserts ent"
 
 for opt in $options; do
   eval enable_$opt=
@@ -25,7 +25,7 @@ fi
 enable() {
   opt=`echo "$1" | sed 's/^--[^-]*-//'`
   case "$opt" in
-    ipv6|stats|master_dump|zlib|dso|asserts|qnmin) ;;
+    ipv6|stats|master_dump|zlib|dso|asserts|ent) ;;
     master-dump) opt=master_dump ;;
     *) echo "configure: unrecognized option \`$1'" >&2; exit 1;;
   esac
@@ -53,7 +53,7 @@ Optional features (all enabled by default if system supports a feature):
   zlib - zlib support
   dso - dynamic extensions (using shared objects) -- disabled by default
   asserts - enable/disable debugging assertions -- disabled by default
-  qnmin - enable/disable qname minimization support -- disabled by default
+  ent - enable/disable management of ENTs (Empty Non-Terminals) -- disabled by default
 EOF
       exit 0
       ;;
@@ -344,8 +344,8 @@ fi
 if [ y != "$enable_asserts" ]; then
   echo "#define NDEBUG		1	/* option disabled */" >>confdef.h
 fi
-if [ y = "$enable_qnmin" ]; then
-  echo "#define QNAMEMIN 1	/* option enabled */" >>confdef.h
+if [ y = "$enable_ent" ]; then
+  echo "#define MANAGE_ENT 1	/* option enabled */" >>confdef.h
 fi
 
 ac_output Makefile

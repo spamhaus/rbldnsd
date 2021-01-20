@@ -123,7 +123,7 @@ enum ds_qresult_e {
     NSQUERY_NXDOMAIN	= (1u<<0),
     NSQUERY_FOUND	= (1u<<1),
     NSQUERY_ADDPEER	= (1u<<2),
-    NSQUERY_QNMINIMIZE	= (1u<<3),
+    NSQUERY_ENT		= (1u<<3), // ENT Empty non terminal. See https://github.com/spamhaus/rbldnsd/issues/17
     /* special cases for ACLs */
     NSQUERY_IGNORE	= 0x010000u,
     NSQUERY_REFUSE	= 0x020000u,
@@ -222,8 +222,8 @@ struct dataset {	/* ds */
   unsigned ds_nsttl;			/* TTL for NS records */
   unsigned ds_ttl;			/* default ttl for a dataset */
   char *ds_subst[11];			/* substitution variables */
-#ifdef QNAMEMIN
-  int ds_qnmin;				/* qname minimization flag*/
+#ifdef MANAGE_ENT
+  int ds_manage_ent;			/* Should we manage Empty Non-Terminals according to RFC? */
 #endif
 #define SUBST_BASE_TEMPLATE	10
   struct mempool *ds_mp;		/* memory pool for data */

@@ -246,9 +246,9 @@ ds_generic_query(const struct dataset *ds, const struct dnsqinfo *qi,
   }
 
   if (qi->qi_dnlab < dsd->minlab) {
-#ifdef QNAMEMIN
-    if ( ds->ds_qnmin != 0 ) {
-      return NSQUERY_QNMINIMIZE;
+#ifdef MANAGE_ENT
+    if ( ds->ds_manage_ent != 0 ) {
+      return NSQUERY_ENT;
     }
 #endif
     return NSQUERY_NXDOMAIN;
@@ -258,9 +258,9 @@ ds_generic_query(const struct dataset *ds, const struct dnsqinfo *qi,
   t = ds_generic_find(e, dsd->n, qi->qi_dn, qi->qi_dnlen0);
 
   if (!t) {
-#ifdef QNAMEMIN
-    if ( ds->ds_qnmin != 0 ) {
-      return NSQUERY_QNMINIMIZE;
+#ifdef MANAGE_ENT
+    if ( ds->ds_manage_ent != 0 ) {
+      return NSQUERY_ENT;
     }
 #endif
     return NSQUERY_NXDOMAIN;

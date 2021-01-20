@@ -117,10 +117,10 @@ ds_ip4tset_query(const struct dataset *ds, const struct dnsqinfo *qi,
   const char *ipsubst;
 
   if (!qi->qi_ip4valid) {
-#ifdef QNAMEMIN
+#ifdef MANAGE_ENT
     if (dn_matches_partial_ipv4(qi)) {
-      if ( ds->ds_qnmin != 0 ) {
-        return NSQUERY_QNMINIMIZE;
+      if ( ds->ds_manage_ent != 0 ) {
+        return NSQUERY_ENT;
       }
     }
 #endif

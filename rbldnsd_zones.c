@@ -309,8 +309,8 @@ static int ds_special(struct dataset *ds, char *line, struct dsctx *dsc) {
     return 1;
   }
 
-#ifdef QNAMEMIN
-  if ((w = firstword_lc(line, "qnmin"))) {
+  if ((w = firstword_lc(line, "ent"))) {
+#ifdef MANAGE_ENT
     struct dataset *dsu = NULL;
 
     if ( dsc->dsc_subset != NULL ) {
@@ -321,7 +321,7 @@ static int ds_special(struct dataset *ds, char *line, struct dsctx *dsc) {
     }
 
     char *end;
-    char *label = line + strlen("qnmin") + 1;
+    char *label = line + strlen("ent") + 1;
 
     /* Remove spaces at the beginning  */
     while ( ISSPACE(*label) ) {
@@ -338,14 +338,16 @@ static int ds_special(struct dataset *ds, char *line, struct dsctx *dsc) {
     }
 
     if (!strncasecmp(label, "true", sizeof("true"))) {
-      dsu->ds_qnmin = 1;
+      dsu->ds_manage_ent = 1;
     } else {
-      dsu->ds_qnmin = 0;
+      dsu->ds_manage_ent = 0;
     }
-    //printf("Setting to %d '%s' %s\n", dsu->ds_qnmin, label, w);
+    //printf("Setting to %d '%s' %s\n", dsu->ds_manage_ent, label, w);
+#else
+      dswarn(dsc, "The \"ENT\" special entry is only enabled when the Empty Non-Terminal option management is compiled in. See '--enable-ent'. Ignoring.");
+#endif
     return 1;
   }
-#endif
 
   return 0;
 }

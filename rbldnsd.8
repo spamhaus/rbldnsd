@@ -429,13 +429,13 @@ This constraint is active for a dataset it is specified in, and can
 be owerwritten (by subsequent $MAXRANGE statement) by a smaller value,
 but can not be increased.
 
-.IP "\fB$QNMIN\fR \fI[true|false]\fR"
-Specifies if \fBQNAME Minimization\fR should be enabled or not for this
-specific dataset. Values should be "true" or "false"(default).
+.IP "\fB$ENT\fR \fI[true|false]\fR"
+Specifies if \fBEmpty Non Terminal\fR management should be enabled or not
+for this specific dataset. Values should be "true" or "false"(default).
 See also \fB\-t\fR option.
-.fi
+
 This special entry is valid only when \fBrbldnsd\fR
-has been compiled with the `--enable-qnmin` option.
+has been compiled with the `--enable-ent` option. See the notes for more info.
 
 .IP "\fB$\fIn\fR \fItext\fR"
 (\fIn\fR is a single digit).
@@ -878,20 +878,6 @@ ACL dataset, it will use client IP address to substitute for a
 single $ character, instead of the IP address or domain name
 found in the original query.
 
-.SH QNAME MINIMIZATION
-
-.B Rbldnsd
-tries to support RFC 7816 (DNS Query Name Minimisation to Improve Privacy). The
-support is not 100% complete because it would require extensive changes to
-each dataset type, thus causing excessive regressions.
-.fi
-This feature is enabled when \fBrbldnsd\fR is compiled with the
-\fB--enable-qnmin\fR option.
-
-To preserve backward compatibility, qname minimization is not enabled by
-default. Enabling it is done on a per dataset basis and it requires
-the \fB$QNMIN\fR special entry to be set to true.
-
 .SH SIGNALS
 
 .B Rbldnsd
@@ -923,6 +909,46 @@ period.
 
 .PP
 Some unsorted usage notes follows.
+
+.SS Correct handling of ENTs (empty non-terminal answers)
+Starting from version 1.0, \fBrbldnsd\fR tries to be more compatible with RFC 7816
+(DNS Query Name Minimisation to Improve Privacy). This feature is enabled
+when \fBrbldnsd\fR is compiled with the \fB--enable-ent\fR option.
+
+Supporting ENTs by the book is currently not possible as some
+datasets would require a full rewrite and it would probably cause some
+regressions or changes in the rbldnsd behaviour that needs to be avoided.
+
+In order to preserve backward compatibility and be consistent with the
+"traditional" \fBrbldnsd\fR behaviour, ENTs is not enabled by default.
+The ENTs behaviour must be turned on for each dataset and it requires
+the \fB$ENT\fR special entry to be set to true.
+
+Regarding the datasets behaviour, enabling this feature will trigger a
+NOERROR/NODATA response for each query that was previously triggering an
+NXDOMAIN:
+.IP "For the \fBdnset\fR dataset:" 8
+Each query for a non existent entry will return NOERROR/NODATA
+.IP "For each ip-based datasets (all of them):" 8
+Each query for a partial ip address (3.2.1.bl.example.com) will return
+NOERROR/NODATA. A "partial" ip address is an ip address with not enough labels.
+.PP
+ELT support in rbldnsd does not cause any meaningful performance penalty.
+
+Particular care should be taken into account when enabling this feature because
+it may have some drawbacks.
+
+First, when querying rbldnsd without going through a resolver, a query for a
+non-listed domain will return NOERROR/NODATA instead of NXDOMAIN. This change
+will likely require some modifications on the code performing the query.
+
+Second, there are so many DNS resolvers and all of them have different
+implementations of RFC7816: in these early stages something may break and go
+unnoticed.
+
+Third, for ipv6 addresses lookups, some resolver implementation may perform up
+to 31 queries before querying the correct record. This would generate high
+spikes in rbldnsd usages and dns traffic.
 
 .SS "Generating and transferring data files"
 .PP
