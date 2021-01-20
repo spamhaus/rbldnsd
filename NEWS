@@ -1,10 +1,16 @@
 This file describes user-visible changes in rbldnsd.
 Newer news is at the top.
 
-0.999 (Still not official, to be released)
+1.0pre (Still not official, to be released)
+ - Empty Non Terminals patch. This is a compile-time option and
+   is meant to address some incompatibilities with RFC 7816.
+   Adding the "$ENT" special entity to all the datasets.
  - Support for systemd added (thanks to Marco d'Itri). Please
    use --enable-systemd when configuring and make sure that you have
    pkg-config installed.
+ - Test suite migrated over to python-3. Thanks to
+   Michael Orlitzky for the contributions.
+ - Fix a longstanding bug in the base-template replacement
  - Removal of deprecated features (aka: NS record compatibility mode)
  - Adding -F flag, used to identify the log facility of the daemon.
  - fix tests for systems without ipv6 support, or when ipv6 is
