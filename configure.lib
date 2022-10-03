@@ -178,7 +178,7 @@ EOF
   if ac_yesno "whether the C compiler ($ccld)
            can produce executables" \
      ac_compile_run <<EOF
-int main() { return 0; }
+int main(int argc, char **argv) { return 0; }
 EOF
   then :
   else
