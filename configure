@@ -89,7 +89,7 @@ else
   if ac_yesno "sizes of standard integer types" \
      ac_compile_run <<EOF
 #include <stdio.h>
-int main() {
+int main(int argc, char **argv) {
   printf("#define SIZEOF_SHORT %d\n", sizeof(short));
   printf("#define SIZEOF_INT %d\n", sizeof(int));
   printf("#define SIZEOF_LONG %d\n", sizeof(long));
@@ -104,7 +104,7 @@ EOF
   if ac_yesno "for long long" \
      ac_compile_run <<EOF
 #include <stdio.h>
-int main() {
+int main(int argc, char **argv) {
   long long x;
   printf("#define SIZEOF_LONG_LONG %d\n", sizeof(long long));
   return 0;
@@ -119,7 +119,7 @@ fi
 
 if ac_compile_run_v "whether C compiler defines __SIZEOF_POINTER__" <<EOF
 #include <stdio.h>
-int main() {
+int main(int argc, char **argv) {
 #ifdef __SIZEOF_POINTER__
   return 0;
 #else
@@ -135,7 +135,7 @@ fi
 
 if ac_verbose "byte order" "big-endian" "little-endian" \
    ac_compile_run <<EOF
-int main() {
+int main(int argc, char **argv) {
   long one = 1;
   if (*(char *)&one)
     return 1; /* little-endian */
@@ -150,7 +150,7 @@ has_inline=
 for c in inline __inline; do
   if ac_compile_v "for $c" <<EOF
 static $c int foo() { return 0; }
-int main() { return foo(); }
+int main(int argc, char **argv) { return foo(); }
 EOF
   then
     has_inline=$c
@@ -172,7 +172,7 @@ else
 fi
 
 if ac_library_find_v 'connect()' "" "-lsocket -lnsl" <<EOF
-int main() { gethostbyname(); connect(); return 0; }
+int main(int argc, char **argv) { gethostbyname(); connect(); return 0; }
 EOF
 then :
 else
@@ -188,7 +188,7 @@ if ac_link_v "for IPv6" <<EOF
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <netdb.h>
-int main() {
+int main(int argc, char **argv) {
   char h[200];
   char s[200];
   struct sockaddr_in6 sa;
@@ -210,7 +210,7 @@ if ac_link_v "for mallinfo()" <<EOF
 #include <sys/types.h>
 #include <stdlib.h>
 #include <malloc.h>
-int main() {
+int main(int argc, char **argv) {
   struct mallinfo mi = mallinfo();
   return 0;
 }
@@ -223,7 +223,7 @@ fi
 if ac_link_v "for poll()" <<EOF
 #include <sys/types.h>
 #include <sys/poll.h>
-int main() {
+int main(int argc, char **argv) {
   struct pollfd pfd[2];
   return poll(pfd, 2, 10);
 }
@@ -250,7 +250,7 @@ int test(char *fmt, ...) {
   vsnprintf(buf, sizeof(buf), fmt, ap);
   return 0;
 }
-int main() {
+int main(int argc, char **argv) {
   test("test%d", 40);
   return 0;
 }
@@ -264,7 +264,7 @@ if ac_link_v "for writev()/readv()" <<EOF
 #include <sys/types.h>
 #include <unistd.h>
 #include <sys/uio.h>
-int main() {
+int main(int argc, char **argv) {
   struct iovec iov;
   return writev(1, &iov, 1) && readv(1, &iov, 1);
 }
@@ -277,7 +277,7 @@ fi
 if ac_link_v "for setitimer()" <<EOF
 #include <sys/types.h>
 #include <sys/time.h>
-int main() {
+int main(int argc, char **argv) {
   struct itimerval itv;
   itv.it_interval.tv_sec  = itv.it_value.tv_sec  = 10;
   itv.it_interval.tv_usec = itv.it_value.tv_usec = 20;
@@ -295,7 +295,7 @@ elif ac_link_v "for zlib support" -lz <<EOF
 #include <sys/types.h>
 #include <stdio.h>
 #include <zlib.h>
-int main() {
+int main(int argc, char **argv) {
   z_stream z;
   int r;
   r = inflateInit2(&z, 0);
@@ -318,7 +318,7 @@ elif [ n = "$enable_dso" ]; then
   echo "#define NO_DSO		1	/* option disabled */" >>confdef.h
 elif ac_link_v "for dlopen() in -dl with -rdynamic" -ldl -rdynamic <<EOF
 #include <dlfcn.h>
-int main() {
+int main(int argc, char **argv) {
   void *handle, *func;
   handle = dlopen("testfile", RTLD_NOW);
   func = dlsym(handle, "function");
