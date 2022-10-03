@@ -149,7 +149,7 @@ fi
 has_inline=
 for c in inline __inline; do
   if ac_compile_v "for $c" <<EOF
-static $c int foo() { return 0; }
+static $c int foo(void) { return 0; }
 int main(int argc, char **argv) { return foo(); }
 EOF
   then
@@ -164,7 +164,7 @@ fi
 if ac_compile_v "for socklen_t" <<EOF
 #include <sys/types.h>
 #include <sys/socket.h>
-int foo() { socklen_t len; len = 0; return len; }
+int foo(void) { socklen_t len; len = 0; return len; }
 EOF
 then :
 else
