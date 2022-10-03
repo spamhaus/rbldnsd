@@ -50,10 +50,10 @@ char *parse_time(char *s, unsigned *tp) {
     case 'w': case 'W': m *= 7;		/* week */
     case 'd': case 'D': m *= 24;	/* day */
     case 'h': case 'H': m *= 60;	/* hours */
-    case 'm': case 'M': m *= 60;	/* minues */
+    case 'm': case 'M': m *= 60;	/* minutes */
       if (0xffffffffu / m < *tp) return NULL;
       *tp *= m;
-    case 's': case 'S':			/* secounds */
+    case 's': case 'S':			/* seconds */
       ++s;
       break;
   }
