@@ -172,7 +172,13 @@ else
 fi
 
 if ac_library_find_v 'connect()' "" "-lsocket -lnsl" <<EOF
-int main(int argc, char **argv) { gethostbyname(); connect(); return 0; }
+#include <netdb.h>
+#include <sys/socket.h>
+int main(int argc, char **argv) {
+  gethostbyname("");
+  connect(0, (const struct sockaddr *)0, (socklen_t)0);
+  return 0;
+}
 EOF
 then :
 else
