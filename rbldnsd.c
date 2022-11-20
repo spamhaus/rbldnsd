@@ -35,7 +35,7 @@
 # include <sys/select.h>
 #endif
 #ifndef NO_POLL
-# include <sys/poll.h>
+# include <poll.h>
 #endif
 #ifndef NO_MEMINFO
 # include <malloc.h>
