@@ -206,12 +206,12 @@ else
 fi
 fi # enable_ipv6?
 
-if ac_link_v "for mallinfo()" <<EOF
+if ac_link_v "for mallinfo2()" <<EOF
 #include <sys/types.h>
 #include <stdlib.h>
 #include <malloc.h>
 int main() {
-  struct mallinfo mi = mallinfo();
+  struct mallinfo2 mi = mallinfo2();
   return 0;
 }
 EOF
