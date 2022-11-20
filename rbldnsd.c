@@ -1187,10 +1187,10 @@ static int do_reload(int do_fork) {
 #endif /* NO_TIMES */
 #ifndef NO_MEMINFO
   {
-    struct mallinfo mi = mallinfo();
+    struct mallinfo2 mi = mallinfo2();
 # define kb(x) ((mi.x + 512)>>10)
     ip += ssprintf(ibuf + ip, sizeof(ibuf) - ip,
-          ", mem arena=%d free=%d mmap=%d Kb",
+          ", mem arena=%zd free=%zd mmap=%zd Kb",
           kb(arena), kb(fordblks), kb(hblkhd));
 # undef kb
   }
