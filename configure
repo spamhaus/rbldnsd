@@ -222,7 +222,7 @@ fi
 
 if ac_link_v "for poll()" <<EOF
 #include <sys/types.h>
-#include <sys/poll.h>
+#include <poll.h>
 int main() {
   struct pollfd pfd[2];
   return poll(pfd, 2, 10);
